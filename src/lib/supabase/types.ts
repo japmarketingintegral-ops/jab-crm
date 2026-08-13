@@ -8,7 +8,7 @@
 export type UserRole = 'super_admin' | 'client_admin' | 'salesperson' | 'jab_staff';
 export type LeadPlatform = 'meta' | 'google';
 export type LeadStatus = 'nuevo' | 'contactado' | 'calificado' | 'ganado' | 'perdido';
-export type LeadActivityType = 'nota' | 'cambio_estado' | 'reasignacion' | 'seguimiento';
+export type LeadActivityType = 'nota' | 'cambio_estado' | 'reasignacion' | 'seguimiento' | 'mensaje';
 export type SocialPlatform = 'instagram' | 'facebook' | 'tiktok' | 'otra';
 export type PedidoEstado = 'pedido' | 'en_proceso' | 'revision' | 'aprobado';
 export type PedidoCategoria = 'redes' | 'contenido' | 'comunicado' | 'video' | 'pauta' | 'otro';

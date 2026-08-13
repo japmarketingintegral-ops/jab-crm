@@ -31,6 +31,7 @@ export type FichaLead = {
     id: string;
     tipo: string;
     contenido: string | null;
+    autorId: string | null;
     autorNombre: string | null;
     creadoEn: string;
   }[];
@@ -57,9 +58,9 @@ export async function obtenerFicha(
 
   const { data: actividades } = await supabase
     .from('lead_activities')
-    .select('id, tipo, contenido, created_at, profiles(full_name)')
+    .select('id, tipo, contenido, created_at, autor_id, profiles(full_name)')
     .eq('lead_id', leadId)
-    .order('created_at', { ascending: false });
+    .order('created_at', { ascending: true });
 
   const equipo: MiembroEquipo[] = [];
   if (perfil.role === 'client_admin' || perfil.role === 'super_admin') {
@@ -92,6 +93,7 @@ export async function obtenerFicha(
         id: a.id,
         tipo: a.tipo,
         contenido: a.contenido,
+        autorId: a.autor_id,
         autorNombre: a.profiles?.full_name ?? null,
         creadoEn: a.created_at,
       })),
@@ -215,6 +217,25 @@ export async function agregarNota(leadId: string, texto: string) {
     contenido: texto.trim(),
   });
   if (error) return { error: 'No se pudo guardar la nota.' };
+  return { ok: true };
+}
+
+/** Responder en el chat del lead. Queda como actividad tipo "mensaje" con
+ * autor_id seteado (saliente) — a diferencia de los mensajes entrantes del
+ * contacto, que no tienen autor_id porque no vienen de nadie del equipo. */
+export async function enviarMensaje(leadId: string, texto: string) {
+  const perfil = await requerirPerfil();
+  if (!texto.trim()) return { error: 'El mensaje no puede estar vacío.' };
+
+  const supabase = await createClient();
+  const { error } = await supabase.from('lead_activities').insert({
+    lead_id: leadId,
+    tenant_id: (await tenantDelLead(supabase, leadId))!,
+    autor_id: perfil.id,
+    tipo: 'mensaje',
+    contenido: texto.trim(),
+  });
+  if (error) return { error: 'No se pudo enviar el mensaje.' };
   return { ok: true };
 }
 

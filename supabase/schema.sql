@@ -207,9 +207,10 @@ create policy "leads_insert_super_admin_only" on public.leads for insert
 -- Recordatorio de seguimiento (ficha del lead).
 alter table public.leads add column if not exists next_followup_at timestamptz;
 
--- Historial de la ficha: notas, cambios de estado, reasignaciones. Es
--- append-only (nadie edita ni borra una entrada ya escrita) — así el
--- timeline es un registro confiable de qué pasó y cuándo.
+-- Historial de la ficha: notas, cambios de estado, reasignaciones, y
+-- (agregado después, ver el bloque de mensajes al final del archivo)
+-- mensajes de chat. Es append-only (nadie edita ni borra una entrada ya
+-- escrita) — así el timeline es un registro confiable de qué pasó y cuándo.
 create type public.lead_activity_type as enum ('nota', 'cambio_estado', 'reasignacion', 'seguimiento');
 
 create table public.lead_activities (

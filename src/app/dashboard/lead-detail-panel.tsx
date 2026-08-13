@@ -10,11 +10,12 @@ import {
   programarSeguimiento,
   agregarEtiqueta,
   quitarEtiqueta,
+  enviarMensaje,
   type FichaLead,
   type MiembroEquipo,
 } from './lead-actions';
 import type { LeadStatus } from '@/lib/supabase/types';
-import { ETIQUETAS_DISPONIBLES } from '@/lib/format';
+import { ETIQUETAS_DISPONIBLES, iniciales } from '@/lib/format';
 
 const ESTADOS: { valor: LeadStatus; etiqueta: string }[] = [
   { valor: 'nuevo', etiqueta: 'Nuevo' },
@@ -49,6 +50,8 @@ export function LeadDetailPanel({ leadId, onClose }: { leadId: string; onClose: 
   const [pending, startTransition] = useTransition();
   const [pidiendoValor, setPidiendoValor] = useState(false);
   const [valorInput, setValorInput] = useState('');
+  const [vista, setVista] = useState<'ficha' | 'chat'>('ficha');
+  const [mensaje, setMensaje] = useState('');
 
   async function recargar() {
     const res = await obtenerFicha(leadId);
@@ -124,6 +127,90 @@ export function LeadDetailPanel({ leadId, onClose }: { leadId: string; onClose: 
               {ficha.email && <p className="text-sm text-jab-muted">{ficha.email}</p>}
             </div>
 
+            <div className="flex gap-1.5">
+              {(
+                [
+                  { valor: 'ficha', etiqueta: 'Ficha' },
+                  { valor: 'chat', etiqueta: 'Chat' },
+                ] as const
+              ).map((v) => (
+                <button
+                  key={v.valor}
+                  onClick={() => setVista(v.valor)}
+                  className={`rounded-full px-3 py-1.5 text-xs font-medium ${
+                    vista === v.valor
+                      ? 'bg-jab-accent text-jab-bg-deep'
+                      : 'bg-jab-panel-2 text-jab-muted hover:text-jab-text'
+                  }`}
+                >
+                  {v.etiqueta}
+                </button>
+              ))}
+            </div>
+
+            {vista === 'chat' ? (
+              <div className="flex flex-col" style={{ height: 'calc(100vh - 260px)' }}>
+                <div className="flex-1 overflow-y-auto space-y-2 pr-1">
+                  {ficha.actividades.filter((a) => a.tipo === 'mensaje').length === 0 ? (
+                    <p className="text-sm text-jab-muted">Todavía no hay mensajes con este contacto.</p>
+                  ) : (
+                    ficha.actividades
+                      .filter((a) => a.tipo === 'mensaje')
+                      .map((m) => {
+                        const saliente = m.autorId !== null;
+                        return (
+                          <div
+                            key={m.id}
+                            className={`flex ${saliente ? 'justify-end' : 'justify-start'}`}
+                          >
+                            <div
+                              className={`max-w-[80%] rounded-2xl px-3 py-2 ${
+                                saliente
+                                  ? 'bg-jab-accent text-jab-bg-deep rounded-br-sm'
+                                  : 'bg-jab-panel-2 rounded-bl-sm'
+                              }`}
+                            >
+                              <p className="text-sm whitespace-pre-wrap">{m.contenido}</p>
+                              <p
+                                className={`text-[10px] mt-1 ${saliente ? 'text-jab-bg-deep/70' : 'text-jab-muted'}`}
+                              >
+                                {saliente ? (m.autorNombre ?? 'Nosotros') : ficha.nombre ?? 'Contacto'} ·{' '}
+                                {fechaCorta(m.creadoEn)}
+                              </p>
+                            </div>
+                          </div>
+                        );
+                      })
+                  )}
+                </div>
+                <div className="flex items-end gap-2 pt-3 border-t border-jab-border mt-2">
+                  <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-jab-accent/20 text-[10px] font-semibold text-jab-accent">
+                    {iniciales(ficha.nombre)}
+                  </span>
+                  <textarea
+                    value={mensaje}
+                    onChange={(e) => setMensaje(e.target.value)}
+                    rows={1}
+                    placeholder="Escribir un mensaje..."
+                    className="flex-1 rounded-lg bg-jab-panel-2 border border-jab-border px-3 py-2 text-sm outline-none placeholder:text-jab-muted focus:border-jab-accent resize-none"
+                  />
+                  <button
+                    disabled={pending || !mensaje.trim()}
+                    onClick={() =>
+                      conRecarga(async () => {
+                        const res = await enviarMensaje(leadId, mensaje);
+                        if (!res.error) setMensaje('');
+                        return res;
+                      })
+                    }
+                    className="shrink-0 rounded-full bg-jab-lime text-jab-lime-ink px-4 py-2 text-xs font-bold uppercase tracking-wide disabled:opacity-50"
+                  >
+                    Enviar
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <>
             <div>
               <p className="text-[11px] font-semibold tracking-widest text-jab-muted uppercase mb-1">
                 Origen
@@ -298,31 +385,37 @@ export function LeadDetailPanel({ leadId, onClose }: { leadId: string; onClose: 
               </button>
             </div>
 
-            {errorCarga && <p className="text-sm text-jab-red">{errorCarga}</p>}
-
             <div>
               <p className="text-[11px] font-semibold tracking-widest text-jab-muted uppercase mb-2">
                 Timeline
               </p>
-              {ficha.actividades.length === 0 ? (
+              {ficha.actividades.filter((a) => a.tipo !== 'mensaje').length === 0 ? (
                 <p className="text-sm text-jab-muted">Todavía no hay actividad registrada.</p>
               ) : (
                 <ul className="space-y-3">
-                  {ficha.actividades.map((a) => (
-                    <li key={a.id} className="border-l-2 border-jab-border pl-3">
-                      <p className="text-xs text-jab-muted">
-                        <span className="font-semibold text-jab-text">
-                          {ACTIVIDAD_LABEL[a.tipo] ?? a.tipo}
-                        </span>{' '}
-                        · {fechaCorta(a.creadoEn)}
-                        {a.autorNombre ? ` · ${a.autorNombre}` : ''}
-                      </p>
-                      {a.contenido && <p className="text-sm mt-0.5">{a.contenido}</p>}
-                    </li>
-                  ))}
+                  {ficha.actividades
+                    .filter((a) => a.tipo !== 'mensaje')
+                    .slice()
+                    .reverse()
+                    .map((a) => (
+                      <li key={a.id} className="border-l-2 border-jab-border pl-3">
+                        <p className="text-xs text-jab-muted">
+                          <span className="font-semibold text-jab-text">
+                            {ACTIVIDAD_LABEL[a.tipo] ?? a.tipo}
+                          </span>{' '}
+                          · {fechaCorta(a.creadoEn)}
+                          {a.autorNombre ? ` · ${a.autorNombre}` : ''}
+                        </p>
+                        {a.contenido && <p className="text-sm mt-0.5">{a.contenido}</p>}
+                      </li>
+                    ))}
                 </ul>
               )}
             </div>
+              </>
+            )}
+
+            {errorCarga && <p className="text-sm text-jab-red">{errorCarga}</p>}
           </div>
         )}
       </aside>
