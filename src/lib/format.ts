@@ -54,6 +54,13 @@ export function fechaCortaSinHora(fechaSolo: string): string {
   return new Date(`${fechaSolo}T00:00:00`).toLocaleDateString('es-AR');
 }
 
+const EXTENSIONES_IMAGEN = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.svg', '.avif'];
+
+export function esImagen(nombreArchivo: string): boolean {
+  const lower = nombreArchivo.toLowerCase();
+  return EXTENSIONES_IMAGEN.some((ext) => lower.endsWith(ext));
+}
+
 export function iniciales(nombre: string | null | undefined): string {
   if (!nombre) return '—';
   const partes = nombre.trim().split(/\s+/);

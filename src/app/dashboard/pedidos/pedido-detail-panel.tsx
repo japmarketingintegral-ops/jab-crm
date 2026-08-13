@@ -8,7 +8,10 @@ import {
   agregarArchivos,
   obtenerUrlArchivo,
   cambiarEstadoPedido,
+  asignarPedido,
+  programarFechaPedido,
   type DetallePedido,
+  type MiembroEquipo,
 } from './actions';
 import type { PedidoEstado, PedidoCategoria } from '@/lib/supabase/types';
 
@@ -46,9 +49,18 @@ function fechaCorta(iso: string) {
   });
 }
 
-export function PedidoDetailPanel({ pedidoId, onClose }: { pedidoId: string; onClose: () => void }) {
+export function PedidoDetailPanel({
+  pedidoId,
+  esEquipoJab = false,
+  onClose,
+}: {
+  pedidoId: string;
+  esEquipoJab?: boolean;
+  onClose: () => void;
+}) {
   const router = useRouter();
   const [detalle, setDetalle] = useState<DetallePedido | null>(null);
+  const [equipo, setEquipo] = useState<MiembroEquipo[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [comentario, setComentario] = useState('');
   const [pending, startTransition] = useTransition();
@@ -60,7 +72,8 @@ export function PedidoDetailPanel({ pedidoId, onClose }: { pedidoId: string; onC
       setError(res.error);
       return;
     }
-    setDetalle(res);
+    setDetalle(res.ficha);
+    setEquipo(res.equipo);
     setError(null);
   }
 
@@ -151,6 +164,40 @@ export function PedidoDetailPanel({ pedidoId, onClose }: { pedidoId: string; onC
                   </button>
                 ))}
               </div>
+            </div>
+
+            {esEquipoJab && equipo.length > 0 && (
+              <div>
+                <p className="text-[11px] font-semibold tracking-widest text-jab-muted uppercase mb-2">
+                  Asignado a
+                </p>
+                <select
+                  disabled={pending}
+                  value={detalle.asignadoA ?? ''}
+                  onChange={(e) => conRecarga(() => asignarPedido(pedidoId, e.target.value || null))}
+                  className="w-full rounded-lg bg-jab-panel-2 border border-jab-border px-3 py-2 text-sm outline-none focus:border-jab-accent"
+                >
+                  <option value="">Sin asignar</option>
+                  {equipo.map((m) => (
+                    <option key={m.id} value={m.id}>
+                      {m.nombre}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            <div>
+              <p className="text-[11px] font-semibold tracking-widest text-jab-muted uppercase mb-2">
+                Fecha programada
+              </p>
+              <input
+                type="date"
+                disabled={pending}
+                defaultValue={detalle.fechaProgramada ?? ''}
+                onChange={(e) => conRecarga(() => programarFechaPedido(pedidoId, e.target.value || null))}
+                className="w-full rounded-lg bg-jab-panel-2 border border-jab-border px-3 py-2 text-sm outline-none focus:border-jab-accent"
+              />
             </div>
 
             <div>

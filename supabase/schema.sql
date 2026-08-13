@@ -6,7 +6,14 @@
 -- consulta a la base rechaza filas de otro tenant.
 --
 -- Roles:
---   super_admin    -> JAB. Ve todo, da de alta tenants nuevos.
+--   super_admin    -> JAB (la cuenta dueña). Ve todo, da de alta tenants
+--                     nuevos y gestiona quién del equipo de JAB accede a
+--                     qué cliente.
+--   jab_staff      -> Alguien del equipo de JAB (diseñador, CM, editor...).
+--                     No ve nada hasta que super_admin le da acceso a un
+--                     cliente puntual (tabla staff_acceso_clientes) — y aun
+--                     con acceso, el CRM de leads queda afuera salvo que
+--                     ese acceso tenga puede_ver_crm = true.
 --   client_admin   -> Dueño/responsable del lado del cliente de JAB. Ve
 --                     todos los leads de su empresa y reparte entre su equipo.
 --   salesperson    -> Vendedor de un cliente de JAB. Ve solo los leads que
@@ -404,3 +411,350 @@ create policy "pedido_comentarios_insert" on public.pedido_comentarios for inser
 insert into storage.buckets (id, name, public)
 values ('pedidos-adjuntos', 'pedidos-adjuntos', false)
 on conflict (id) do nothing;
+
+-- Responsable del pedido (solo lo asigna un admin) y fecha programada —
+-- para las piezas de contenido que tienen una fecha de publicación
+-- prevista, se usa para la vista de Calendario.
+alter table public.pedidos add column if not exists asignado_a uuid references public.profiles (id) on delete set null;
+alter table public.pedidos add column if not exists fecha_programada date;
+
+create index if not exists pedidos_fecha_programada_idx on public.pedidos (fecha_programada);
+
+-- Materiales: assets fijos del cliente (logos, guías de marca) — a
+-- diferencia de un pedido, no tienen estado ni flujo de aprobación, es
+-- simplemente una carpeta de referencia siempre disponible.
+create table if not exists public.materiales (
+  id uuid primary key default gen_random_uuid(),
+  tenant_id uuid not null references public.tenants (id) on delete cascade,
+  nombre_archivo text not null,
+  ruta_storage text not null,
+  subido_por uuid references public.profiles (id) on delete set null,
+  created_at timestamptz not null default now()
+);
+
+create index if not exists materiales_tenant_id_idx on public.materiales (tenant_id);
+
+alter table public.materiales enable row level security;
+
+drop policy if exists "materiales_select" on public.materiales;
+create policy "materiales_select" on public.materiales for select
+  using (public.is_super_admin() or tenant_id = public.current_tenant_id());
+
+drop policy if exists "materiales_write" on public.materiales;
+create policy "materiales_write" on public.materiales for all
+  using (
+    public.is_super_admin()
+    or (public.current_role() = 'client_admin' and tenant_id = public.current_tenant_id())
+  )
+  with check (
+    public.is_super_admin()
+    or (public.current_role() = 'client_admin' and tenant_id = public.current_tenant_id())
+  );
+
+insert into storage.buckets (id, name, public)
+values ('materiales', 'materiales', false)
+on conflict (id) do nothing;
+
+-- ============================================================
+-- Equipo de JAB (jab_staff) + Tablero interno
+--
+-- Hasta acá, JAB era una sola cuenta (super_admin) que "entraba como"
+-- cualquier cliente. Esto suma gente real del equipo (diseñadores, CMs,
+-- editores) que necesitan trabajar clientes puntuales sin ser super_admin:
+-- cada persona ve solo los clientes que se le asignaron, y el CRM de leads
+-- queda afuera salvo que se le dé ese permiso en particular.
+--
+-- OJO: "alter type ... add value" no puede usarse en la misma transacción
+-- en la que se referencia el valor nuevo — por eso esta sección se corre en
+-- dos pasos (ver supabase/migraciones/README o el mensaje del commit).
+-- ============================================================
+
+-- Paso 1 (correr solo, confirmar, y recién ahí seguir con el resto):
+-- alter type public.user_role add value if not exists 'jab_staff';
+
+alter table public.profiles drop constraint if exists tenant_required_unless_super_admin;
+alter table public.profiles add constraint tenant_required_unless_super_admin
+  check (role in ('super_admin', 'jab_staff') or tenant_id is not null);
+
+-- Qué cliente puede ver/trabajar cada persona del equipo de JAB, y si
+-- además tiene acceso al CRM de leads de ese cliente (son cosas separadas:
+-- un diseñador puede tener Cuentas + Tablero de un cliente sin ver sus
+-- leads).
+create table if not exists public.staff_acceso_clientes (
+  id uuid primary key default gen_random_uuid(),
+  usuario_id uuid not null references public.profiles (id) on delete cascade,
+  tenant_id uuid not null references public.tenants (id) on delete cascade,
+  puede_ver_crm boolean not null default false,
+  otorgado_por uuid references public.profiles (id) on delete set null,
+  created_at timestamptz not null default now(),
+  unique (usuario_id, tenant_id)
+);
+
+create index if not exists staff_acceso_clientes_usuario_idx on public.staff_acceso_clientes (usuario_id);
+create index if not exists staff_acceso_clientes_tenant_idx on public.staff_acceso_clientes (tenant_id);
+
+alter table public.staff_acceso_clientes enable row level security;
+
+drop policy if exists "staff_acceso_select" on public.staff_acceso_clientes;
+create policy "staff_acceso_select" on public.staff_acceso_clientes for select
+  using (public.is_super_admin() or usuario_id = auth.uid());
+
+drop policy if exists "staff_acceso_write" on public.staff_acceso_clientes;
+create policy "staff_acceso_write" on public.staff_acceso_clientes for all
+  using (public.is_super_admin())
+  with check (public.is_super_admin());
+
+create or replace function public.es_staff()
+returns boolean
+language sql security definer stable
+set search_path = public
+as $$
+  select coalesce((select role = 'jab_staff' from public.profiles where id = auth.uid()), false)
+$$;
+
+-- Chequeo "puro" de la tabla de accesos, sin mezclar el caso de
+-- super_admin/dueño-del-tenant — lo usan las políticas que ya tenían su
+-- propia lógica por rol y solo necesitan sumar la rama de staff.
+create or replace function public.staff_tiene_acceso(tenant uuid, requerir_crm boolean default false)
+returns boolean
+language sql security definer stable
+set search_path = public
+as $$
+  select exists (
+    select 1 from public.staff_acceso_clientes
+    where usuario_id = auth.uid()
+      and tenant_id = tenant
+      and (not requerir_crm or puede_ver_crm = true)
+  )
+$$;
+
+-- Para las tablas de "Cuentas" (Redes, Pedidos, Materiales) donde antes
+-- alcanzaba con pertenecer al tenant: super_admin, dueño del tenant, o
+-- staff con acceso concedido (con o sin CRM, eso solo importa para leads).
+create or replace function public.tiene_acceso_tenant(tenant uuid)
+returns boolean
+language sql security definer stable
+set search_path = public
+as $$
+  select
+    public.is_super_admin()
+    or public.current_tenant_id() = tenant
+    or public.staff_tiene_acceso(tenant)
+$$;
+
+-- tenants: sumar los que el staff tiene concedidos (para la grilla de
+-- "elegir cliente").
+drop policy if exists "tenants_select" on public.tenants;
+create policy "tenants_select" on public.tenants for select
+  using (
+    public.is_super_admin()
+    or id = public.current_tenant_id()
+    or public.staff_tiene_acceso(id)
+  );
+
+-- profiles: el staff necesita ver el equipo de un cliente al que tiene
+-- acceso (para asignar responsables en Pedidos/Tablero).
+drop policy if exists "profiles_select" on public.profiles;
+create policy "profiles_select" on public.profiles for select
+  using (
+    public.is_super_admin()
+    or id = auth.uid()
+    or tenant_id = public.current_tenant_id()
+    or (tenant_id is not null and public.tiene_acceso_tenant(tenant_id))
+  );
+
+-- CRM (leads y todo lo que cuelga de un lead): se mantiene la regla
+-- original de cada rol tal cual estaba, solo se suma la rama de staff con
+-- puede_ver_crm = true.
+drop policy if exists "lead_sources_select" on public.lead_sources;
+create policy "lead_sources_select" on public.lead_sources for select
+  using (
+    public.is_super_admin()
+    or tenant_id = public.current_tenant_id()
+    or (public.es_staff() and public.staff_tiene_acceso(tenant_id, true))
+  );
+
+drop policy if exists "lead_sources_write" on public.lead_sources;
+create policy "lead_sources_write" on public.lead_sources for all
+  using (
+    public.is_super_admin()
+    or (public.current_role() = 'client_admin' and tenant_id = public.current_tenant_id())
+    or (public.es_staff() and public.staff_tiene_acceso(tenant_id, true))
+  )
+  with check (
+    public.is_super_admin()
+    or (public.current_role() = 'client_admin' and tenant_id = public.current_tenant_id())
+    or (public.es_staff() and public.staff_tiene_acceso(tenant_id, true))
+  );
+
+drop policy if exists "leads_select" on public.leads;
+create policy "leads_select" on public.leads for select
+  using (
+    public.is_super_admin()
+    or (public.current_role() = 'client_admin' and tenant_id = public.current_tenant_id())
+    or (public.current_role() = 'salesperson' and assigned_to = auth.uid())
+    or (public.es_staff() and public.staff_tiene_acceso(tenant_id, true))
+  );
+
+drop policy if exists "leads_update" on public.leads;
+create policy "leads_update" on public.leads for update
+  using (
+    public.is_super_admin()
+    or (public.current_role() = 'client_admin' and tenant_id = public.current_tenant_id())
+    or (public.current_role() = 'salesperson' and assigned_to = auth.uid())
+    or (public.es_staff() and public.staff_tiene_acceso(tenant_id, true))
+  )
+  with check (
+    public.is_super_admin()
+    or (public.current_role() = 'client_admin' and tenant_id = public.current_tenant_id())
+    or (public.current_role() = 'salesperson' and assigned_to = auth.uid())
+    or (public.es_staff() and public.staff_tiene_acceso(tenant_id, true))
+  );
+
+drop policy if exists "lead_activities_select" on public.lead_activities;
+create policy "lead_activities_select" on public.lead_activities for select
+  using (
+    public.is_super_admin()
+    or (public.current_role() = 'client_admin' and tenant_id = public.current_tenant_id())
+    or (
+      public.current_role() = 'salesperson'
+      and exists (
+        select 1 from public.leads
+        where leads.id = lead_activities.lead_id and leads.assigned_to = auth.uid()
+      )
+    )
+    or (public.es_staff() and public.staff_tiene_acceso(tenant_id, true))
+  );
+
+drop policy if exists "lead_activities_insert" on public.lead_activities;
+create policy "lead_activities_insert" on public.lead_activities for insert
+  with check (
+    public.is_super_admin()
+    or (public.current_role() = 'client_admin' and tenant_id = public.current_tenant_id())
+    or (
+      public.current_role() = 'salesperson'
+      and exists (
+        select 1 from public.leads
+        where leads.id = lead_activities.lead_id and leads.assigned_to = auth.uid()
+      )
+    )
+    or (public.es_staff() and public.staff_tiene_acceso(tenant_id, true))
+  );
+
+-- Cuentas (Redes, Pedidos, Materiales): cualquiera del tenant ya podía ver
+-- todo esto, así que el staff con acceso (sin necesitar CRM) entra por el
+-- mismo lugar con tiene_acceso_tenant. Escribir seguía restringido a
+-- client_admin — ahí se suma la rama de staff aparte, sin tocar esa regla.
+drop policy if exists "social_posts_select" on public.social_posts;
+create policy "social_posts_select" on public.social_posts for select
+  using (public.tiene_acceso_tenant(tenant_id));
+
+drop policy if exists "social_posts_write" on public.social_posts;
+create policy "social_posts_write" on public.social_posts for all
+  using (
+    public.is_super_admin()
+    or (public.current_role() = 'client_admin' and tenant_id = public.current_tenant_id())
+    or (public.es_staff() and public.staff_tiene_acceso(tenant_id))
+  )
+  with check (
+    public.is_super_admin()
+    or (public.current_role() = 'client_admin' and tenant_id = public.current_tenant_id())
+    or (public.es_staff() and public.staff_tiene_acceso(tenant_id))
+  );
+
+drop policy if exists "pedidos_select" on public.pedidos;
+create policy "pedidos_select" on public.pedidos for select
+  using (public.tiene_acceso_tenant(tenant_id));
+
+drop policy if exists "pedidos_insert" on public.pedidos;
+create policy "pedidos_insert" on public.pedidos for insert
+  with check (public.tiene_acceso_tenant(tenant_id));
+
+drop policy if exists "pedidos_update" on public.pedidos;
+create policy "pedidos_update" on public.pedidos for update
+  using (public.tiene_acceso_tenant(tenant_id))
+  with check (public.tiene_acceso_tenant(tenant_id));
+
+drop policy if exists "pedido_archivos_select" on public.pedido_archivos;
+create policy "pedido_archivos_select" on public.pedido_archivos for select
+  using (public.tiene_acceso_tenant(tenant_id));
+
+drop policy if exists "pedido_archivos_insert" on public.pedido_archivos;
+create policy "pedido_archivos_insert" on public.pedido_archivos for insert
+  with check (public.tiene_acceso_tenant(tenant_id));
+
+drop policy if exists "pedido_comentarios_select" on public.pedido_comentarios;
+create policy "pedido_comentarios_select" on public.pedido_comentarios for select
+  using (public.tiene_acceso_tenant(tenant_id));
+
+drop policy if exists "pedido_comentarios_insert" on public.pedido_comentarios;
+create policy "pedido_comentarios_insert" on public.pedido_comentarios for insert
+  with check (public.tiene_acceso_tenant(tenant_id));
+
+drop policy if exists "materiales_select" on public.materiales;
+create policy "materiales_select" on public.materiales for select
+  using (public.tiene_acceso_tenant(tenant_id));
+
+drop policy if exists "materiales_write" on public.materiales;
+create policy "materiales_write" on public.materiales for all
+  using (
+    public.is_super_admin()
+    or (public.current_role() = 'client_admin' and tenant_id = public.current_tenant_id())
+    or (public.es_staff() and public.staff_tiene_acceso(tenant_id))
+  )
+  with check (
+    public.is_super_admin()
+    or (public.current_role() = 'client_admin' and tenant_id = public.current_tenant_id())
+    or (public.es_staff() and public.staff_tiene_acceso(tenant_id))
+  );
+
+-- Tablero interno: tarjetas propias de JAB (no vienen de un pedido del
+-- cliente) que se mezclan con los Pedidos en una sola vista Kanban. Nunca
+-- lo ve client_admin ni salesperson — es exclusivamente de JAB.
+do $$ begin
+  if not exists (select 1 from pg_type where typname = 'tarea_interna_estado') then
+    create type public.tarea_interna_estado as enum
+      ('materiales', 'en_proceso', 'revision', 'ads', 'on_hold', 'aprobado');
+  end if;
+end $$;
+
+create table if not exists public.tareas_internas (
+  id uuid primary key default gen_random_uuid(),
+  tenant_id uuid not null references public.tenants (id) on delete cascade,
+  titulo text not null,
+  descripcion text,
+  estado public.tarea_interna_estado not null default 'materiales',
+  etiquetas text[] not null default '{}',
+  asignado_a uuid references public.profiles (id) on delete set null,
+  fecha_programada date,
+  creado_por uuid references public.profiles (id) on delete set null,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create index if not exists tareas_internas_tenant_idx on public.tareas_internas (tenant_id);
+
+drop trigger if exists tareas_internas_set_updated_at on public.tareas_internas;
+create trigger tareas_internas_set_updated_at
+before update on public.tareas_internas
+for each row execute function public.set_updated_at();
+
+alter table public.tareas_internas enable row level security;
+
+drop policy if exists "tareas_internas_select" on public.tareas_internas;
+create policy "tareas_internas_select" on public.tareas_internas for select
+  using (
+    public.is_super_admin()
+    or (public.es_staff() and public.staff_tiene_acceso(tenant_id))
+  );
+
+drop policy if exists "tareas_internas_write" on public.tareas_internas;
+create policy "tareas_internas_write" on public.tareas_internas for all
+  using (
+    public.is_super_admin()
+    or (public.es_staff() and public.staff_tiene_acceso(tenant_id))
+  )
+  with check (
+    public.is_super_admin()
+    or (public.es_staff() and public.staff_tiene_acceso(tenant_id))
+  );

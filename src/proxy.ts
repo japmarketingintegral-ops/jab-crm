@@ -52,9 +52,11 @@ export async function proxy(request: NextRequest) {
     url.pathname =
       profile?.role === 'super_admin'
         ? '/admin'
-        : profile?.role === 'salesperson'
-          ? '/dashboard/mi-panel'
-          : '/dashboard';
+        : profile?.role === 'jab_staff'
+          ? '/equipo/clientes'
+          : profile?.role === 'salesperson'
+            ? '/dashboard/mi-panel'
+            : '/dashboard';
     return NextResponse.redirect(url);
   }
 

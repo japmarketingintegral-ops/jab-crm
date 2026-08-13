@@ -29,10 +29,52 @@
   --color-jab-green: #34d399;
   --color-jab-meta: #3b6fe0;
   --color-jab-google: #ea4335;
+  --color-jab-violet: #a78bfa;
+  --color-jab-teal: #2dd4bf;
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans), Arial, Helvetica, sans-serif;
+}
+
+/* Lienzo claro para CRM y Cuentas (estilo Kommo) — el sidebar sigue oscuro
+   siempre, esto solo repinta el contenido de adentro. Reescribe por
+   selector (no por variable) porque @theme inline vuelca los hex directo
+   en cada utility, así que las clases jab-* no son reasignables por CSS
+   custom property en runtime. */
+.jab-canvas-light {
+  background: #f4f5f9;
+  color: #1b2038;
+}
+.jab-canvas-light .bg-jab-bg-deep {
+  background-color: #eef0f8;
+}
+.jab-canvas-light .bg-jab-panel {
+  background-color: #ffffff;
+}
+.jab-canvas-light .bg-jab-panel-2 {
+  background-color: #eef0f8;
+}
+.jab-canvas-light .bg-jab-panel-2\/40 {
+  background-color: #eef0f866;
+}
+.jab-canvas-light .border-jab-border {
+  border-color: #e4e6ef;
+}
+.jab-canvas-light .text-jab-text {
+  color: #1b2038;
+}
+.jab-canvas-light .text-jab-muted {
+  color: #5a6088;
+}
+.jab-canvas-light .hover\:bg-jab-panel-2:hover {
+  background-color: #eef0f8;
+}
+.jab-canvas-light .hover\:text-jab-text:hover {
+  color: #1b2038;
+}
+.jab-canvas-light .placeholder\:text-jab-muted::placeholder {
+  color: #9aa0c2;
 }

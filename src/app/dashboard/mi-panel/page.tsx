@@ -42,7 +42,7 @@ export default async function MiPanelPage() {
         seccion="mi-panel"
         esVendedor
       />
-      <main className="flex-1 p-6 overflow-y-auto">
+      <main className="jab-canvas-light flex-1 p-6 overflow-y-auto">
         <h1 className="text-xl font-bold mb-1">Mi panel</h1>
         <p className="text-sm text-jab-muted mb-6">Tu actividad y tus leads, de un vistazo.</p>
 

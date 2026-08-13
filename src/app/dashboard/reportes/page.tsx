@@ -126,8 +126,9 @@ export default async function ReportesPage({
         seccion="reportes"
         esVendedor={perfil.role === 'salesperson'}
         viendoComoJab={perfil.role === 'super_admin'}
+        mostrarTablero={perfil.role === 'super_admin' || perfil.role === 'jab_staff'}
       />
-      <main className="flex-1 p-6 overflow-y-auto">
+      <main className="jab-canvas-light flex-1 p-6 overflow-y-auto">
         <div className="flex items-center justify-between mb-1">
           <h1 className="text-xl font-bold">Reportes</h1>
           <div className="flex gap-1.5">

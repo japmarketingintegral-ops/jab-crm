@@ -31,7 +31,7 @@ export function PipelineKanban({ leads }: { leads: LeadFila[] }) {
   }
 
   return (
-    <main className="flex-1 min-w-0 flex flex-col">
+    <main className="jab-canvas-light flex-1 min-w-0 flex flex-col">
       <div className="p-6 border-b border-jab-border">
         <h1 className="text-xl font-bold">Pipeline</h1>
         <p className="text-sm text-jab-muted">Arrastrá una tarjeta para cambiar de etapa.</p>

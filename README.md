@@ -11,20 +11,39 @@ indexarse (ver "Indexación" abajo).
   proyecto.
 - **Supabase** (Postgres + Auth) — la base de datos hace el aislamiento
   entre clientes con Row Level Security (RLS), no el código de la app.
-- **Vercel** — hosting recomendado (soporte nativo de Next.js). Todavía no
-  desplegado (ver "Qué falta" abajo).
+- **Vercel** — hosting. Ya desplegado en producción
+  (`https://jab-crm.vercel.app`), funciones ancladas a São Paulo (`gru1`)
+  para que la latencia con la base de Supabase (también en `sa-east-1`) sea
+  mínima.
 
 ## Roles
 
 | Rol | Ve |
 |---|---|
-| `super_admin` (JAB) | Todo. Da de alta clientes nuevos desde `/admin` y puede **entrar como cualquier cliente** para gestionar su cuenta directamente (ver abajo). |
-| `client_admin` | Todos los leads de su empresa, equipo, redes, pedidos, reportes y configuración. |
+| `super_admin` (JAB) | Todo, de cualquier cliente, sin restricción. Da de alta clientes nuevos desde `/admin`, gestiona el equipo de JAB desde `/admin/equipo`, y puede **entrar como cualquier cliente**. |
+| `jab_staff` (equipo de JAB) | Nadie hasta que `super_admin` le da acceso a un cliente puntual. Con acceso: CRM/Cuentas/Tablero de ese cliente — salvo el CRM (leads), que necesita un permiso aparte (`puede_ver_crm`). Cada persona ve solo los clientes que le asignaron, nunca todos. |
+| `client_admin` | Todos los leads de su empresa, equipo, redes, pedidos, reportes y configuración — de su propio tenant. |
 | `salesperson` | Solo los leads que tiene asignados. Aterriza en "Mi panel". |
 
 El aislamiento entre clientes está en `supabase/schema.sql`, no en el
 código de las páginas: aunque una consulta tenga un bug, Postgres rechaza
 las filas que no le correspondan al usuario logueado.
+
+## Look and feel
+
+El sidebar es siempre oscuro (marca Jab) y tiene dos grupos: **CRM**
+(leads) y **Cuentas** (Redes, Pedidos, Materiales, Equipo,
+Configuración). El lienzo de adentro cambia según la sección:
+
+- **CRM y Cuentas**: claro, estilo Kommo — fondo gris clarito, tarjetas
+  blancas, badges de color. La clase `.jab-canvas-light` en
+  `src/app/globals.css` hace este repintado por selector CSS (no por
+  variable — ver la nota técnica al final sobre por qué), así que alcanza
+  con ponerle esa clase al `<main>` de una pantalla nueva para que herede
+  el tema claro sin tocar el resto de los componentes.
+- **Tablero interno**: oscuro, estilo ClickUp — columnas con pills de
+  color (una identidad por estado) y tarjetas con etiquetas en
+  monoespaciada. Ver sección "Tablero interno" abajo.
 
 ## Qué tiene el CRM hoy
 
@@ -32,7 +51,8 @@ las filas que no le correspondan al usuario logueado.
 - Login con panel dividido (diseño de marca Jab), mostrar/ocultar
   contraseña, "Olvidé mi contraseña" funcional de punta a punta.
 - Cada rol aterriza en un lugar distinto al entrar: `super_admin` → `/admin`,
-  vendedor → `/dashboard/mi-panel`, admin de cliente → `/dashboard`.
+  equipo de JAB → `/equipo/clientes` (elegir cliente), vendedor →
+  `/dashboard/mi-panel`, admin de cliente → `/dashboard`.
 
 **Inicio** (`/dashboard`, vista por defecto al entrar)
 - Pantalla resumen que junta las tres patas del servicio en un vistazo: KPIs
@@ -99,12 +119,17 @@ las filas que no le correspondan al usuario logueado.
   las carga JAB (o el admin del cliente) a mano con el botón "+
   Publicación". El día que haya integración real, esta pantalla no cambia,
   solo cambia quién carga los datos.
+- **Gráficos** (con `recharts`): interacciones por publicación en el
+  tiempo, alcance por plataforma, y composición de interacciones (me
+  gusta / comentarios / compartidos) por plataforma. Los colores por
+  plataforma están en `src/lib/social.ts` (`PLATAFORMA_HEX`) — una
+  identidad fija, no se ciclan.
 
 **Pedidos** (`/dashboard/pedidos`)
 - El cliente pide contenido o piezas nuevas ("+ Pedido": título + detalle)
   y lo sigue en un kanban de 4 columnas: **Pedido → En proceso → Revisión →
   Aprobado**, con drag-and-drop para mover tarjetas (mismo mecanismo que el
-  Pipeline de leads).
+  Pipeline de leads). Toggle arriba para pasar a **vista Calendario**.
 - Cualquiera del equipo del cliente puede pedir; cualquiera puede mover el
   estado por ahora (no hay un paso de aprobación restringido a admin
   todavía — ver "Qué falta").
@@ -114,6 +139,19 @@ las filas que no le correspondan al usuario logueado.
   No se muestra en los que ya están Aprobados.
 - **Categoría** por pedido (Redes / Contenido / Comunicado / Video / Pauta /
   Otro), visible como badge de color en la tarjeta y en la ficha.
+- **Asignar responsable y fecha programada**: quien lo ve es el equipo de
+  JAB (`super_admin`/`jab_staff`) — el cliente (`client_admin`/
+  `salesperson`) nunca ve quién lo tiene asignado, ni en la tarjeta ni en
+  la ficha. Es información interna de gestión, no algo que le sirva al
+  cliente. La fecha programada sí la ve todo el mundo (le sirve para saber
+  cuándo sale la pieza).
+- **Vista Calendario**: mismo listado de pedidos pero organizado por mes,
+  ubicados en el día de su `fecha_programada`. Cada celda muestra una
+  miniatura (si el pedido tiene una imagen adjunta), categoría, título y un
+  botón **Aprobar** de un clic para los que todavía no están en ese estado
+  — pensado para que el cliente vea de un vistazo qué se publica cada día y
+  lo apruebe sin tener que abrir la ficha. Los pedidos sin fecha programada
+  no aparecen acá (siguen viéndose en el Kanban).
 - **Archivos adjuntos**: se pueden subir al crear el pedido o después, desde
   su ficha (clic en la tarjeta). Los archivos viven en un bucket privado de
   Supabase Storage — nunca se sirven directo, cada descarga genera un link
@@ -122,6 +160,17 @@ las filas que no le correspondan al usuario logueado.
 - **Comentarios**: cada pedido tiene su propio hilo, para que el ida y
   vuelta entre el cliente y JAB quede documentado ahí — no en un chat de
   WhatsApp aparte que nadie puede rastrear después.
+
+**Materiales** (`/dashboard/materiales`)
+- Repositorio de archivos fijos del cliente (logos, guías de marca,
+  manuales) — separado de Pedidos porque esto no tiene un flujo ni un
+  estado, es simplemente "lo que ya existe y cualquiera puede necesitar
+  bajar en cualquier momento".
+- Subir y eliminar es solo para admins (del cliente o JAB); cualquiera del
+  equipo puede ver y descargar. Mismo patrón de bucket privado + link
+  firmado que los adjuntos de Pedidos.
+- Las imágenes muestran una miniatura en la grilla; el resto de los
+  archivos, un ícono genérico.
 
 **Panel Super Admin** (`/admin`, solo JAB)
 - Listar clientes, dar de alta uno nuevo (crea el tenant + invita por mail
@@ -134,6 +183,41 @@ las filas que no le correspondan al usuario logueado.
   volver a `/admin`. Esto es justamente lo que resuelve el pedido de que
   vos (`japmarketingintegral@gmail.com`) puedas acceder a los clientes.
 
+**Equipo de JAB** (`/admin/equipo`, solo `super_admin`)
+- Invitar gente del equipo (diseñadores, CMs, editores...) por mail — se
+  crean como `jab_staff`, sin tenant propio.
+- Por cada persona, un checklist de todos los clientes: tildás a cuáles
+  tiene acceso, y un toggle aparte "Ve CRM" por cliente (son dos permisos
+  independientes — alguien puede tener Cuentas + Tablero de un cliente sin
+  ver sus leads).
+- Esto es distinto de `/dashboard/equipo`, que es el equipo del *cliente*
+  (sus propios vendedores), no el de JAB.
+
+**Elegir cliente** (`/equipo/clientes`, para `jab_staff`)
+- Grilla estilo Trello con los clientes que tiene asignados esa persona
+  (nunca todos — solo lo que `super_admin` le dio). Al elegir uno, entra
+  "como equipo" (no como el cliente — no hay banner de impersonación) y
+  cae en Pedidos. Tiene acceso a Cuentas + Tablero de ese cliente; al CRM
+  (leads) solo si tiene el permiso `puede_ver_crm` para ese cliente en
+  particular.
+
+**Tablero interno** (`/dashboard/tablero`, solo equipo de JAB)
+- El Trello interno de JAB por cliente: mezcla tarjetas propias (creadas
+  ahí mismo, sin relación a un pedido) con los Pedidos de ese cliente, en
+  una sola vista. `client_admin` y `salesperson` no lo ven — ni existe
+  el link en su sidebar.
+- Columnas: **Materiales → Pedidos → En proceso → Revisión → Ads → On
+  hold → Aprobado**. "Pedidos" es exclusiva de tarjetas que vienen de un
+  pedido real del cliente (se arrastran entre los mismos 4 estados que ve
+  el cliente); "Materiales", "Ads" y "On hold" son exclusivas de tarjetas
+  propias de JAB — un pedido no se puede soltar ahí porque ese estado ni
+  existe para la tabla `pedidos`. Las tarjetas que vienen de un pedido
+  llevan la marca "↳ pedido del cliente" y abren la misma ficha que en
+  Pedidos (comentarios, archivos, aprobar); las propias abren una ficha
+  más simple (estado, asignado, fecha, etiquetas).
+- Asignación acá es al equipo de JAB con acceso a ese cliente
+  (`super_admin` + los `jab_staff` con acceso), no al equipo del cliente.
+
 **Webhooks** (`/api/webhooks/meta`, `/api/webhooks/google`)
 - Estructura lista para recibir leads de Meta Lead Ads y Google Lead Form
   Extensions, ya con reparto automático por round robin si está activado.
@@ -143,6 +227,13 @@ las filas que no le correspondan al usuario logueado.
 - Esquema completo en `supabase/schema.sql` con RLS en todas las tablas.
 - `noindex` en tres capas: meta tag, header `X-Robots-Tag` (proxy/middleware)
   y `robots.txt`.
+- El acceso de `jab_staff` está en RLS, no confiado al frontend: las
+  funciones `tiene_acceso_tenant(tenant)` y `staff_tiene_acceso(tenant,
+  requerir_crm)` en `supabase/schema.sql` deciden fila por fila si esa
+  persona puede ver/escribir un registro de ese cliente. Lo probé
+  directo contra Postgres (no solo con la UI): una cuenta de equipo sin
+  `puede_ver_crm` consulta `leads` y le devuelve 0 filas, sin error — el
+  dato está bloqueado en la base, no oculto en la pantalla.
 
 ## Qué falta (necesita que estés vos)
 
@@ -153,11 +244,8 @@ las filas que no le correspondan al usuario logueado.
 2. **Conectar Google Ads**: requiere configurar el webhook de "Lead form
    assets" en la cuenta de Google Ads del cliente. TODOs en
    `src/app/api/webhooks/google/route.ts`.
-3. **Desplegar en Vercel**: crear el proyecto en vercel.com, conectarlo a
-   este repo, cargar las mismas variables de `.env.local`, y apuntar
-   `clientes.jabmarketing.site` (DNS en Cloudflare). Los webhooks de Meta y
-   Google necesitan una URL pública para poder configurarse — esto es un
-   prerequisito de los dos puntos anteriores.
+3. **Apuntar el dominio final**: hoy vive en `jab-crm.vercel.app`, falta
+   apuntar `clientes.jabmarketing.site` (DNS en Cloudflare) cuando quieras.
 4. **Marca blanca por cliente** (branding personalizado por tenant) — está
    en el plan original pero todavía no se construyó la pantalla para
    subir/configurarlo.
@@ -179,6 +267,10 @@ las filas que no le correspondan al usuario logueado.
    pegar el link en un comentario — si esto se vuelve común, se puede
    subir el límite o mandar los adjuntos pesados directo a Storage desde
    el navegador en vez de pasar por el servidor.
+9. El Tablero interno no tiene time tracking a propósito (me lo pediste
+   explícitamente así: "sin... trackin"). Si en algún momento lo querés
+   sumar, la tabla `tareas_internas` está lista para agregarle columnas
+   sin romper nada de lo que ya existe.
 
 ## Cómo ver lo que se hizo hoy
 
@@ -198,13 +290,22 @@ las filas que no le correspondan al usuario logueado.
    y mirá cómo se arma la "mejor publicación") → **Pedidos** (creá uno con
    "+ Pedido", elegile una categoría, adjuntale un archivo, arrastralo entre
    columnas y hacé click en la tarjeta para ver su ficha completa con
-   comentarios) → **Reportes** (probá el filtro por fuente) →
+   comentarios, asignale un responsable y una fecha, después mirá cómo se
+   ve en la vista **Calendario**) → **Materiales** (subí un logo de
+   prueba) → **Reportes** (probá el filtro por fuente) →
    **Configuración** (activá el switch de auto-asignación) → la
    **campanita** arriba a la izquierda del sidebar.
 5. Si querés ver la vista de un vendedor, invitalo desde **Equipo** o
    entrá con una cuenta que ya tenga rol `salesperson` — cae directo en
    **Mi panel**. (No hace falta "entrar como cliente" para probar esto si
    ya tenés una cuenta de vendedor real.)
+6. Para probar el **equipo de JAB**: desde `/admin` entrá a **"Equipo de
+   JAB"**, invitá a alguien, dale acceso a "Jab Marketing" (con o sin "Ve
+   CRM"). Esa persona entra por su cuenta, cae en **elegir cliente**
+   (`/equipo/clientes`), lo elige, y termina en Pedidos — sin CRM en el
+   sidebar salvo que le hayas dado ese permiso. Desde ahí puede abrir el
+   **Tablero** (franja "Interno · equipo JAB" abajo del sidebar) y ver sus
+   pedidos mezclados con tarjetas propias.
 
 ## Desarrollo local
 
@@ -250,3 +351,32 @@ npm run dev
   archivo del formulario en sí (los navegadores no dejan que se simule ese
   click por seguridad) — probalo vos una vez cuando puedas, aunque el resto
   de la cadena ya está verificado.
+- **Ojo si alguna vez tocás `src/proxy.ts`**: esta versión de Next.js
+  renombró `middleware.ts` a `proxy.ts` (misma función, mismo lugar en la
+  raíz de `src/`, protege todas las rutas). Si buscás "middleware" en el
+  repo y no aparece nada, es por esto, no porque no exista.
+- Cuando crees una cuenta a mano contra Supabase (para pruebas o soporte),
+  el perfil en `profiles` se crea con **`insert`, no `update`** — la fila
+  no existe todavía después de `auth.admin.createUser`, a diferencia de
+  otros sistemas que la crean sola con un trigger. Los flujos reales de la
+  app (invitar desde Equipo o desde `/admin`) ya lo hacen bien; esto es
+  solo si alguna vez armás una cuenta de prueba directo por script.
+- Agregar `jab_staff` al enum `user_role` necesitó correrse en **dos
+  pasos**: `alter type ... add value` no se puede usar en la misma
+  transacción en la que se referencia el valor nuevo. Si en el futuro hay
+  que sumar otro valor a un enum, mismo cuento — primero el `add value`
+  solo, confirmar, y recién ahí el resto de la migración que lo usa.
+- El tema claro de CRM/Cuentas (`.jab-canvas-light` en `globals.css`) NO
+  usa variables CSS reasignables — Tailwind v4 con `@theme inline` vuelca
+  el hex literal en cada clase (`bg-jab-panel` compila directo a
+  `background-color: #111736`, no a `var(--color-jab-panel)`). Por eso el
+  override es por selector (`.jab-canvas-light .bg-jab-panel { ... }`,
+  gana por especificidad) y no por redefinir la variable en un wrapper —
+  eso último no habría tenido ningún efecto. Si agregás una pantalla
+  nueva al lado claro y usa una clase `jab-*` que no está en la lista de
+  `globals.css`, hay que sumarle su override ahí.
+- `select()` de Supabase: si lo armás concatenando strings con `+`,
+  TypeScript infiere `string` en vez del literal, y el cliente tipado lo
+  trata como `SelectQueryError` (columnas quedan como `never`). Siempre
+  un solo string literal, sin concatenar — pasó varias veces esta sesión
+  y siempre se arregla así.

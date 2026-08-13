@@ -36,8 +36,9 @@ export default async function ConfiguracionPage() {
         rolLabel={ROL_LABEL[perfil.role] ?? perfil.role}
         seccion="configuracion"
         viendoComoJab={perfil.role === 'super_admin'}
+        mostrarTablero={perfil.role === 'super_admin' || perfil.role === 'jab_staff'}
       />
-      <main className="flex-1 p-6 max-w-2xl w-full overflow-y-auto space-y-8">
+      <main className="jab-canvas-light flex-1 p-6 max-w-2xl w-full overflow-y-auto space-y-8">
         <h1 className="text-xl font-bold">Configuración</h1>
 
         <section>

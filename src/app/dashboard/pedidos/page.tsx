@@ -1,8 +1,10 @@
 import { requerirPerfil, requerirTenantActivo } from '@/lib/auth';
 import { createClient } from '@/lib/supabase/server';
 import { Sidebar } from '@/components/sidebar';
+import { esImagen } from '@/lib/format';
 import { CrearPedidoForm } from './crear-pedido-form';
-import { PedidosKanban, type PedidoTarjeta } from './pedidos-kanban';
+import { PedidosView } from './pedidos-view';
+import type { PedidoTarjeta } from './pedidos-kanban';
 
 const ROL_LABEL: Record<string, string> = {
   super_admin: 'JAB',
@@ -20,15 +22,25 @@ export default async function PedidosPage() {
     supabase.from('tenants').select('name').eq('id', tenantId).single(),
     supabase
       .from('pedidos')
-      .select('id, titulo, descripcion, estado, categoria, created_at, updated_at, profiles(full_name)')
+      .select(
+        'id, titulo, descripcion, estado, categoria, created_at, updated_at, asignado_a, fecha_programada, creador:profiles!pedidos_creado_por_fkey(full_name), asignado:profiles!pedidos_asignado_a_fkey(full_name)',
+      )
       .eq('tenant_id', tenantId)
       .order('created_at', { ascending: false }),
-    supabase.from('pedido_archivos').select('pedido_id').eq('tenant_id', tenantId),
+    supabase
+      .from('pedido_archivos')
+      .select('pedido_id, nombre_archivo, ruta_storage, created_at')
+      .eq('tenant_id', tenantId)
+      .order('created_at', { ascending: true }),
   ]);
 
   const archivosPorPedido = new Map<string, number>();
+  const primeraImagenPorPedido = new Map<string, string>();
   for (const a of archivosRaw ?? []) {
     archivosPorPedido.set(a.pedido_id, (archivosPorPedido.get(a.pedido_id) ?? 0) + 1);
+    if (!primeraImagenPorPedido.has(a.pedido_id) && esImagen(a.nombre_archivo)) {
+      primeraImagenPorPedido.set(a.pedido_id, a.ruta_storage);
+    }
   }
 
   const pedidos: PedidoTarjeta[] = (pedidosRaw ?? []).map((p) => ({
@@ -38,7 +50,10 @@ export default async function PedidosPage() {
     estado: p.estado,
     categoria: p.categoria,
     cantidadArchivos: archivosPorPedido.get(p.id) ?? 0,
-    creadorNombre: p.profiles?.full_name ?? null,
+    creadorNombre: p.creador?.full_name ?? null,
+    asignadoNombre: p.asignado?.full_name ?? null,
+    fechaProgramada: p.fecha_programada,
+    primeraImagenRuta: primeraImagenPorPedido.get(p.id) ?? null,
     creadoEn: p.created_at,
     actualizadoEn: p.updated_at,
   }));
@@ -52,8 +67,9 @@ export default async function PedidosPage() {
         seccion="pedidos"
         esVendedor={perfil.role === 'salesperson'}
         viendoComoJab={perfil.role === 'super_admin'}
+        mostrarTablero={perfil.role === 'super_admin' || perfil.role === 'jab_staff'}
       />
-      <main className="flex-1 p-6 flex flex-col min-w-0">
+      <main className="jab-canvas-light flex-1 p-6 flex flex-col min-w-0">
         <div className="flex items-center justify-between mb-6">
           <div>
             <h1 className="text-xl font-bold">Pedidos</h1>
@@ -72,7 +88,10 @@ export default async function PedidosPage() {
             </p>
           </div>
         ) : (
-          <PedidosKanban pedidos={pedidos} />
+          <PedidosView
+            pedidos={pedidos}
+            esEquipoJab={perfil.role === 'super_admin' || perfil.role === 'jab_staff'}
+          />
         )}
       </main>
     </div>

@@ -89,6 +89,24 @@ export async function cambiarEstadoPedido(pedidoId: string, estado: PedidoEstado
   return { ok: true };
 }
 
+export async function asignarPedido(pedidoId: string, userId: string | null) {
+  const perfil = await requerirPerfil();
+  if (perfil.role !== 'client_admin' && perfil.role !== 'super_admin') {
+    return { error: 'Solo un admin puede asignar.' };
+  }
+  const supabase = await createClient();
+  const { error } = await supabase.from('pedidos').update({ asignado_a: userId }).eq('id', pedidoId);
+  if (error) return { error: 'No se pudo asignar.' };
+  return { ok: true };
+}
+
+export async function programarFechaPedido(pedidoId: string, fecha: string | null) {
+  const supabase = await createClient();
+  const { error } = await supabase.from('pedidos').update({ fecha_programada: fecha }).eq('id', pedidoId);
+  if (error) return { error: 'No se pudo programar la fecha.' };
+  return { ok: true };
+}
+
 export type DetallePedido = {
   id: string;
   titulo: string;
@@ -97,16 +115,26 @@ export type DetallePedido = {
   categoria: PedidoCategoria;
   creadorNombre: string | null;
   creadoEn: string;
+  asignadoA: string | null;
+  asignadoNombre: string | null;
+  fechaProgramada: string | null;
   archivos: { id: string; nombre: string; ruta: string; subidoEn: string }[];
   comentarios: { id: string; texto: string; autorNombre: string | null; creadoEn: string }[];
 };
 
-export async function obtenerDetallePedido(pedidoId: string): Promise<DetallePedido | { error: string }> {
+export type MiembroEquipo = { id: string; nombre: string };
+
+export async function obtenerDetallePedido(
+  pedidoId: string,
+): Promise<{ ficha: DetallePedido; equipo: MiembroEquipo[] } | { error: string }> {
+  const perfil = await requerirPerfil();
   const supabase = await createClient();
 
   const { data: pedido, error } = await supabase
     .from('pedidos')
-    .select('id, titulo, descripcion, estado, categoria, created_at, profiles(full_name, email)')
+    .select(
+      'id, tenant_id, titulo, descripcion, estado, categoria, created_at, asignado_a, fecha_programada, creador:profiles!pedidos_creado_por_fkey(full_name, email), asignado:profiles!pedidos_asignado_a_fkey(full_name, email)',
+    )
     .eq('id', pedidoId)
     .single();
   if (error || !pedido) return { error: 'No se encontró el pedido.' };
@@ -124,26 +152,42 @@ export async function obtenerDetallePedido(pedidoId: string): Promise<DetallePed
       .order('created_at', { ascending: true }),
   ]);
 
+  const equipo: MiembroEquipo[] = [];
+  if (perfil.role === 'client_admin' || perfil.role === 'super_admin') {
+    const { data: perfiles } = await supabase
+      .from('profiles')
+      .select('id, full_name, email')
+      .eq('tenant_id', pedido.tenant_id)
+      .in('role', ['client_admin', 'salesperson']);
+    for (const p of perfiles ?? []) equipo.push({ id: p.id, nombre: p.full_name ?? p.email });
+  }
+
   return {
-    id: pedido.id,
-    titulo: pedido.titulo,
-    descripcion: pedido.descripcion,
-    estado: pedido.estado,
-    categoria: pedido.categoria,
-    creadorNombre: pedido.profiles?.full_name ?? pedido.profiles?.email ?? null,
-    creadoEn: pedido.created_at,
-    archivos: (archivos ?? []).map((a) => ({
-      id: a.id,
-      nombre: a.nombre_archivo,
-      ruta: a.ruta_storage,
-      subidoEn: a.created_at,
-    })),
-    comentarios: (comentarios ?? []).map((c) => ({
-      id: c.id,
-      texto: c.texto,
-      autorNombre: c.profiles?.full_name ?? c.profiles?.email ?? null,
-      creadoEn: c.created_at,
-    })),
+    ficha: {
+      id: pedido.id,
+      titulo: pedido.titulo,
+      descripcion: pedido.descripcion,
+      estado: pedido.estado,
+      categoria: pedido.categoria,
+      creadorNombre: pedido.creador?.full_name ?? pedido.creador?.email ?? null,
+      creadoEn: pedido.created_at,
+      asignadoA: pedido.asignado_a,
+      asignadoNombre: pedido.asignado?.full_name ?? pedido.asignado?.email ?? null,
+      fechaProgramada: pedido.fecha_programada,
+      archivos: (archivos ?? []).map((a) => ({
+        id: a.id,
+        nombre: a.nombre_archivo,
+        ruta: a.ruta_storage,
+        subidoEn: a.created_at,
+      })),
+      comentarios: (comentarios ?? []).map((c) => ({
+        id: c.id,
+        texto: c.texto,
+        autorNombre: c.profiles?.full_name ?? c.profiles?.email ?? null,
+        creadoEn: c.created_at,
+      })),
+    },
+    equipo,
   };
 }
 

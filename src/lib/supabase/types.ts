@@ -5,13 +5,14 @@
 //
 // y borrar este comentario.
 
-export type UserRole = 'super_admin' | 'client_admin' | 'salesperson';
+export type UserRole = 'super_admin' | 'client_admin' | 'salesperson' | 'jab_staff';
 export type LeadPlatform = 'meta' | 'google';
 export type LeadStatus = 'nuevo' | 'contactado' | 'calificado' | 'ganado' | 'perdido';
 export type LeadActivityType = 'nota' | 'cambio_estado' | 'reasignacion' | 'seguimiento';
 export type SocialPlatform = 'instagram' | 'facebook' | 'tiktok' | 'otra';
 export type PedidoEstado = 'pedido' | 'en_proceso' | 'revision' | 'aprobado';
 export type PedidoCategoria = 'redes' | 'contenido' | 'comunicado' | 'video' | 'pauta' | 'otro';
+export type TareaInternaEstado = 'materiales' | 'en_proceso' | 'revision' | 'ads' | 'on_hold' | 'aprobado';
 
 export interface Database {
   public: {
@@ -226,6 +227,8 @@ export interface Database {
           descripcion: string | null;
           estado: PedidoEstado;
           categoria: PedidoCategoria;
+          asignado_a: string | null;
+          fecha_programada: string | null;
           creado_por: string | null;
           created_at: string;
           updated_at: string;
@@ -237,6 +240,8 @@ export interface Database {
           descripcion?: string | null;
           estado?: PedidoEstado;
           categoria?: PedidoCategoria;
+          asignado_a?: string | null;
+          fecha_programada?: string | null;
           creado_por?: string | null;
           created_at?: string;
           updated_at?: string;
@@ -245,6 +250,13 @@ export interface Database {
           {
             foreignKeyName: 'pedidos_creado_por_fkey';
             columns: ['creado_por'];
+            isOneToOne: false;
+            referencedRelation: 'profiles';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'pedidos_asignado_a_fkey';
+            columns: ['asignado_a'];
             isOneToOne: false;
             referencedRelation: 'profiles';
             referencedColumns: ['id'];
@@ -324,6 +336,114 @@ export interface Database {
         ];
         Update: Partial<Database['public']['Tables']['pedido_comentarios']['Insert']>;
       };
+      materiales: {
+        Row: {
+          id: string;
+          tenant_id: string;
+          nombre_archivo: string;
+          ruta_storage: string;
+          subido_por: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          tenant_id: string;
+          nombre_archivo: string;
+          ruta_storage: string;
+          subido_por?: string | null;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'materiales_subido_por_fkey';
+            columns: ['subido_por'];
+            isOneToOne: false;
+            referencedRelation: 'profiles';
+            referencedColumns: ['id'];
+          },
+        ];
+        Update: Partial<Database['public']['Tables']['materiales']['Insert']>;
+      };
+      staff_acceso_clientes: {
+        Row: {
+          id: string;
+          usuario_id: string;
+          tenant_id: string;
+          puede_ver_crm: boolean;
+          otorgado_por: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          usuario_id: string;
+          tenant_id: string;
+          puede_ver_crm?: boolean;
+          otorgado_por?: string | null;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'staff_acceso_clientes_usuario_id_fkey';
+            columns: ['usuario_id'];
+            isOneToOne: false;
+            referencedRelation: 'profiles';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'staff_acceso_clientes_tenant_id_fkey';
+            columns: ['tenant_id'];
+            isOneToOne: false;
+            referencedRelation: 'tenants';
+            referencedColumns: ['id'];
+          },
+        ];
+        Update: Partial<Database['public']['Tables']['staff_acceso_clientes']['Insert']>;
+      };
+      tareas_internas: {
+        Row: {
+          id: string;
+          tenant_id: string;
+          titulo: string;
+          descripcion: string | null;
+          estado: TareaInternaEstado;
+          etiquetas: string[];
+          asignado_a: string | null;
+          fecha_programada: string | null;
+          creado_por: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          tenant_id: string;
+          titulo: string;
+          descripcion?: string | null;
+          estado?: TareaInternaEstado;
+          etiquetas?: string[];
+          asignado_a?: string | null;
+          fecha_programada?: string | null;
+          creado_por?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'tareas_internas_asignado_a_fkey';
+            columns: ['asignado_a'];
+            isOneToOne: false;
+            referencedRelation: 'profiles';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'tareas_internas_creado_por_fkey';
+            columns: ['creado_por'];
+            isOneToOne: false;
+            referencedRelation: 'profiles';
+            referencedColumns: ['id'];
+          },
+        ];
+        Update: Partial<Database['public']['Tables']['tareas_internas']['Insert']>;
+      };
     };
     Views: Record<string, never>;
     Functions: Record<string, never>;
@@ -335,6 +455,7 @@ export interface Database {
       social_platform: SocialPlatform;
       pedido_estado: PedidoEstado;
       pedido_categoria: PedidoCategoria;
+      tarea_interna_estado: TareaInternaEstado;
     };
     CompositeTypes: Record<string, never>;
   };

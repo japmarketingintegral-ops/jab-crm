@@ -5,6 +5,7 @@ import { fechaCortaSinHora } from '@/lib/format';
 import { KpiCard } from '../reportes/kpi-card';
 import { AgregarPostForm } from './agregar-post-form';
 import { EliminarPostButton } from './eliminar-post-button';
+import { RedesCharts } from './redes-charts';
 import { PLATAFORMA_LABEL, PLATAFORMA_COLOR, interaccionesPost } from '@/lib/social';
 
 const ROL_LABEL: Record<string, string> = {
@@ -47,8 +48,9 @@ export default async function RedesPage() {
         seccion="redes"
         esVendedor={perfil.role === 'salesperson'}
         viendoComoJab={perfil.role === 'super_admin'}
+        mostrarTablero={perfil.role === 'super_admin' || perfil.role === 'jab_staff'}
       />
-      <main className="flex-1 p-6 overflow-y-auto">
+      <main className="jab-canvas-light flex-1 p-6 overflow-y-auto">
         <div className="flex items-center justify-between mb-6">
           <div>
             <h1 className="text-xl font-bold">Redes</h1>
@@ -72,6 +74,8 @@ export default async function RedesPage() {
               <KpiCard etiqueta="Interacciones totales" valor={totalInteracciones.toLocaleString('es-AR')} />
               <KpiCard etiqueta="Interacciones por post" valor={String(promedioInteracciones)} />
             </div>
+
+            <RedesCharts posts={lista} />
 
             {mejor && (
               <div className="mb-8">

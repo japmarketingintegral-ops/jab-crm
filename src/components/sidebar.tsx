@@ -6,7 +6,16 @@ import { NotificationBell } from './notification-bell';
 import { salirDeCliente } from '@/app/admin/actions';
 
 type Vista = 'inicio' | 'bandeja' | 'mios' | 'vencidos' | 'pipeline' | 'archivo';
-type Seccion = 'trabajo' | 'reportes' | 'equipo' | 'configuracion' | 'mi-panel' | 'redes' | 'pedidos';
+type Seccion =
+  | 'trabajo'
+  | 'reportes'
+  | 'equipo'
+  | 'configuracion'
+  | 'mi-panel'
+  | 'redes'
+  | 'pedidos'
+  | 'materiales'
+  | 'tablero';
 
 const NAV_TRABAJO: { vista: Vista; etiqueta: string }[] = [
   { vista: 'inicio', etiqueta: 'Inicio' },
@@ -21,6 +30,7 @@ const NAV_CUENTA: { seccion: Seccion; etiqueta: string; href: string }[] = [
   { seccion: 'reportes', etiqueta: 'Reportes', href: '/dashboard/reportes' },
   { seccion: 'redes', etiqueta: 'Redes', href: '/dashboard/redes' },
   { seccion: 'pedidos', etiqueta: 'Pedidos', href: '/dashboard/pedidos' },
+  { seccion: 'materiales', etiqueta: 'Materiales', href: '/dashboard/materiales' },
   { seccion: 'equipo', etiqueta: 'Equipo', href: '/dashboard/equipo' },
   { seccion: 'configuracion', etiqueta: 'Configuración', href: '/dashboard/configuracion' },
 ];
@@ -34,6 +44,7 @@ export function Sidebar({
   conteos,
   esVendedor,
   viendoComoJab,
+  mostrarTablero,
 }: {
   tenantNombre: string;
   nombreUsuario: string;
@@ -43,6 +54,7 @@ export function Sidebar({
   conteos?: Record<Vista, number>;
   esVendedor?: boolean;
   viendoComoJab?: boolean;
+  mostrarTablero?: boolean;
 }) {
   return (
     <aside className="hidden lg:flex w-64 shrink-0 flex-col bg-jab-bg-deep border-r border-jab-border">
@@ -76,7 +88,7 @@ export function Sidebar({
       <nav className="flex-1 px-3 py-4 space-y-6 overflow-y-auto">
         <div>
           <p className="px-2 mb-2 text-[11px] font-semibold tracking-widest text-jab-muted uppercase">
-            Trabajo
+            CRM
           </p>
           <ul className="space-y-0.5">
             {esVendedor && (
@@ -113,7 +125,7 @@ export function Sidebar({
 
         <div>
           <p className="px-2 mb-2 text-[11px] font-semibold tracking-widest text-jab-muted uppercase">
-            Cuenta
+            Cuentas
           </p>
           <ul className="space-y-0.5">
             {NAV_CUENTA.map((item) => (
@@ -132,6 +144,28 @@ export function Sidebar({
             ))}
           </ul>
         </div>
+
+        {mostrarTablero && (
+          <div className="-mx-3 px-3 pt-4 pb-1 bg-jab-amber/[0.06] border-t border-jab-border">
+            <p className="px-2 mb-2 text-[11px] font-semibold tracking-widest text-jab-amber/80 uppercase">
+              Interno · equipo JAB
+            </p>
+            <ul className="space-y-0.5">
+              <li>
+                <Link
+                  href="/dashboard/tablero"
+                  className={`block rounded-md px-2 py-1.5 text-sm ${
+                    seccion === 'tablero'
+                      ? 'bg-jab-amber/15 text-jab-amber'
+                      : 'text-jab-muted hover:text-jab-text'
+                  }`}
+                >
+                  Tablero
+                </Link>
+              </li>
+            </ul>
+          </div>
+        )}
       </nav>
 
       <div className="p-4 border-t border-jab-border flex items-center justify-between">

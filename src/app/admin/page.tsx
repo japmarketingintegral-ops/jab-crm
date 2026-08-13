@@ -22,6 +22,9 @@ export default async function AdminPage() {
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-lg font-semibold">Clientes de JAB</h1>
         <div className="flex items-center gap-4">
+          <Link href="/admin/equipo" className="text-sm text-jab-muted hover:text-jab-text">
+            Equipo de JAB
+          </Link>
           <Link
             href="/admin/tenants/nuevo"
             className="text-sm rounded-full bg-jab-lime text-jab-lime-ink px-4 py-1.5 font-bold uppercase tracking-wide"

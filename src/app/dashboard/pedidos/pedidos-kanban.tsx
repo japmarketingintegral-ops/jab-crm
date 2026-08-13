@@ -4,7 +4,7 @@ import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { cambiarEstadoPedido } from './actions';
 import { PedidoDetailPanel, CATEGORIA_LABEL, CATEGORIA_COLOR } from './pedido-detail-panel';
-import { nivelSLAPedido, tiempoRelativo, SLA_BORDE, SLA_TEXTO } from '@/lib/format';
+import { nivelSLAPedido, tiempoRelativo, SLA_BORDE, SLA_TEXTO, iniciales, fechaCortaSinHora } from '@/lib/format';
 import type { PedidoEstado, PedidoCategoria } from '@/lib/supabase/types';
 
 export type PedidoTarjeta = {
@@ -15,6 +15,9 @@ export type PedidoTarjeta = {
   categoria: PedidoCategoria;
   cantidadArchivos: number;
   creadorNombre: string | null;
+  asignadoNombre: string | null;
+  fechaProgramada: string | null;
+  primeraImagenRuta: string | null;
   creadoEn: string;
   actualizadoEn: string;
 };
@@ -26,7 +29,13 @@ const COLUMNAS: { estado: PedidoEstado; titulo: string }[] = [
   { estado: 'aprobado', titulo: 'Aprobado' },
 ];
 
-export function PedidosKanban({ pedidos }: { pedidos: PedidoTarjeta[] }) {
+export function PedidosKanban({
+  pedidos,
+  esEquipoJab,
+}: {
+  pedidos: PedidoTarjeta[];
+  esEquipoJab: boolean;
+}) {
   const router = useRouter();
   const [, startTransition] = useTransition();
   const [arrastrando, setArrastrando] = useState<string | null>(null);
@@ -76,11 +85,21 @@ export function PedidosKanban({ pedidos }: { pedidos: PedidoTarjeta[] }) {
                         >
                           {CATEGORIA_LABEL[p.categoria]}
                         </span>
-                        {sla && (
-                          <span className={`text-[10px] font-semibold shrink-0 ${SLA_TEXTO[sla]}`}>
-                            {tiempoRelativo(p.actualizadoEn)}
-                          </span>
-                        )}
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          {sla && (
+                            <span className={`text-[10px] font-semibold ${SLA_TEXTO[sla]}`}>
+                              {tiempoRelativo(p.actualizadoEn)}
+                            </span>
+                          )}
+                          {esEquipoJab && p.asignadoNombre && (
+                            <span
+                              title={p.asignadoNombre}
+                              className="flex h-5 w-5 items-center justify-center rounded-full bg-jab-accent/20 text-[9px] font-semibold text-jab-accent"
+                            >
+                              {iniciales(p.asignadoNombre)}
+                            </span>
+                          )}
+                        </div>
                       </div>
                       <p className="text-sm font-medium">{p.titulo}</p>
                       {p.descripcion && (
@@ -90,6 +109,7 @@ export function PedidosKanban({ pedidos }: { pedidos: PedidoTarjeta[] }) {
                         {p.creadorNombre ?? 'Sin nombre'} ·{' '}
                         {new Date(p.creadoEn).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit' })}
                         {p.cantidadArchivos > 0 ? ` · 📎 ${p.cantidadArchivos}` : ''}
+                        {p.fechaProgramada ? ` · 📅 ${fechaCortaSinHora(p.fechaProgramada)}` : ''}
                       </p>
                     </div>
                   );
@@ -104,6 +124,7 @@ export function PedidosKanban({ pedidos }: { pedidos: PedidoTarjeta[] }) {
         <PedidoDetailPanel
           key={pedidoSeleccionado}
           pedidoId={pedidoSeleccionado}
+          esEquipoJab={esEquipoJab}
           onClose={() => setPedidoSeleccionado(null)}
         />
       )}

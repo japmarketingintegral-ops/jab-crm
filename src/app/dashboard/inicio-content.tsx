@@ -49,7 +49,7 @@ export function InicioContent({
   mejorPost: PostResumen | null;
 }) {
   return (
-    <main className="flex-1 p-6 overflow-y-auto">
+    <main className="jab-canvas-light flex-1 p-6 overflow-y-auto">
       <h1 className="text-xl font-bold mb-1">Inicio</h1>
       <p className="text-sm text-jab-muted mb-6">Todo lo que necesitás saber hoy, de un vistazo.</p>
 

@@ -88,7 +88,7 @@ export function BandejaContent({
   const pasaron24h = leads.filter((l) => nivelSLA(l.actualizadoEn) === 'rojo').length;
 
   return (
-    <main className="flex-1 min-w-0 flex flex-col">
+    <main className="jab-canvas-light flex-1 min-w-0 flex flex-col">
       <div className="p-6 border-b border-jab-border flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="text-xl font-bold">Bandeja de leads</h1>

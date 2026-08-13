@@ -42,8 +42,9 @@ export default async function EquipoPage() {
         seccion="equipo"
         esVendedor={perfil.role === 'salesperson'}
         viendoComoJab={perfil.role === 'super_admin'}
+        mostrarTablero={perfil.role === 'super_admin' || perfil.role === 'jab_staff'}
       />
-      <main className="flex-1 p-6 max-w-2xl w-full overflow-y-auto">
+      <main className="jab-canvas-light flex-1 p-6 max-w-2xl w-full overflow-y-auto">
         <div className="flex items-center justify-between mb-6">
           <h1 className="text-xl font-bold">Equipo</h1>
           {esAdmin && <InvitarVendedorForm />}

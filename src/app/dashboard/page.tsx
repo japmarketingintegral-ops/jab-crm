@@ -132,6 +132,7 @@ export default async function DashboardPage({
         conteos={conteos}
         esVendedor={perfil.role === 'salesperson'}
         viendoComoJab={perfil.role === 'super_admin'}
+        mostrarTablero={perfil.role === 'super_admin' || perfil.role === 'jab_staff'}
       />
       {vista === 'inicio' ? (
         <InicioContent
