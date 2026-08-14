@@ -109,8 +109,8 @@ export function RedesReporte({ posts, esAdmin }: { posts: Post[]; esAdmin: boole
       {posts.length === 0 ? (
         <div className="rounded-lg bg-jab-panel-2 border border-jab-border p-6">
           <p className="text-sm text-jab-muted">
-            Todavía no hay publicaciones cargadas. Apenas JAB suba la primera, vas a ver acá las
-            métricas y cuál es la que mejor funcionó.
+            Todavía no hay publicaciones cargadas. Apenas conectemos Meta y sincronicemos, vas a
+            ver acá las métricas y cuál es la que mejor funcionó.
           </p>
         </div>
       ) : lista.length === 0 ? (

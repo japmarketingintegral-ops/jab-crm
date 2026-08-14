@@ -471,6 +471,56 @@ export interface Database {
         ];
         Update: Partial<Database['public']['Tables']['tareas_internas']['Insert']>;
       };
+      onboarding_briefs: {
+        Row: {
+          tenant_id: string;
+          empresa_descripcion: string | null;
+          cliente_ideal: string | null;
+          que_vende: string | null;
+          objetivos: string | null;
+          notas: string | null;
+          actualizado_por: string | null;
+          updated_at: string;
+        };
+        Insert: {
+          tenant_id: string;
+          empresa_descripcion?: string | null;
+          cliente_ideal?: string | null;
+          que_vende?: string | null;
+          objetivos?: string | null;
+          notas?: string | null;
+          actualizado_por?: string | null;
+          updated_at?: string;
+        };
+        Relationships: [];
+        Update: Partial<Database['public']['Tables']['onboarding_briefs']['Insert']>;
+      };
+      onboarding_accesos: {
+        Row: {
+          id: string;
+          tenant_id: string;
+          servicio: string;
+          usuario: string | null;
+          contrasena: string | null;
+          notas: string | null;
+          creado_por: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          tenant_id: string;
+          servicio: string;
+          usuario?: string | null;
+          contrasena?: string | null;
+          notas?: string | null;
+          creado_por?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+        Update: Partial<Database['public']['Tables']['onboarding_accesos']['Insert']>;
+      };
     };
     Views: Record<string, never>;
     Functions: Record<string, never>;

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServiceClient } from '@/lib/supabase/service';
-import { proximoVendedorRoundRobin } from '@/lib/auto-asignacion';
+import { proximoVendedorRoundRobin, notificarLeadAsignado } from '@/lib/auto-asignacion';
 
 /**
  * Webhook de "lead form extensions" de Google Ads. A diferencia de Meta,
@@ -51,16 +51,22 @@ export async function POST(request: NextRequest) {
     userColumnData.find((c) => c.column_name === nombre)?.string_value ?? null;
 
   const asignadoA = await proximoVendedorRoundRobin(supabase, source.tenant_id);
+  const nombreLead = buscarValor('FULL_NAME');
+  const telefonoLead = buscarValor('PHONE_NUMBER');
 
   await supabase.from('leads').insert({
     tenant_id: source.tenant_id,
     source_id: source.id,
     assigned_to: asignadoA,
-    full_name: buscarValor('FULL_NAME'),
+    full_name: nombreLead,
     email: buscarValor('EMAIL'),
-    phone: buscarValor('PHONE_NUMBER'),
+    phone: telefonoLead,
     raw_payload: body,
   });
+
+  if (asignadoA) {
+    await notificarLeadAsignado(supabase, asignadoA, { full_name: nombreLead, phone: telefonoLead });
+  }
 
   return NextResponse.json({ ok: true });
 }

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServiceClient } from '@/lib/supabase/service';
-import { proximoVendedorRoundRobin } from '@/lib/auto-asignacion';
+import { proximoVendedorRoundRobin, notificarLeadAsignado } from '@/lib/auto-asignacion';
 import { META_GRAPH_URL, verificarFirmaWebhook } from '@/lib/meta';
 
 /**
@@ -113,6 +113,13 @@ export async function POST(request: NextRequest) {
         phone: datosLead.phone,
         raw_payload: { leadgen_id: leadgenId, page_id: pageId },
       });
+
+      if (asignadoA) {
+        await notificarLeadAsignado(supabase, asignadoA, {
+          full_name: datosLead.full_name,
+          phone: datosLead.phone,
+        });
+      }
     }
   }
 

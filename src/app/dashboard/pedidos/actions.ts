@@ -3,6 +3,7 @@
 import { esRolCompleto, requerirPerfil, requerirTenantActivo } from '@/lib/auth';
 import { createClient } from '@/lib/supabase/server';
 import { createServiceClient } from '@/lib/supabase/service';
+import { enviarEmail } from '@/lib/email';
 import type { PedidoEstado, PedidoCategoria } from '@/lib/supabase/types';
 
 const CATEGORIAS: PedidoCategoria[] = ['redes', 'contenido', 'comunicado', 'video', 'pauta', 'otro'];
@@ -105,6 +106,25 @@ export async function asignarPedido(pedidoId: string, userId: string | null) {
   const supabase = await createClient();
   const { error } = await supabase.from('pedidos').update({ asignado_a: userId }).eq('id', pedidoId);
   if (error) return { error: 'No se pudo asignar.' };
+
+  if (userId) {
+    const [{ data: asignado }, { data: pedido }] = await Promise.all([
+      supabase.from('profiles').select('email').eq('id', userId).single(),
+      supabase.from('pedidos').select('titulo').eq('id', pedidoId).single(),
+    ]);
+    if (asignado?.email) {
+      await enviarEmail({
+        to: asignado.email,
+        subject: `Te asignaron un pedido: ${pedido?.titulo ?? 'sin título'}`,
+        html: `
+          <p>Te asignaron un pedido en Jab CRM.</p>
+          <p><strong>${pedido?.titulo ?? 'Sin título'}</strong></p>
+          <p><a href="https://clientes.jabmarketing.site/dashboard/pedidos" style="color:#3b6fe0;">Ver en Pedidos →</a></p>
+        `,
+      });
+    }
+  }
+
   return { ok: true };
 }
 

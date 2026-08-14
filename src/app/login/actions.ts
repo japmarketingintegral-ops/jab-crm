@@ -26,6 +26,5 @@ export async function iniciarSesion(_prevState: string | undefined, formData: Fo
 
   if (profile?.role === 'super_admin') redirect('/admin');
   if (profile?.role === 'jab_staff') redirect('/equipo/clientes');
-  if (profile?.role === 'salesperson') redirect('/dashboard/mi-panel');
   redirect('/dashboard');
 }

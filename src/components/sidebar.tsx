@@ -8,6 +8,7 @@ import { salirDeCliente } from '@/app/admin/actions';
 type Vista = 'inicio' | 'bandeja' | 'pipeline';
 type Seccion =
   | 'trabajo'
+  | 'brief'
   | 'equipo'
   | 'configuracion'
   | 'redes'
@@ -22,6 +23,7 @@ const NAV_TRABAJO: { vista: Vista; etiqueta: string }[] = [
 ];
 
 const NAV_CUENTA: { seccion: Seccion; etiqueta: string; href: string }[] = [
+  { seccion: 'brief', etiqueta: 'Brief', href: '/dashboard/brief' },
   { seccion: 'redes', etiqueta: 'Redes', href: '/dashboard/redes' },
   { seccion: 'pedidos', etiqueta: 'Pedidos', href: '/dashboard/pedidos' },
   { seccion: 'materiales', etiqueta: 'Materiales', href: '/dashboard/materiales' },

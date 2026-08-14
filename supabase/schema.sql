@@ -964,3 +964,77 @@ create policy "materiales_write" on public.materiales for all
     or (public.current_role() in ('client_admin', 'supervisor') and tenant_id = public.current_tenant_id())
     or (public.es_staff() and public.staff_tiene_acceso(tenant_id))
   );
+
+-- Brief de onboarding: una fila por cliente con el contexto de negocio
+-- (qué vende, cliente ideal, objetivos). Lectura amplia (cualquiera con
+-- acceso al tenant, vendedores incluidos, se beneficia de conocer este
+-- contexto); escritura reservada a quien administra la cuenta.
+create table if not exists public.onboarding_briefs (
+  tenant_id uuid primary key references public.tenants (id) on delete cascade,
+  empresa_descripcion text,
+  cliente_ideal text,
+  que_vende text,
+  objetivos text,
+  notas text,
+  actualizado_por uuid references public.profiles (id) on delete set null,
+  updated_at timestamptz not null default now()
+);
+
+create trigger onboarding_briefs_set_updated_at
+before update on public.onboarding_briefs
+for each row execute function public.set_updated_at();
+
+alter table public.onboarding_briefs enable row level security;
+
+drop policy if exists "onboarding_briefs_select" on public.onboarding_briefs;
+create policy "onboarding_briefs_select" on public.onboarding_briefs for select
+  using (public.tiene_acceso_tenant(tenant_id));
+
+drop policy if exists "onboarding_briefs_write" on public.onboarding_briefs;
+create policy "onboarding_briefs_write" on public.onboarding_briefs for all
+  using (
+    public.is_super_admin()
+    or (public.current_role() in ('client_admin', 'supervisor') and tenant_id = public.current_tenant_id())
+    or (public.es_staff() and public.staff_tiene_acceso(tenant_id))
+  )
+  with check (
+    public.is_super_admin()
+    or (public.current_role() in ('client_admin', 'supervisor') and tenant_id = public.current_tenant_id())
+    or (public.es_staff() and public.staff_tiene_acceso(tenant_id))
+  );
+
+-- Accesos y credenciales del cliente (redes, hosting, etc.). Es la
+-- categoría más sensible de todo el CRM — a diferencia del brief, acá
+-- tanto lectura como escritura quedan SOLO para el dueño del negocio
+-- (client_admin) y JAB (super_admin). Ni supervisor, ni vendedor, ni
+-- jab_staff sin ese rol exacto llegan a ver esta tabla.
+create table if not exists public.onboarding_accesos (
+  id uuid primary key default gen_random_uuid(),
+  tenant_id uuid not null references public.tenants (id) on delete cascade,
+  servicio text not null,
+  usuario text,
+  contrasena text,
+  notas text,
+  creado_por uuid references public.profiles (id) on delete set null,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create index if not exists onboarding_accesos_tenant_idx on public.onboarding_accesos (tenant_id);
+
+create trigger onboarding_accesos_set_updated_at
+before update on public.onboarding_accesos
+for each row execute function public.set_updated_at();
+
+alter table public.onboarding_accesos enable row level security;
+
+drop policy if exists "onboarding_accesos_all" on public.onboarding_accesos;
+create policy "onboarding_accesos_all" on public.onboarding_accesos for all
+  using (
+    public.is_super_admin()
+    or (public.current_role() = 'client_admin' and tenant_id = public.current_tenant_id())
+  )
+  with check (
+    public.is_super_admin()
+    or (public.current_role() = 'client_admin' and tenant_id = public.current_tenant_id())
+  );

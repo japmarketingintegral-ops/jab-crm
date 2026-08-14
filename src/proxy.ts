@@ -5,7 +5,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 // /auth cubre el callback de invitación (procesa el token en el cliente,
 // todavía no hay sesión en el primer request al servidor) y la pantalla de
 // elegir contraseña.
-const RUTAS_PUBLICAS = ['/login', '/api/webhooks', '/auth'];
+const RUTAS_PUBLICAS = ['/login', '/api/webhooks', '/api/cron', '/auth'];
 
 export async function proxy(request: NextRequest) {
   let response = NextResponse.next({ request });
@@ -54,9 +54,7 @@ export async function proxy(request: NextRequest) {
         ? '/admin'
         : profile?.role === 'jab_staff'
           ? '/equipo/clientes'
-          : profile?.role === 'salesperson'
-            ? '/dashboard/mi-panel'
-            : '/dashboard';
+          : '/dashboard';
     return NextResponse.redirect(url);
   }
 

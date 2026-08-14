@@ -1,7 +1,6 @@
 import { esRolCompleto, requerirPerfil, requerirTenantActivo } from '@/lib/auth';
 import { createClient } from '@/lib/supabase/server';
 import { Sidebar } from '@/components/sidebar';
-import { AgregarPostForm } from './agregar-post-form';
 import { SincronizarMetaButton } from './sincronizar-meta-button';
 import { RedesReporte } from './redes-reporte';
 
@@ -53,12 +52,7 @@ export default async function RedesPage() {
             <h1 className="text-xl font-bold">KPIs Redes sociales</h1>
             <p className="text-sm text-jab-muted">Lo que publicamos y cómo funcionó.</p>
           </div>
-          {esAdmin && (
-            <div className="flex items-center gap-2">
-              {metaConectado && <SincronizarMetaButton />}
-              <AgregarPostForm />
-            </div>
-          )}
+          {esAdmin && metaConectado && <SincronizarMetaButton />}
         </div>
 
         <RedesReporte posts={posts ?? []} esAdmin={esAdmin} />

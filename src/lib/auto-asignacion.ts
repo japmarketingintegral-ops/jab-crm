@@ -1,5 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Database } from '@/lib/supabase/types';
+import { enviarEmail } from '@/lib/email';
 
 /**
  * Round robin: si el tenant tiene auto_asignacion activada, devuelve el id
@@ -34,4 +35,24 @@ export async function proximoVendedorRoundRobin(
   await supabase.from('tenants').update({ round_robin_ultimo_id: siguiente.id }).eq('id', tenantId);
 
   return siguiente.id;
+}
+
+/** Avisa por mail al vendedor que le tocó un lead nuevo por round robin. */
+export async function notificarLeadAsignado(
+  supabase: SupabaseClient<Database>,
+  vendedorId: string,
+  lead: { full_name: string | null; phone: string | null },
+) {
+  const { data: vendedor } = await supabase.from('profiles').select('email').eq('id', vendedorId).single();
+  if (!vendedor?.email) return;
+
+  await enviarEmail({
+    to: vendedor.email,
+    subject: `Te asignaron un lead: ${lead.full_name ?? 'sin nombre'}`,
+    html: `
+      <p>Entró un lead nuevo y te lo asignamos por reparto automático.</p>
+      <p><strong>${lead.full_name ?? 'Sin nombre'}</strong>${lead.phone ? ` · ${lead.phone}` : ''}</p>
+      <p><a href="https://clientes.jabmarketing.site/dashboard?vista=bandeja" style="color:#3b6fe0;">Ver en Bandeja →</a></p>
+    `,
+  });
 }

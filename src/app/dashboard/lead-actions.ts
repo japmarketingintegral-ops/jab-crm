@@ -2,6 +2,7 @@
 
 import { esRolCompleto, requerirPerfil } from '@/lib/auth';
 import { createClient } from '@/lib/supabase/server';
+import { enviarEmail } from '@/lib/email';
 import type { LeadStatus } from '@/lib/supabase/types';
 
 /** Tenant dueño de un lead — para loguear actividad sin depender del tenant
@@ -192,6 +193,18 @@ export async function reasignar(leadId: string, nuevoVendedorId: string | null) 
       .eq('id', nuevoVendedorId)
       .single();
     nombreNuevo = data?.full_name ?? data?.email ?? nombreNuevo;
+    if (data?.email) {
+      const { data: lead } = await supabase.from('leads').select('full_name, phone').eq('id', leadId).single();
+      await enviarEmail({
+        to: data.email,
+        subject: `Te asignaron un lead: ${lead?.full_name ?? 'sin nombre'}`,
+        html: `
+          <p>Te asignaron un lead nuevo en Jab CRM.</p>
+          <p><strong>${lead?.full_name ?? 'Sin nombre'}</strong>${lead?.phone ? ` · ${lead.phone}` : ''}</p>
+          <p><a href="https://clientes.jabmarketing.site/dashboard?vista=bandeja" style="color:#3b6fe0;">Ver en Bandeja →</a></p>
+        `,
+      });
+    }
   }
 
   await supabase.from('lead_activities').insert({
