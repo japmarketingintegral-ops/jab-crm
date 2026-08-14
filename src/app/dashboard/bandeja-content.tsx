@@ -1,9 +1,10 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { nivelSLA, tiempoRelativo, iniciales, SLA_BORDE, SLA_TEXTO } from '@/lib/format';
+import { nivelSLA, tiempoRelativo, SLA_BORDE, SLA_TEXTO } from '@/lib/format';
 import type { LeadPlatform, LeadStatus } from '@/lib/supabase/types';
 import { LeadDetailPanel } from './lead-detail-panel';
+import { BandejaInbox } from './bandeja-inbox';
 
 export type LeadFila = {
   id: string;
@@ -16,6 +17,8 @@ export type LeadFila = {
   campana: string | null;
   vendedorNombre: string | null;
   esMio: boolean;
+  ultimoMensaje: string | null;
+  ultimoMensajeEn: string | null;
 };
 
 const ESTADO_LABEL: Record<LeadStatus, string> = {
@@ -162,70 +165,8 @@ export function BandejaContent({
         </div>
       ) : (
         <>
-          {/* Desktop */}
-          <div className="hidden lg:block flex-1 overflow-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="text-left text-[11px] font-semibold tracking-widest text-jab-muted uppercase">
-                  <th className="px-6 py-3">Contacto</th>
-                  <th className="px-4 py-3">Fuente</th>
-                  <th className="px-4 py-3">Campaña</th>
-                  <th className="px-4 py-3">Vendedor</th>
-                  <th className="px-6 py-3 text-right">Sin contactar</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filtrados.map((l) => {
-                  const sla = nivelSLA(l.actualizadoEn);
-                  return (
-                    <tr
-                      key={l.id}
-                      onClick={() => setLeadSeleccionado(l.id)}
-                      className={`cursor-pointer hover:bg-jab-panel-2/50 border-l-4 border-b border-b-jab-border ${SLA_BORDE[sla]}`}
-                    >
-                      <td className="px-6 py-3">
-                        <p className="font-medium">{l.nombre ?? 'Sin nombre'}</p>
-                        <p className="text-xs text-jab-muted">{l.telefono ?? '—'}</p>
-                      </td>
-                      <td className="px-4 py-3">
-                        {l.plataforma && (
-                          <span className="inline-flex items-center gap-2">
-                            <span
-                              className={`flex h-5 w-5 items-center justify-center rounded text-[10px] font-bold ${FUENTE_COLOR[l.plataforma]}`}
-                            >
-                              {FUENTE_LETRA[l.plataforma]}
-                            </span>
-                            {FUENTE_LABEL[l.plataforma]}
-                          </span>
-                        )}
-                      </td>
-                      <td className="px-4 py-3 text-jab-muted">{l.campana ?? '—'}</td>
-                      <td className="px-4 py-3">
-                        {l.vendedorNombre ? (
-                          <span className="inline-flex items-center gap-2">
-                            <span className="flex h-6 w-6 items-center justify-center rounded-full bg-jab-panel-2 text-[10px] font-semibold">
-                              {iniciales(l.vendedorNombre)}
-                            </span>
-                            {l.vendedorNombre}
-                          </span>
-                        ) : (
-                          <span className="text-jab-muted">Sin asignar</span>
-                        )}
-                      </td>
-                      <td className="px-6 py-3 text-right">
-                        <p className={`font-semibold ${SLA_TEXTO[sla]}`}>
-                          {tiempoRelativo(l.actualizadoEn)}
-                        </p>
-                        <p className={`text-[11px] tracking-wide uppercase ${SLA_TEXTO[sla]}`}>
-                          {ESTADO_LABEL[l.estado]}
-                        </p>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+          {/* Desktop: bandeja tipo inbox de chat, tres columnas */}
+          <BandejaInbox leads={filtrados} />
 
           {/* Mobile */}
           <div className="lg:hidden flex-1 overflow-auto p-4 space-y-3">

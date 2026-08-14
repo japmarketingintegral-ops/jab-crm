@@ -38,6 +38,21 @@ export default async function DashboardPage({
       .order('updated_at', { ascending: true }),
   ]);
 
+  const ultimoMensajePorLead = new Map<string, { texto: string; en: string }>();
+  if (vista !== 'inicio' && vista !== 'pipeline') {
+    const { data: mensajesRaw } = await supabase
+      .from('lead_activities')
+      .select('lead_id, contenido, created_at')
+      .eq('tenant_id', tenantId)
+      .eq('tipo', 'mensaje')
+      .order('created_at', { ascending: false });
+    for (const m of mensajesRaw ?? []) {
+      if (!ultimoMensajePorLead.has(m.lead_id)) {
+        ultimoMensajePorLead.set(m.lead_id, { texto: m.contenido ?? '', en: m.created_at });
+      }
+    }
+  }
+
   const leads: LeadFila[] = (leadsRaw ?? []).map((l) => ({
     id: l.id,
     nombre: l.full_name,
@@ -49,6 +64,8 @@ export default async function DashboardPage({
     campana: l.lead_sources?.display_name ?? null,
     vendedorNombre: l.profiles?.full_name ?? null,
     esMio: l.assigned_to === perfil.id,
+    ultimoMensaje: ultimoMensajePorLead.get(l.id)?.texto ?? null,
+    ultimoMensajeEn: ultimoMensajePorLead.get(l.id)?.en ?? null,
   }));
 
   const noArchivados = leads.filter((l) => l.estado !== 'ganado' && l.estado !== 'perdido');

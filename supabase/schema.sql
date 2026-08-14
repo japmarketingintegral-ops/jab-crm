@@ -759,3 +759,65 @@ create policy "tareas_internas_write" on public.tareas_internas for all
     public.is_super_admin()
     or (public.es_staff() and public.staff_tiene_acceso(tenant_id))
   );
+
+-- Comentarios y adjuntos de tareas internas — mismo patrón que
+-- pedido_comentarios/pedido_archivos, para que la ficha de una tarea del
+-- Tablero tenga la misma funcionalidad que la de un Pedido.
+create table if not exists public.tarea_comentarios (
+  id uuid primary key default gen_random_uuid(),
+  tarea_id uuid not null references public.tareas_internas (id) on delete cascade,
+  tenant_id uuid not null references public.tenants (id) on delete cascade,
+  autor_id uuid references public.profiles (id) on delete set null,
+  texto text not null,
+  created_at timestamptz not null default now()
+);
+
+create index if not exists tarea_comentarios_tarea_id_idx on public.tarea_comentarios (tarea_id);
+
+alter table public.tarea_comentarios enable row level security;
+
+drop policy if exists "tarea_comentarios_select" on public.tarea_comentarios;
+create policy "tarea_comentarios_select" on public.tarea_comentarios for select
+  using (
+    public.is_super_admin()
+    or (public.es_staff() and public.staff_tiene_acceso(tenant_id))
+  );
+
+drop policy if exists "tarea_comentarios_insert" on public.tarea_comentarios;
+create policy "tarea_comentarios_insert" on public.tarea_comentarios for insert
+  with check (
+    public.is_super_admin()
+    or (public.es_staff() and public.staff_tiene_acceso(tenant_id))
+  );
+
+create table if not exists public.tarea_archivos (
+  id uuid primary key default gen_random_uuid(),
+  tarea_id uuid not null references public.tareas_internas (id) on delete cascade,
+  tenant_id uuid not null references public.tenants (id) on delete cascade,
+  nombre_archivo text not null,
+  ruta_storage text not null,
+  subido_por uuid references public.profiles (id) on delete set null,
+  created_at timestamptz not null default now()
+);
+
+create index if not exists tarea_archivos_tarea_id_idx on public.tarea_archivos (tarea_id);
+
+alter table public.tarea_archivos enable row level security;
+
+drop policy if exists "tarea_archivos_select" on public.tarea_archivos;
+create policy "tarea_archivos_select" on public.tarea_archivos for select
+  using (
+    public.is_super_admin()
+    or (public.es_staff() and public.staff_tiene_acceso(tenant_id))
+  );
+
+drop policy if exists "tarea_archivos_insert" on public.tarea_archivos;
+create policy "tarea_archivos_insert" on public.tarea_archivos for insert
+  with check (
+    public.is_super_admin()
+    or (public.es_staff() and public.staff_tiene_acceso(tenant_id))
+  );
+
+insert into storage.buckets (id, name, public)
+values ('tareas-adjuntos', 'tareas-adjuntos', false)
+on conflict (id) do nothing;
