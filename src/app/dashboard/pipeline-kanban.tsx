@@ -6,19 +6,31 @@ import { nivelSLA, tiempoRelativo, SLA_BORDE, SLA_TEXTO } from '@/lib/format';
 import { cambiarEstado } from './lead-actions';
 import { LeadDetailPanel } from './lead-detail-panel';
 import type { LeadFila } from './bandeja-content';
-import type { LeadStatus } from '@/lib/supabase/types';
+import type { LeadStatus, PipelineConfig } from '@/lib/supabase/types';
 
-const COLUMNAS: { estado: LeadStatus; titulo: string }[] = [
+const COLUMNAS_DEFAULT: { estado: LeadStatus; titulo: string }[] = [
   { estado: 'nuevo', titulo: 'Nuevo' },
   { estado: 'contactado', titulo: 'Contactado' },
   { estado: 'calificado', titulo: 'Con visita' },
+  { estado: 'ganado', titulo: 'Ganado' },
+  { estado: 'perdido', titulo: 'Perdido' },
 ];
 
-export function PipelineKanban({ leads }: { leads: LeadFila[] }) {
+export function PipelineKanban({
+  leads,
+  pipelineConfig,
+}: {
+  leads: LeadFila[];
+  pipelineConfig?: PipelineConfig | null;
+}) {
   const router = useRouter();
   const [, startTransition] = useTransition();
   const [arrastrando, setArrastrando] = useState<string | null>(null);
   const [leadSeleccionado, setLeadSeleccionado] = useState<string | null>(null);
+
+  const columnas = COLUMNAS_DEFAULT.filter((c) => pipelineConfig?.[c.estado]?.visible !== false).map(
+    (c) => ({ ...c, titulo: pipelineConfig?.[c.estado]?.label || c.titulo }),
+  );
 
   function soltarEn(estado: LeadStatus) {
     if (!arrastrando) return;
@@ -38,7 +50,7 @@ export function PipelineKanban({ leads }: { leads: LeadFila[] }) {
       </div>
 
       <div className="flex-1 overflow-x-auto p-6 flex gap-4">
-        {COLUMNAS.map((col) => {
+        {columnas.map((col) => {
           const items = leads.filter((l) => l.estado === col.estado);
           return (
             <div

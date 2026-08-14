@@ -22,6 +22,7 @@
 create extension if not exists "pgcrypto";
 
 create type public.user_role as enum ('super_admin', 'client_admin', 'salesperson');
+-- 'supervisor' y jab_staff se suman después con "alter type ... add value" (ver más abajo).
 create type public.lead_platform as enum ('meta', 'google');
 create type public.lead_status as enum ('nuevo', 'contactado', 'calificado', 'ganado', 'perdido');
 
@@ -821,3 +822,145 @@ create policy "tarea_archivos_insert" on public.tarea_archivos for insert
 insert into storage.buckets (id, name, public)
 values ('tareas-adjuntos', 'tareas-adjuntos', false)
 on conflict (id) do nothing;
+
+-- Conexión real con Meta (Facebook/Instagram): guarda el token de la Página
+-- que se obtiene al conectar por OAuth (Facebook Login for Business), para
+-- poder traer leads completos por la Graph API y sincronizar métricas de
+-- Instagram/Facebook a Redes. access_token nunca se selecciona desde el
+-- frontend (los server actions y páginas que listan fuentes piden columnas
+-- explícitas, sin este campo) — solo lo usa el webhook y el sync de
+-- métricas, ambos con el service role.
+alter table public.lead_sources
+  add column if not exists access_token text,
+  add column if not exists instagram_business_account_id text,
+  add column if not exists token_actualizado_en timestamptz;
+
+-- external_id: el id del post/media en Facebook o Instagram, para que el
+-- sync automático (src/app/dashboard/redes/sync-meta-actions.ts) pueda
+-- hacer upsert sin duplicar publicaciones ya traídas en una corrida
+-- anterior. Nulo en los posts cargados a mano (no pisa nada de lo manual).
+alter table public.social_posts
+  add column if not exists external_id text;
+
+create unique index if not exists social_posts_tenant_external_idx
+  on public.social_posts (tenant_id, external_id)
+  where external_id is not null;
+
+-- Almacén temporal para el picker de "elegí qué página conectar" del login
+-- de Meta: la lista de páginas (con su access_token, que puede ser larga
+-- si la cuenta administra muchas) no entra en una cookie de 4KB cuando la
+-- cuenta de Facebook administra varias páginas — algo común acá porque JAB
+-- administra las redes de varios clientes con la misma cuenta. Solo el id
+-- de esta fila viaja en la cookie. Se borra apenas se elige una página; las
+-- filas viejas (login abandonado) se pueden limpiar a mano, no acumulan
+-- volumen suficiente como para necesitar un cron.
+create table if not exists public.meta_conexiones_pendientes (
+  id uuid primary key default gen_random_uuid(),
+  tenant_id uuid not null references public.tenants (id) on delete cascade,
+  paginas jsonb not null,
+  created_at timestamptz not null default now()
+);
+
+alter table public.meta_conexiones_pendientes enable row level security;
+-- Sin policies a propósito: solo se toca con el service role (route handler
+-- del callback de OAuth y el server action que confirma la página elegida),
+-- nunca directo desde el cliente.
+
+-- ============================================================
+-- Rol 'supervisor' para el equipo del cliente
+--
+-- Hasta acá el equipo de un cliente era client_admin (todo) o salesperson
+-- (solo lo asignado). Supervisor es un tercer rol intermedio: ve y gestiona
+-- todos los leads/redes/materiales del tenant como un admin, pero no
+-- administra el equipo (invitar/quitar gente) ni las integraciones —
+-- eso queda reservado al dueño de la cuenta (client_admin).
+--
+-- Paso 1 (correr solo, confirmar, y recién ahí seguir con el resto):
+-- alter type public.user_role add value if not exists 'supervisor';
+-- alter type public.social_platform add value if not exists 'linkedin';
+-- ============================================================
+
+-- Configuración del pipeline por tenant: qué etiqueta mostrar por etapa y
+-- si esa etapa está visible. Nulo = usar los 5 valores por defecto
+-- (nuevo/contactado/calificado/ganado/perdido) tal cual, sin personalizar.
+alter table public.tenants add column if not exists pipeline_config jsonb;
+
+drop policy if exists "leads_select" on public.leads;
+create policy "leads_select" on public.leads for select
+  using (
+    public.is_super_admin()
+    or (public.current_role() in ('client_admin', 'supervisor') and tenant_id = public.current_tenant_id())
+    or (public.current_role() = 'salesperson' and assigned_to = auth.uid())
+    or (public.es_staff() and public.staff_tiene_acceso(tenant_id, true))
+  );
+
+drop policy if exists "leads_update" on public.leads;
+create policy "leads_update" on public.leads for update
+  using (
+    public.is_super_admin()
+    or (public.current_role() in ('client_admin', 'supervisor') and tenant_id = public.current_tenant_id())
+    or (public.current_role() = 'salesperson' and assigned_to = auth.uid())
+    or (public.es_staff() and public.staff_tiene_acceso(tenant_id, true))
+  )
+  with check (
+    public.is_super_admin()
+    or (public.current_role() in ('client_admin', 'supervisor') and tenant_id = public.current_tenant_id())
+    or (public.current_role() = 'salesperson' and assigned_to = auth.uid())
+    or (public.es_staff() and public.staff_tiene_acceso(tenant_id, true))
+  );
+
+drop policy if exists "lead_activities_select" on public.lead_activities;
+create policy "lead_activities_select" on public.lead_activities for select
+  using (
+    public.is_super_admin()
+    or (public.current_role() in ('client_admin', 'supervisor') and tenant_id = public.current_tenant_id())
+    or (
+      public.current_role() = 'salesperson'
+      and exists (
+        select 1 from public.leads
+        where leads.id = lead_activities.lead_id and leads.assigned_to = auth.uid()
+      )
+    )
+    or (public.es_staff() and public.staff_tiene_acceso(tenant_id, true))
+  );
+
+drop policy if exists "lead_activities_insert" on public.lead_activities;
+create policy "lead_activities_insert" on public.lead_activities for insert
+  with check (
+    public.is_super_admin()
+    or (public.current_role() in ('client_admin', 'supervisor') and tenant_id = public.current_tenant_id())
+    or (
+      public.current_role() = 'salesperson'
+      and exists (
+        select 1 from public.leads
+        where leads.id = lead_activities.lead_id and leads.assigned_to = auth.uid()
+      )
+    )
+    or (public.es_staff() and public.staff_tiene_acceso(tenant_id, true))
+  );
+
+drop policy if exists "social_posts_write" on public.social_posts;
+create policy "social_posts_write" on public.social_posts for all
+  using (
+    public.is_super_admin()
+    or (public.current_role() in ('client_admin', 'supervisor') and tenant_id = public.current_tenant_id())
+    or (public.es_staff() and public.staff_tiene_acceso(tenant_id))
+  )
+  with check (
+    public.is_super_admin()
+    or (public.current_role() in ('client_admin', 'supervisor') and tenant_id = public.current_tenant_id())
+    or (public.es_staff() and public.staff_tiene_acceso(tenant_id))
+  );
+
+drop policy if exists "materiales_write" on public.materiales;
+create policy "materiales_write" on public.materiales for all
+  using (
+    public.is_super_admin()
+    or (public.current_role() in ('client_admin', 'supervisor') and tenant_id = public.current_tenant_id())
+    or (public.es_staff() and public.staff_tiene_acceso(tenant_id))
+  )
+  with check (
+    public.is_super_admin()
+    or (public.current_role() in ('client_admin', 'supervisor') and tenant_id = public.current_tenant_id())
+    or (public.es_staff() and public.staff_tiene_acceso(tenant_id))
+  );

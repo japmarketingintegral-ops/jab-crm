@@ -9,6 +9,7 @@ const ROL_LABEL: Record<string, string> = {
   super_admin: 'JAB',
   jab_staff: 'Equipo JAB',
   client_admin: 'Administradora',
+  supervisor: 'Supervisor',
   salesperson: 'Vendedor',
 };
 

@@ -1,19 +1,15 @@
 'use server';
 
-import { requerirPerfil, requerirTenantActivo } from '@/lib/auth';
+import { esRolCompleto, requerirPerfil, requerirTenantActivo } from '@/lib/auth';
 import { createClient } from '@/lib/supabase/server';
 import { createServiceClient } from '@/lib/supabase/service';
 
 const BUCKET = 'materiales';
 const MAX_ARCHIVO_BYTES = 20 * 1024 * 1024;
 
-function esAdmin(role: string) {
-  return role === 'client_admin' || role === 'super_admin';
-}
-
 export async function subirMateriales(_prevState: string | undefined, formData: FormData) {
   const perfil = await requerirPerfil();
-  if (!esAdmin(perfil.role)) return 'Solo un admin puede subir materiales.';
+  if (!esRolCompleto(perfil.role)) return 'Solo un admin o supervisor puede subir materiales.';
   const tenantId = await requerirTenantActivo(perfil);
 
   const archivos = formData.getAll('archivos').filter((a): a is File => a instanceof File && a.size > 0);
@@ -42,7 +38,7 @@ export async function subirMateriales(_prevState: string | undefined, formData: 
 
 export async function eliminarMaterial(materialId: string) {
   const perfil = await requerirPerfil();
-  if (!esAdmin(perfil.role)) return { error: 'Solo un admin puede eliminar materiales.' };
+  if (!esRolCompleto(perfil.role)) return { error: 'Solo un admin o supervisor puede eliminar materiales.' };
 
   const supabase = await createClient();
   const { data: material } = await supabase

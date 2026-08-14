@@ -1,4 +1,4 @@
-import { requerirPerfil, requerirTenantActivo } from '@/lib/auth';
+import { esRolCompleto, requerirPerfil, requerirTenantActivo } from '@/lib/auth';
 import { createClient } from '@/lib/supabase/server';
 import { Sidebar } from '@/components/sidebar';
 import { MaterialesGrid, type Material } from './materiales-grid';
@@ -6,13 +6,14 @@ import { MaterialesGrid, type Material } from './materiales-grid';
 const ROL_LABEL: Record<string, string> = {
   super_admin: 'JAB',
   client_admin: 'Administradora',
+  supervisor: 'Supervisor',
   salesperson: 'Vendedor',
 };
 
 export default async function MaterialesPage() {
   const perfil = await requerirPerfil();
   const tenantId = await requerirTenantActivo(perfil);
-  const esAdmin = perfil.role === 'client_admin' || perfil.role === 'super_admin';
+  const esAdmin = esRolCompleto(perfil.role);
 
   const supabase = await createClient();
 

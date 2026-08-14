@@ -1,6 +1,6 @@
 'use server';
 
-import { requerirPerfil } from '@/lib/auth';
+import { esRolCompleto, requerirPerfil } from '@/lib/auth';
 import { createClient } from '@/lib/supabase/server';
 import type { LeadStatus } from '@/lib/supabase/types';
 
@@ -63,12 +63,12 @@ export async function obtenerFicha(
     .order('created_at', { ascending: true });
 
   const equipo: MiembroEquipo[] = [];
-  if (perfil.role === 'client_admin' || perfil.role === 'super_admin') {
+  if (esRolCompleto(perfil.role)) {
     const { data: perfiles } = await supabase
       .from('profiles')
       .select('id, full_name, email')
       .eq('tenant_id', perfil.tenant_id ?? lead.tenant_id)
-      .in('role', ['client_admin', 'salesperson']);
+      .in('role', ['client_admin', 'supervisor', 'salesperson']);
     for (const p of perfiles ?? []) equipo.push({ id: p.id, nombre: p.full_name ?? p.email });
   }
 
@@ -168,12 +168,13 @@ export async function quitarEtiqueta(leadId: string, etiqueta: string) {
   return { ok: true };
 }
 
-/** Reasignar vendedor: solo admin — la RLS deja pasar el update igual, pero
- * acá cortamos antes de tocar la base para no confiar solo en el frontend. */
+/** Reasignar vendedor: solo roles con visibilidad completa — la RLS deja
+ * pasar el update igual, pero acá cortamos antes de tocar la base para no
+ * confiar solo en el frontend. */
 export async function reasignar(leadId: string, nuevoVendedorId: string | null) {
   const perfil = await requerirPerfil();
-  if (perfil.role !== 'client_admin' && perfil.role !== 'super_admin') {
-    return { error: 'Solo un admin puede reasignar.' };
+  if (!esRolCompleto(perfil.role)) {
+    return { error: 'Solo un admin o supervisor puede reasignar.' };
   }
 
   const supabase = await createClient();

@@ -115,10 +115,14 @@ Configuración). El lienzo de adentro cambia según la sección:
 - KPIs (publicaciones, alcance total, interacciones totales, interacciones
   por post), **publicación destacada** (la de mejor rendimiento), grilla con
   todas las publicaciones cargadas.
-- Todavía no hay integración en vivo con Instagram/Meta — las publicaciones
-  las carga JAB (o el admin del cliente) a mano con el botón "+
-  Publicación". El día que haya integración real, esta pantalla no cambia,
-  solo cambia quién carga los datos.
+- Si el cliente tiene Meta conectado (Configuración), aparece el botón
+  "Sincronizar con Meta": trae las últimas publicaciones de la Página de
+  Facebook y, si la Página tiene una cuenta de Instagram vinculada, también
+  las de Instagram — alcance, me gusta, comentarios (y compartidos en
+  Facebook). Se guardan por `external_id`, así sincronizar de nuevo
+  actualiza las métricas en vez de duplicar publicaciones. Sin Meta
+  conectado, sigue funcionando como antes: JAB (o el admin del cliente)
+  carga a mano con "+ Publicación".
 - **Gráficos** (con `recharts`): interacciones por publicación en el
   tiempo, alcance por plataforma, y composición de interacciones (me
   gusta / comentarios / compartidos) por plataforma. Los colores por
@@ -237,10 +241,15 @@ Configuración). El lienzo de adentro cambia según la sección:
 
 ## Qué falta (necesita que estés vos)
 
-1. **Conectar Meta Ads**: requiere crear y verificar una App en Meta for
-   Developers (proceso externo de varios días) y guardar el Page Access
-   Token del cliente. Los TODOs están marcados en
-   `src/app/api/webhooks/meta/route.ts`.
+1. **Conectar Meta Ads**: el login ya funciona (botón "Conectar" en
+   Configuración → `/api/auth/meta` → elegís la página → guarda el token en
+   `lead_sources` y suscribe la página al webhook de `leadgen`, ver
+   `src/lib/meta.ts`). Lo que falta es que Meta **apruebe la revisión de la
+   app** (`developers.facebook.com/apps/1382210856675023` → Revisar →
+   Revisión de la app) — hasta entonces el login solo funciona con cuentas
+   que son Admin/Developer/Tester de la app de Meta (vos), no con la cuenta
+   de Facebook de un cliente cualquiera. También falta completar la
+   "Verificación de acceso" (Tech Provider, vence 13/10/2026).
 2. **Conectar Google Ads**: requiere configurar el webhook de "Lead form
    assets" en la cuenta de Google Ads del cliente. TODOs en
    `src/app/api/webhooks/google/route.ts`.

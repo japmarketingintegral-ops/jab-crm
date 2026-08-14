@@ -12,7 +12,9 @@ export type LeadFila = {
   telefono: string | null;
   email: string | null;
   estado: LeadStatus;
+  creadoEn: string;
   actualizadoEn: string;
+  proximoSeguimiento: string | null;
   plataforma: LeadPlatform | null;
   campana: string | null;
   vendedorNombre: string | null;

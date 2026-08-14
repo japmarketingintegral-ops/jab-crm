@@ -3,10 +3,12 @@ import { createClient } from '@/lib/supabase/server';
 import { Sidebar } from '@/components/sidebar';
 import { InvitarVendedorForm } from './invitar-form';
 import { QuitarButton } from './quitar-button';
+import { RolSelect } from './rol-select';
 
 const ROL_LABEL: Record<string, string> = {
   super_admin: 'JAB',
   client_admin: 'Administradora',
+  supervisor: 'Supervisor',
   salesperson: 'Vendedor',
 };
 
@@ -59,13 +61,19 @@ export default async function EquipoPage() {
               <div>
                 <p className="text-sm font-medium">{persona.full_name ?? persona.email}</p>
                 <p className="text-xs text-jab-muted">
-                  {ROL_LABEL[persona.role] ?? persona.role} · {leadsPorPersona.get(persona.id) ?? 0}{' '}
-                  leads asignados
+                  {leadsPorPersona.get(persona.id) ?? 0} leads asignados
                 </p>
               </div>
-              {esAdmin && persona.id !== perfil.id && (
-                <QuitarButton userId={persona.id} nombre={persona.full_name ?? persona.email} />
-              )}
+              <div className="flex items-center gap-3">
+                {esAdmin && persona.id !== perfil.id && persona.role !== 'super_admin' ? (
+                  <RolSelect userId={persona.id} rolActual={persona.role} />
+                ) : (
+                  <span className="text-xs text-jab-muted">{ROL_LABEL[persona.role] ?? persona.role}</span>
+                )}
+                {esAdmin && persona.id !== perfil.id && (
+                  <QuitarButton userId={persona.id} nombre={persona.full_name ?? persona.email} />
+                )}
+              </div>
             </div>
           ))}
         </div>

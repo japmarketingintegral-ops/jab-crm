@@ -5,11 +5,12 @@
 //
 // y borrar este comentario.
 
-export type UserRole = 'super_admin' | 'client_admin' | 'salesperson' | 'jab_staff';
+export type UserRole = 'super_admin' | 'client_admin' | 'supervisor' | 'salesperson' | 'jab_staff';
 export type LeadPlatform = 'meta' | 'google';
 export type LeadStatus = 'nuevo' | 'contactado' | 'calificado' | 'ganado' | 'perdido';
 export type LeadActivityType = 'nota' | 'cambio_estado' | 'reasignacion' | 'seguimiento' | 'mensaje';
-export type SocialPlatform = 'instagram' | 'facebook' | 'tiktok' | 'otra';
+export type SocialPlatform = 'instagram' | 'facebook' | 'tiktok' | 'linkedin' | 'otra';
+export type PipelineConfig = Partial<Record<LeadStatus, { label: string; visible: boolean }>>;
 export type PedidoEstado = 'pedido' | 'en_proceso' | 'revision' | 'aprobado';
 export type PedidoCategoria = 'redes' | 'contenido' | 'comunicado' | 'video' | 'pauta' | 'otro';
 export type TareaInternaEstado = 'materiales' | 'en_proceso' | 'revision' | 'ads' | 'on_hold' | 'aprobado';
@@ -25,6 +26,7 @@ export interface Database {
           created_at: string;
           auto_asignacion: boolean;
           round_robin_ultimo_id: string | null;
+          pipeline_config: PipelineConfig | null;
         };
         Insert: {
           id?: string;
@@ -33,6 +35,7 @@ export interface Database {
           created_at?: string;
           auto_asignacion?: boolean;
           round_robin_ultimo_id?: string | null;
+          pipeline_config?: PipelineConfig | null;
         };
         Relationships: [
           {
@@ -74,6 +77,9 @@ export interface Database {
           display_name: string;
           connected_at: string | null;
           created_at: string;
+          access_token: string | null;
+          instagram_business_account_id: string | null;
+          token_actualizado_en: string | null;
         };
         Insert: {
           id?: string;
@@ -83,9 +89,28 @@ export interface Database {
           display_name: string;
           connected_at?: string | null;
           created_at?: string;
+          access_token?: string | null;
+          instagram_business_account_id?: string | null;
+          token_actualizado_en?: string | null;
         };
         Relationships: [];
         Update: Partial<Database['public']['Tables']['lead_sources']['Insert']>;
+      };
+      meta_conexiones_pendientes: {
+        Row: {
+          id: string;
+          tenant_id: string;
+          paginas: unknown;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          tenant_id: string;
+          paginas: unknown;
+          created_at?: string;
+        };
+        Relationships: [];
+        Update: Partial<Database['public']['Tables']['meta_conexiones_pendientes']['Insert']>;
       };
       leads: {
         Row: {
@@ -192,6 +217,7 @@ export interface Database {
           compartidos: number;
           creado_por: string | null;
           created_at: string;
+          external_id: string | null;
         };
         Insert: {
           id?: string;
@@ -207,6 +233,7 @@ export interface Database {
           compartidos?: number;
           creado_por?: string | null;
           created_at?: string;
+          external_id?: string | null;
         };
         Relationships: [
           {

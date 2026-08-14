@@ -38,7 +38,7 @@ export function InvitarVendedorForm() {
         action={formAction}
         className="relative z-10 w-full max-w-sm bg-jab-panel border border-jab-border rounded-lg p-6 space-y-4"
       >
-        <h2 className="text-lg font-bold">Invitar vendedor</h2>
+        <h2 className="text-lg font-bold">Invitar al equipo</h2>
 
         <div className="space-y-1">
           <label htmlFor="nombre" className="text-xs font-semibold tracking-widest text-jab-muted uppercase">
@@ -65,6 +65,22 @@ export function InvitarVendedorForm() {
           <p className="text-xs text-jab-muted">
             Le llega un mail para elegir su contraseña — nunca se manda en texto plano.
           </p>
+        </div>
+
+        <div className="space-y-1">
+          <label htmlFor="role" className="text-xs font-semibold tracking-widest text-jab-muted uppercase">
+            Rol
+          </label>
+          <select
+            id="role"
+            name="role"
+            defaultValue="salesperson"
+            className="w-full rounded-lg bg-jab-panel-2 border border-jab-border px-3 py-2 text-sm outline-none focus:border-jab-accent"
+          >
+            <option value="client_admin">Administrador — acceso total, gestiona equipo y cuenta</option>
+            <option value="supervisor">Supervisor — ve y opera todo, no gestiona equipo ni cuenta</option>
+            <option value="salesperson">Vendedor — ve y gestiona solo sus propios leads</option>
+          </select>
         </div>
 
         {error && <p className="text-sm text-jab-red">{error}</p>}

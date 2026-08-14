@@ -3,6 +3,7 @@ import type { SocialPlatform } from '@/lib/supabase/types';
 export const PLATAFORMA_LABEL: Record<SocialPlatform, string> = {
   instagram: 'Instagram',
   facebook: 'Facebook',
+  linkedin: 'LinkedIn',
   tiktok: 'TikTok',
   otra: 'Otra',
 };
@@ -10,6 +11,7 @@ export const PLATAFORMA_LABEL: Record<SocialPlatform, string> = {
 export const PLATAFORMA_COLOR: Record<SocialPlatform, string> = {
   instagram: 'bg-jab-meta',
   facebook: 'bg-jab-meta',
+  linkedin: 'bg-jab-linkedin',
   tiktok: 'bg-jab-accent',
   otra: 'bg-jab-panel-2',
 };
@@ -19,6 +21,7 @@ export const PLATAFORMA_COLOR: Record<SocialPlatform, string> = {
 export const PLATAFORMA_HEX: Record<SocialPlatform, string> = {
   instagram: '#5b9dff',
   facebook: '#a78bfa',
+  linkedin: '#0a66c2',
   tiktok: '#2dd4bf',
   otra: '#8891b8',
 };

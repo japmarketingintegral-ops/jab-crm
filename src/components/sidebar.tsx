@@ -5,13 +5,11 @@ import { CerrarSesionButton } from './cerrar-sesion-button';
 import { NotificationBell } from './notification-bell';
 import { salirDeCliente } from '@/app/admin/actions';
 
-type Vista = 'inicio' | 'bandeja' | 'mios' | 'vencidos' | 'pipeline' | 'archivo';
+type Vista = 'inicio' | 'bandeja' | 'pipeline';
 type Seccion =
   | 'trabajo'
-  | 'reportes'
   | 'equipo'
   | 'configuracion'
-  | 'mi-panel'
   | 'redes'
   | 'pedidos'
   | 'materiales'
@@ -20,14 +18,10 @@ type Seccion =
 const NAV_TRABAJO: { vista: Vista; etiqueta: string }[] = [
   { vista: 'inicio', etiqueta: 'Inicio' },
   { vista: 'bandeja', etiqueta: 'Bandeja' },
-  { vista: 'mios', etiqueta: 'Míos' },
-  { vista: 'vencidos', etiqueta: 'Vencidos' },
   { vista: 'pipeline', etiqueta: 'Pipeline' },
-  { vista: 'archivo', etiqueta: 'Archivo' },
 ];
 
 const NAV_CUENTA: { seccion: Seccion; etiqueta: string; href: string }[] = [
-  { seccion: 'reportes', etiqueta: 'Reportes', href: '/dashboard/reportes' },
   { seccion: 'redes', etiqueta: 'Redes', href: '/dashboard/redes' },
   { seccion: 'pedidos', etiqueta: 'Pedidos', href: '/dashboard/pedidos' },
   { seccion: 'materiales', etiqueta: 'Materiales', href: '/dashboard/materiales' },
@@ -45,6 +39,7 @@ export function Sidebar({
   esVendedor,
   viendoComoJab,
   mostrarTablero,
+  puedeConfigurar = true,
 }: {
   tenantNombre: string;
   nombreUsuario: string;
@@ -55,7 +50,11 @@ export function Sidebar({
   esVendedor?: boolean;
   viendoComoJab?: boolean;
   mostrarTablero?: boolean;
+  puedeConfigurar?: boolean;
 }) {
+  const navCuenta = puedeConfigurar
+    ? NAV_CUENTA
+    : NAV_CUENTA.filter((item) => item.seccion !== 'configuracion');
   return (
     <aside className="hidden lg:flex w-64 shrink-0 flex-col bg-jab-bg-deep border-r border-jab-border">
       <div className="p-5">
@@ -91,18 +90,6 @@ export function Sidebar({
             CRM
           </p>
           <ul className="space-y-0.5">
-            {esVendedor && (
-              <li>
-                <Link
-                  href="/dashboard/mi-panel"
-                  className={`block rounded-md px-2 py-1.5 text-sm ${
-                    seccion === 'mi-panel' ? 'bg-jab-panel-2 text-jab-text' : 'text-jab-muted hover:text-jab-text'
-                  }`}
-                >
-                  Mi panel
-                </Link>
-              </li>
-            )}
             {NAV_TRABAJO.map((item) => (
               <li key={item.vista}>
                 <Link
@@ -128,7 +115,7 @@ export function Sidebar({
             Cuentas
           </p>
           <ul className="space-y-0.5">
-            {NAV_CUENTA.map((item) => (
+            {navCuenta.map((item) => (
               <li key={item.seccion}>
                 <Link
                   href={item.href}

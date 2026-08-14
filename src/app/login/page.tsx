@@ -26,15 +26,15 @@ export default function LoginPage() {
 
         <div className="max-w-md">
           <h1 className="text-4xl font-bold leading-tight">
-            Cada consulta,
+            Cada lead,
             <br />
-            con nombre y
+            cada pedido,
             <br />
-            dueño.
+            con dueño.
           </h1>
           <p className="mt-6 text-jab-muted">
-            Los leads de Google y Meta entran solos, se reparten entre tu equipo y se
-            responden antes de enfriarse.
+            Leads, pedidos de contenido y métricas de redes: todo entra, se reparte y se
+            sigue en un solo panel.
           </p>
         </div>
 
@@ -54,7 +54,7 @@ export default function LoginPage() {
 
           <div>
             <p className="text-xs font-semibold tracking-widest text-jab-accent uppercase">
-              Panel de leads
+              Panel de gestión
             </p>
             <h2 className="text-2xl font-bold mt-1">Entrá a tu cuenta</h2>
           </div>

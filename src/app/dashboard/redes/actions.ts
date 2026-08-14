@@ -1,13 +1,14 @@
 'use server';
 
-import { requerirPerfil, requerirTenantActivo } from '@/lib/auth';
+import { esRolCompleto, requerirPerfil, requerirTenantActivo } from '@/lib/auth';
 import { createClient } from '@/lib/supabase/server';
 import type { SocialPlatform } from '@/lib/supabase/types';
+import { traerPublicacionesFacebook, traerPublicacionesInstagram } from '@/lib/meta';
 
 export async function agregarPost(_prevState: string | undefined, formData: FormData) {
   const perfil = await requerirPerfil();
-  if (perfil.role !== 'client_admin' && perfil.role !== 'super_admin') {
-    return 'Solo un admin puede cargar publicaciones.';
+  if (!esRolCompleto(perfil.role)) {
+    return 'Solo un admin o supervisor puede cargar publicaciones.';
   }
   const tenantId = await requerirTenantActivo(perfil);
 
@@ -42,10 +43,67 @@ export async function agregarPost(_prevState: string | undefined, formData: Form
   return undefined;
 }
 
+/** Trae las últimas publicaciones de Facebook/Instagram de la página conectada y las guarda (upsert por external_id, así un post que ya se sincronizó antes actualiza sus métricas en vez de duplicarse). */
+export async function sincronizarMetricasMeta(): Promise<{ ok?: boolean; error?: string }> {
+  const perfil = await requerirPerfil();
+  if (!esRolCompleto(perfil.role)) {
+    return { error: 'Solo un admin o supervisor puede sincronizar métricas.' };
+  }
+  const tenantId = await requerirTenantActivo(perfil);
+
+  const supabase = await createClient();
+  const { data: fuente } = await supabase
+    .from('lead_sources')
+    .select('external_account_id, access_token, instagram_business_account_id')
+    .eq('tenant_id', tenantId)
+    .eq('platform', 'meta')
+    .not('access_token', 'is', null)
+    .maybeSingle();
+
+  if (!fuente?.access_token) {
+    return { error: 'Todavía no conectaste Meta en Configuración.' };
+  }
+
+  try {
+    const [posts, media] = await Promise.all([
+      traerPublicacionesFacebook(fuente.external_account_id, fuente.access_token),
+      fuente.instagram_business_account_id
+        ? traerPublicacionesInstagram(fuente.instagram_business_account_id, fuente.access_token)
+        : Promise.resolve([]),
+    ]);
+
+    const filas = [...posts, ...media].map((p) => ({
+      tenant_id: tenantId,
+      external_id: p.external_id,
+      plataforma: p.plataforma as SocialPlatform,
+      titulo: p.titulo,
+      url: p.url,
+      imagen_url: p.imagen_url,
+      publicado_en: p.publicado_en.slice(0, 10),
+      alcance: p.alcance,
+      me_gusta: p.me_gusta,
+      comentarios: p.comentarios,
+      compartidos: p.compartidos,
+      creado_por: perfil.id,
+    }));
+
+    if (filas.length === 0) return { ok: true };
+
+    const { error } = await supabase
+      .from('social_posts')
+      .upsert(filas, { onConflict: 'tenant_id,external_id' });
+    if (error) return { error: 'No se pudo guardar lo sincronizado.' };
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : 'Falló la sincronización con Meta.' };
+  }
+
+  return { ok: true };
+}
+
 export async function eliminarPost(postId: string) {
   const perfil = await requerirPerfil();
-  if (perfil.role !== 'client_admin' && perfil.role !== 'super_admin') {
-    return { error: 'Solo un admin puede borrar publicaciones.' };
+  if (!esRolCompleto(perfil.role)) {
+    return { error: 'Solo un admin o supervisor puede borrar publicaciones.' };
   }
 
   const supabase = await createClient();

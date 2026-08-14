@@ -9,6 +9,7 @@ import type { PedidoTarjeta } from './pedidos-kanban';
 const ROL_LABEL: Record<string, string> = {
   super_admin: 'JAB',
   client_admin: 'Administradora',
+  supervisor: 'Supervisor',
   salesperson: 'Vendedor',
 };
 

@@ -39,7 +39,7 @@ export async function obtenerNotificaciones(): Promise<Notificacion[]> {
   const notificaciones: Notificacion[] = [];
   const ahora = Date.now();
   const nombre = (l: { full_name: string | null }) => l.full_name ?? 'Sin nombre';
-  const hrefLeads = esVendedor ? '/dashboard/mi-panel' : '/dashboard?vista=vencidos';
+  const hrefLeads = esVendedor ? '/dashboard' : '/dashboard?vista=bandeja';
 
   const veinticuatroHs = 24 * 3_600_000;
   if (esVendedor) {

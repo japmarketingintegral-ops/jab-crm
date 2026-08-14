@@ -3,29 +3,53 @@ import { requerirPerfil, requerirTenantActivo } from '@/lib/auth';
 import { createClient } from '@/lib/supabase/server';
 import { Sidebar } from '@/components/sidebar';
 import { AutoAsignacionToggle } from './auto-asignacion-toggle';
+import { PipelineConfigEditor } from './pipeline-config-editor';
+import { DesconectarMetaButton } from './desconectar-meta-button';
 
 const ROL_LABEL: Record<string, string> = {
   super_admin: 'JAB',
   client_admin: 'Administradora',
+  supervisor: 'Supervisor',
   salesperson: 'Vendedor',
 };
 
-export default async function ConfiguracionPage() {
+const META_MENSAJE: Record<string, { texto: string; ok: boolean }> = {
+  conectado: { texto: 'Meta conectado correctamente.', ok: true },
+  cancelado: { texto: 'Cancelaste la conexión con Meta.', ok: false },
+  sin_paginas: {
+    texto: 'Tu cuenta de Facebook no administra ninguna página. Conectá con la cuenta dueña de la página del cliente.',
+    ok: false,
+  },
+  estado_invalido: { texto: 'La conexión expiró o no es válida. Probá de nuevo.', ok: false },
+  error: { texto: 'Algo falló conectando Meta. Probá de nuevo en un momento.', ok: false },
+};
+
+export default async function ConfiguracionPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ meta?: string }>;
+}) {
   const perfil = await requerirPerfil();
-  if (perfil.role === 'salesperson') redirect('/dashboard');
+  if (perfil.role === 'salesperson' || perfil.role === 'supervisor') redirect('/dashboard');
   const tenantId = await requerirTenantActivo(perfil);
+  const params = await searchParams;
+  const mensajeMeta = params.meta ? META_MENSAJE[params.meta] : null;
 
   const supabase = await createClient();
 
   const [{ data: tenant }, { data: fuentes }] = await Promise.all([
-    supabase.from('tenants').select('name, auto_asignacion').eq('id', tenantId).single(),
+    supabase.from('tenants').select('name, slug, auto_asignacion, pipeline_config').eq('id', tenantId).single(),
     supabase
       .from('lead_sources')
-      .select('platform, display_name, connected_at')
+      .select('platform, display_name, connected_at, access_token')
       .eq('tenant_id', tenantId),
   ]);
 
-  const metaConectado = (fuentes ?? []).some((f) => f.platform === 'meta' && f.connected_at);
+  // "Conectado" para Meta significa que hay un access_token real (login hecho de
+  // verdad) — connected_at solo no alcanza, los tenants de ejemplo lo tienen
+  // seteado para simular el dato sin haber pasado nunca por el login real.
+  const fuenteMeta = (fuentes ?? []).find((f) => f.platform === 'meta' && f.access_token);
+  const metaConectado = Boolean(fuenteMeta);
   const googleConectado = (fuentes ?? []).some((f) => f.platform === 'google' && f.connected_at);
 
   return (
@@ -39,7 +63,19 @@ export default async function ConfiguracionPage() {
         mostrarTablero={perfil.role === 'super_admin' || perfil.role === 'jab_staff'}
       />
       <main className="jab-canvas-light flex-1 p-6 max-w-2xl w-full overflow-y-auto space-y-8">
-        <h1 className="text-xl font-bold">Configuración</h1>
+        <div>
+          <h1 className="text-xl font-bold">Configuración</h1>
+          <p className="text-sm text-jab-muted">{tenant?.name} · {tenant?.slug}</p>
+        </div>
+
+        <section>
+          <h2 className="text-sm font-semibold mb-1">Etapas del pipeline</h2>
+          <p className="text-sm text-jab-muted mb-3">
+            Renombrá cada etapa o ocultala del tablero de Pipeline. Los leads siguen guardando su
+            estado real aunque ocultes una columna.
+          </p>
+          <PipelineConfigEditor configInicial={tenant?.pipeline_config ?? null} />
+        </section>
 
         <section>
           <h2 className="text-sm font-semibold mb-1">Reparto automático de leads</h2>
@@ -61,25 +97,51 @@ export default async function ConfiguracionPage() {
         <section>
           <h2 className="text-sm font-semibold mb-1">Integraciones</h2>
           <p className="text-sm text-jab-muted mb-3">
-            Conectá las cuentas de Meta Ads y Google Ads del cliente para que sus leads entren acá
-            automáticamente.
+            Conectá las cuentas de Meta Ads y Google Ads del cliente para que sus leads y sus
+            métricas de redes entren acá automáticamente.
           </p>
+
+          {mensajeMeta && (
+            <p
+              className={`mb-3 text-sm rounded-lg px-3 py-2 ${
+                mensajeMeta.ok
+                  ? 'bg-jab-lime/20 text-jab-lime-ink'
+                  : 'bg-jab-red/10 text-jab-red'
+              }`}
+            >
+              {mensajeMeta.texto}
+            </p>
+          )}
 
           <div className="space-y-2">
             <div className="flex items-center justify-between rounded-lg bg-jab-panel-2 border border-jab-border px-4 py-3">
               <div>
-                <p className="text-sm font-medium">Meta Ads (Instagram / Facebook)</p>
+                <p className="text-sm font-medium">Meta (Facebook / Instagram)</p>
                 <p className="text-xs text-jab-muted">
-                  {metaConectado ? 'Conectado' : 'Requiere verificación de la App de Meta Business'}
+                  {metaConectado
+                    ? `Página conectada: ${fuenteMeta?.display_name}`
+                    : 'Conectá la página de Facebook del cliente para traer sus leads y métricas'}
                 </p>
               </div>
-              <span
-                className={`rounded-full px-3 py-1 text-xs font-medium ${
-                  metaConectado ? 'bg-jab-lime text-jab-lime-ink' : 'bg-jab-bg-deep text-jab-muted'
-                }`}
-              >
-                {metaConectado ? 'Conectado' : 'Sin conectar'}
-              </span>
+              {metaConectado ? (
+                <div className="flex items-center gap-2">
+                  <span className="rounded-full px-3 py-1 text-xs font-medium bg-jab-lime text-jab-lime-ink">
+                    Conectado
+                  </span>
+                  {(perfil.role === 'client_admin' || perfil.role === 'super_admin') && (
+                    <DesconectarMetaButton />
+                  )}
+                </div>
+              ) : (
+                (perfil.role === 'super_admin' || perfil.role === 'jab_staff') && (
+                  <a
+                    href="/api/auth/meta"
+                    className="rounded-full bg-jab-accent text-jab-bg-deep px-4 py-1.5 text-xs font-bold uppercase tracking-wide"
+                  >
+                    Conectar
+                  </a>
+                )
+              )}
             </div>
 
             <div className="flex items-center justify-between rounded-lg bg-jab-panel-2 border border-jab-border px-4 py-3">
@@ -100,8 +162,8 @@ export default async function ConfiguracionPage() {
           </div>
 
           <p className="text-xs text-jab-muted mt-3">
-            Estas dos integraciones necesitan pasos externos (verificación de la App de Meta Business
-            y una URL pública para recibir los webhooks) — JAB se encarga de conectarlas por vos.
+            Meta se conecta con un login (JAB elige la página del cliente y listo). Google Ads
+            todavía necesita que JAB configure a mano el webhook de lead form assets.
           </p>
         </section>
       </main>

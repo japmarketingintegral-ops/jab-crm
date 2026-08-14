@@ -1,6 +1,6 @@
 'use server';
 
-import { requerirPerfil, requerirTenantActivo } from '@/lib/auth';
+import { esRolCompleto, requerirPerfil, requerirTenantActivo } from '@/lib/auth';
 import { createClient } from '@/lib/supabase/server';
 import { createServiceClient } from '@/lib/supabase/service';
 import type { PedidoEstado, PedidoCategoria } from '@/lib/supabase/types';
@@ -19,12 +19,20 @@ export async function crearPedido(_prevState: string | undefined, formData: Form
   const categoria: PedidoCategoria = CATEGORIAS.includes(categoriaRaw as PedidoCategoria)
     ? (categoriaRaw as PedidoCategoria)
     : 'otro';
+  const fechaProgramada = (formData.get('fecha_programada') as string) || null;
   if (!titulo) return 'Falta el título del pedido.';
 
   const supabase = await createClient();
   const { data: pedido, error } = await supabase
     .from('pedidos')
-    .insert({ tenant_id: tenantId, titulo, descripcion, categoria, creado_por: perfil.id })
+    .insert({
+      tenant_id: tenantId,
+      titulo,
+      descripcion,
+      categoria,
+      creado_por: perfil.id,
+      fecha_programada: fechaProgramada,
+    })
     .select('id')
     .single();
   if (error || !pedido) return 'No se pudo crear el pedido.';
@@ -91,8 +99,8 @@ export async function cambiarEstadoPedido(pedidoId: string, estado: PedidoEstado
 
 export async function asignarPedido(pedidoId: string, userId: string | null) {
   const perfil = await requerirPerfil();
-  if (perfil.role !== 'client_admin' && perfil.role !== 'super_admin') {
-    return { error: 'Solo un admin puede asignar.' };
+  if (!esRolCompleto(perfil.role)) {
+    return { error: 'Solo un admin o supervisor puede asignar.' };
   }
   const supabase = await createClient();
   const { error } = await supabase.from('pedidos').update({ asignado_a: userId }).eq('id', pedidoId);
@@ -153,12 +161,12 @@ export async function obtenerDetallePedido(
   ]);
 
   const equipo: MiembroEquipo[] = [];
-  if (perfil.role === 'client_admin' || perfil.role === 'super_admin') {
+  if (esRolCompleto(perfil.role)) {
     const { data: perfiles } = await supabase
       .from('profiles')
       .select('id, full_name, email')
       .eq('tenant_id', pedido.tenant_id)
-      .in('role', ['client_admin', 'salesperson']);
+      .in('role', ['client_admin', 'supervisor', 'salesperson']);
     for (const p of perfiles ?? []) equipo.push({ id: p.id, nombre: p.full_name ?? p.email });
   }
 

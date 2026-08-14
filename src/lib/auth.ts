@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation';
 import { cookies } from 'next/headers';
 import { createClient } from '@/lib/supabase/server';
-import type { Database } from '@/lib/supabase/types';
+import type { Database, UserRole } from '@/lib/supabase/types';
 
 type Profile = Database['public']['Tables']['profiles']['Row'];
 
@@ -80,4 +80,20 @@ export async function puedeVerCrm(perfil: Profile, tenantId: string): Promise<bo
     .eq('tenant_id', tenantId)
     .maybeSingle();
   return data?.puede_ver_crm ?? false;
+}
+
+/** ¿Este rol administra el negocio del cliente (equipo, integraciones,
+ * configuración)? Solo el dueño (client_admin) y JAB — supervisor tiene
+ * visibilidad y operación completas pero no gestiona accesos ni la cuenta. */
+export function puedeAdministrar(role: UserRole): boolean {
+  return role === 'client_admin' || role === 'super_admin';
+}
+
+/** ¿Este rol ve todo el panel comercial del tenant (todos los leads, el
+ * dashboard completo de Inicio) en vez de solo lo propio? client_admin y
+ * supervisor ven todo; salesperson ve únicamente lo suyo. */
+export function esRolCompleto(role: UserRole): boolean {
+  return (
+    role === 'client_admin' || role === 'supervisor' || role === 'super_admin' || role === 'jab_staff'
+  );
 }
