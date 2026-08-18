@@ -26,14 +26,24 @@ export async function sincronizarMetricasMeta(): Promise<{ ok?: boolean; error?:
     return { error: 'Todavía no conectaste Meta en Configuración.' };
   }
 
-  try {
-    const [posts, media] = await Promise.all([
-      traerPublicacionesFacebook(fuente.external_account_id, fuente.access_token),
-      fuente.instagram_business_account_id
-        ? traerPublicacionesInstagram(fuente.instagram_business_account_id, fuente.access_token)
-        : Promise.resolve([]),
-    ]);
+  // Facebook e Instagram se traen por separado: si uno falla (por ejemplo,
+  // pages_read_engagement todavía no tiene Acceso Avanzado aprobado por Meta),
+  // no debe tirar abajo el resultado del otro que sí funcionó.
+  const [facebookResult, instagramResult] = await Promise.allSettled([
+    traerPublicacionesFacebook(fuente.external_account_id, fuente.access_token),
+    fuente.instagram_business_account_id
+      ? traerPublicacionesInstagram(fuente.instagram_business_account_id, fuente.access_token)
+      : Promise.resolve([]),
+  ]);
 
+  const posts = facebookResult.status === 'fulfilled' ? facebookResult.value : [];
+  const media = instagramResult.status === 'fulfilled' ? instagramResult.value : [];
+
+  if (facebookResult.status === 'rejected' && instagramResult.status === 'rejected') {
+    return { error: 'Falló la sincronización con Meta.' };
+  }
+
+  try {
     const filas = [...posts, ...media].map((p) => ({
       tenant_id: tenantId,
       external_id: p.external_id,
