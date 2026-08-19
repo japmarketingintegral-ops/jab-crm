@@ -8,6 +8,20 @@ export function tiempoRelativo(fecha: string): string {
   return `${dias} d`;
 }
 
+export type NivelVencimiento = 'vencida' | 'hoy' | 'proxima';
+
+/** Semáforo sobre una fecha programada (no sobre última actividad, como
+ * nivelSLA): vencida si ya pasó, "hoy" si es hoy, "próxima" si es futura. */
+export function nivelVencimiento(fechaProgramada: string | null): NivelVencimiento | null {
+  if (!fechaProgramada) return null;
+  const hoy = new Date();
+  hoy.setHours(0, 0, 0, 0);
+  const fecha = new Date(fechaProgramada + 'T00:00:00');
+  if (fecha.getTime() < hoy.getTime()) return 'vencida';
+  if (fecha.getTime() === hoy.getTime()) return 'hoy';
+  return 'proxima';
+}
+
 /** Duración en minutos a texto compacto: "8 min", "1.5 h", "—" si no hay dato. */
 export function formatearMinutos(minutos: number | null): string {
   if (minutos === null) return '—';
