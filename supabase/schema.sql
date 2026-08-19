@@ -1050,3 +1050,68 @@ create policy "onboarding_accesos_all" on public.onboarding_accesos for all
 drop index if exists public.social_posts_tenant_external_idx;
 alter table public.social_posts
   add constraint social_posts_external_id_key unique (external_id);
+
+-- WhatsApp (Baileys, no oficial) ----------------------------------------
+
+-- Cierra el comentario colgado en la definición de lead_activity_type
+-- (línea ~212): 'mensaje' se agregó en su momento directo en producción
+-- pero nunca quedó reflejado acá — lo deja explícito ahora.
+alter type public.lead_activity_type add value if not exists 'mensaje';
+alter type public.lead_platform add value if not exists 'whatsapp';
+
+-- Datos de WhatsApp en el timeline de lead_activities. Nulos en cualquier
+-- actividad que no sea un mensaje de WhatsApp (nota, cambio_estado, etc).
+-- wa_status no tiene check constraint (aplicado desde el editor visual de
+-- Supabase, que no soporta agregarlo en esta vista) — los valores válidos
+-- ('pendiente', 'enviado', 'entregado', 'leido', 'fallido') se validan en
+-- el código (src/lib/whatsapp.ts), no en la base.
+alter table public.lead_activities add column if not exists wa_message_id text;
+alter table public.lead_activities add column if not exists wa_status text;
+alter table public.lead_activities add column if not exists wa_media_url text;
+alter table public.lead_activities add column if not exists wa_media_type text;
+alter table public.lead_activities
+  add constraint lead_activities_wa_message_id_key unique (wa_message_id);
+
+-- Teléfono normalizado (E.164) para emparejar el remitente de un mensaje
+-- entrante con un lead existente sin depender del formato libre de
+-- leads.phone.
+alter table public.leads add column if not exists phone_normalized text;
+create index if not exists leads_tenant_id_phone_normalized_idx
+  on public.leads (tenant_id, phone_normalized);
+
+-- Estado de la conexión de WhatsApp (Baileys) por tenant.
+create table if not exists public.whatsapp_conexiones (
+  id uuid primary key default gen_random_uuid(),
+  created_at timestamptz not null default now(),
+  tenant_id uuid not null unique references public.tenants (id) on delete cascade,
+  estado text not null default 'desconectado',
+  numero_whatsapp text,
+  qr text,
+  qr_generado_en timestamptz,
+  conectado_en timestamptz,
+  ultimo_error text,
+  updated_at timestamptz not null default now()
+);
+
+create trigger whatsapp_conexiones_set_updated_at
+before update on public.whatsapp_conexiones
+for each row execute function public.set_updated_at();
+
+alter table public.whatsapp_conexiones enable row level security;
+
+create policy "whatsapp_conexiones_select" on public.whatsapp_conexiones for select
+  using (public.is_super_admin() or tenant_id = public.current_tenant_id());
+-- Sin insert/update/delete a propósito: lo escribe el whatsapp-service o
+-- las rutas /api/whatsapp/* con el service role, igual que access_token
+-- en lead_sources.
+
+-- Credenciales/keys de la sesión Baileys (multi-device). Nunca se expone
+-- a usuarios — RLS habilitado, cero policies, solo se toca con la
+-- service_role key (desde el whatsapp-service o desde /api/whatsapp/*).
+create table if not exists public.whatsapp_credenciales (
+  tenant_id uuid primary key references public.tenants (id) on delete cascade,
+  auth_state jsonb not null default '{}'::jsonb,
+  updated_at timestamptz not null default now()
+);
+
+alter table public.whatsapp_credenciales enable row level security;

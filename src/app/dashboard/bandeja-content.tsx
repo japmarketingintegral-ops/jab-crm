@@ -31,11 +31,16 @@ const ESTADO_LABEL: Record<LeadStatus, string> = {
   perdido: 'Perdido',
 };
 
-const FUENTE_LABEL: Record<LeadPlatform, string> = { meta: 'Meta Ads', google: 'Google Ads' };
-const FUENTE_LETRA: Record<LeadPlatform, string> = { meta: 'M', google: 'G' };
+const FUENTE_LABEL: Record<LeadPlatform, string> = {
+  meta: 'Meta Ads',
+  google: 'Google Ads',
+  whatsapp: 'WhatsApp',
+};
+const FUENTE_LETRA: Record<LeadPlatform, string> = { meta: 'M', google: 'G', whatsapp: 'W' };
 const FUENTE_COLOR: Record<LeadPlatform, string> = {
   meta: 'bg-jab-meta',
   google: 'bg-jab-google',
+  whatsapp: 'bg-jab-whatsapp',
 };
 
 type FiltroEstado = 'todos' | 'vencidos' | 'nuevo' | 'contactado' | 'calificado';

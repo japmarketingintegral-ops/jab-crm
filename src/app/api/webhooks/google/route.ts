@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServiceClient } from '@/lib/supabase/service';
 import { proximoVendedorRoundRobin, notificarLeadAsignado } from '@/lib/auto-asignacion';
+import { normalizarTelefono } from '@/lib/phone';
 
 /**
  * Webhook de "lead form extensions" de Google Ads. A diferencia de Meta,
@@ -61,6 +62,7 @@ export async function POST(request: NextRequest) {
     full_name: nombreLead,
     email: buscarValor('EMAIL'),
     phone: telefonoLead,
+    phone_normalized: telefonoLead ? normalizarTelefono(telefonoLead) : null,
     raw_payload: body,
   });
 

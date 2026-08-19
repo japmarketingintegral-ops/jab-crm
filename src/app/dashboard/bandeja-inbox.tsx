@@ -8,7 +8,11 @@ import { LeadChatPanel } from './lead-chat-panel';
 import { LeadFichaPanel } from './lead-ficha-panel';
 import type { LeadFila } from './bandeja-content';
 
-const FUENTE_COLOR: Record<string, string> = { meta: 'bg-jab-meta', google: 'bg-jab-google' };
+const FUENTE_COLOR: Record<string, string> = {
+  meta: 'bg-jab-meta',
+  google: 'bg-jab-google',
+  whatsapp: 'bg-jab-whatsapp',
+};
 
 function fechaCorta(iso: string) {
   return new Date(iso).toLocaleString('es-AR', { day: '2-digit', month: '2-digit' });

@@ -6,7 +6,10 @@
 // y borrar este comentario.
 
 export type UserRole = 'super_admin' | 'client_admin' | 'supervisor' | 'salesperson' | 'jab_staff';
-export type LeadPlatform = 'meta' | 'google';
+export type LeadPlatform = 'meta' | 'google' | 'whatsapp';
+/** No es un enum de Postgres — es una columna `text` (ver schema.sql, sección
+ * WhatsApp), los valores válidos se validan en el código, no en la base. */
+export type WhatsappEstado = 'desconectado' | 'esperando_qr' | 'conectado' | 'error';
 export type LeadStatus = 'nuevo' | 'contactado' | 'calificado' | 'ganado' | 'perdido';
 export type LeadActivityType = 'nota' | 'cambio_estado' | 'reasignacion' | 'seguimiento' | 'mensaje';
 export type SocialPlatform = 'instagram' | 'facebook' | 'tiktok' | 'linkedin' | 'otra';
@@ -121,6 +124,7 @@ export interface Database {
           full_name: string | null;
           email: string | null;
           phone: string | null;
+          phone_normalized: string | null;
           status: LeadStatus;
           raw_payload: Record<string, unknown> | null;
           created_at: string;
@@ -138,6 +142,7 @@ export interface Database {
           full_name?: string | null;
           email?: string | null;
           phone?: string | null;
+          phone_normalized?: string | null;
           status?: LeadStatus;
           raw_payload?: Record<string, unknown> | null;
           created_at?: string;
@@ -174,6 +179,10 @@ export interface Database {
           tipo: LeadActivityType;
           contenido: string | null;
           created_at: string;
+          wa_message_id: string | null;
+          wa_status: string | null;
+          wa_media_url: string | null;
+          wa_media_type: string | null;
         };
         Insert: {
           id?: string;
@@ -183,6 +192,10 @@ export interface Database {
           tipo: LeadActivityType;
           contenido?: string | null;
           created_at?: string;
+          wa_message_id?: string | null;
+          wa_status?: string | null;
+          wa_media_url?: string | null;
+          wa_media_type?: string | null;
         };
         Relationships: [
           {
@@ -520,6 +533,64 @@ export interface Database {
         };
         Relationships: [];
         Update: Partial<Database['public']['Tables']['onboarding_accesos']['Insert']>;
+      };
+      whatsapp_conexiones: {
+        Row: {
+          id: string;
+          created_at: string;
+          tenant_id: string;
+          estado: WhatsappEstado;
+          numero_whatsapp: string | null;
+          qr: string | null;
+          qr_generado_en: string | null;
+          conectado_en: string | null;
+          ultimo_error: string | null;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          created_at?: string;
+          tenant_id: string;
+          estado?: WhatsappEstado;
+          numero_whatsapp?: string | null;
+          qr?: string | null;
+          qr_generado_en?: string | null;
+          conectado_en?: string | null;
+          ultimo_error?: string | null;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'whatsapp_conexiones_tenant_id_fkey';
+            columns: ['tenant_id'];
+            isOneToOne: true;
+            referencedRelation: 'tenants';
+            referencedColumns: ['id'];
+          },
+        ];
+        Update: Partial<Database['public']['Tables']['whatsapp_conexiones']['Insert']>;
+      };
+      whatsapp_credenciales: {
+        Row: {
+          tenant_id: string;
+          auth_state: Record<string, unknown>;
+          updated_at: string;
+        };
+        Insert: {
+          tenant_id: string;
+          auth_state?: Record<string, unknown>;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'whatsapp_credenciales_tenant_id_fkey';
+            columns: ['tenant_id'];
+            isOneToOne: true;
+            referencedRelation: 'tenants';
+            referencedColumns: ['id'];
+          },
+        ];
+        Update: Partial<Database['public']['Tables']['whatsapp_credenciales']['Insert']>;
       };
     };
     Views: Record<string, never>;

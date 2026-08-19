@@ -1,10 +1,12 @@
 import { redirect } from 'next/navigation';
+import Link from 'next/link';
 import { requerirPerfil, requerirTenantActivo } from '@/lib/auth';
 import { createClient } from '@/lib/supabase/server';
 import { Sidebar } from '@/components/sidebar';
 import { AutoAsignacionToggle } from './auto-asignacion-toggle';
 import { PipelineConfigEditor } from './pipeline-config-editor';
 import { DesconectarMetaButton } from './desconectar-meta-button';
+import { DesconectarWhatsappButton } from './desconectar-whatsapp-button';
 
 const ROL_LABEL: Record<string, string> = {
   super_admin: 'JAB',
@@ -37,12 +39,17 @@ export default async function ConfiguracionPage({
 
   const supabase = await createClient();
 
-  const [{ data: tenant }, { data: fuentes }] = await Promise.all([
+  const [{ data: tenant }, { data: fuentes }, { data: whatsapp }] = await Promise.all([
     supabase.from('tenants').select('name, slug, auto_asignacion, pipeline_config').eq('id', tenantId).single(),
     supabase
       .from('lead_sources')
       .select('platform, display_name, connected_at, access_token')
       .eq('tenant_id', tenantId),
+    supabase
+      .from('whatsapp_conexiones')
+      .select('estado, numero_whatsapp')
+      .eq('tenant_id', tenantId)
+      .maybeSingle(),
   ]);
 
   // "Conectado" para Meta significa que hay un access_token real (login hecho de
@@ -51,6 +58,7 @@ export default async function ConfiguracionPage({
   const fuenteMeta = (fuentes ?? []).find((f) => f.platform === 'meta' && f.access_token);
   const metaConectado = Boolean(fuenteMeta);
   const googleConectado = (fuentes ?? []).some((f) => f.platform === 'google' && f.connected_at);
+  const whatsappConectado = whatsapp?.estado === 'conectado';
 
   return (
     <div className="flex flex-1 min-h-0">
@@ -159,11 +167,42 @@ export default async function ConfiguracionPage({
                 {googleConectado ? 'Conectado' : 'Sin conectar'}
               </span>
             </div>
+
+            <div className="flex items-center justify-between rounded-lg bg-jab-panel-2 border border-jab-border px-4 py-3">
+              <div>
+                <p className="text-sm font-medium">WhatsApp</p>
+                <p className="text-xs text-jab-muted">
+                  {whatsappConectado
+                    ? `Conectado: ${whatsapp?.numero_whatsapp}`
+                    : 'Vinculá el WhatsApp del cliente para contestar consultas desde acá'}
+                </p>
+              </div>
+              {whatsappConectado ? (
+                <div className="flex items-center gap-2">
+                  <span className="rounded-full px-3 py-1 text-xs font-medium bg-jab-lime text-jab-lime-ink">
+                    Conectado
+                  </span>
+                  {(perfil.role === 'client_admin' || perfil.role === 'super_admin') && (
+                    <DesconectarWhatsappButton />
+                  )}
+                </div>
+              ) : (
+                (perfil.role === 'super_admin' || perfil.role === 'jab_staff') && (
+                  <Link
+                    href="/dashboard/configuracion/whatsapp"
+                    className="rounded-full bg-jab-accent text-jab-bg-deep px-4 py-1.5 text-xs font-bold uppercase tracking-wide"
+                  >
+                    Conectar
+                  </Link>
+                )
+              )}
+            </div>
           </div>
 
           <p className="text-xs text-jab-muted mt-3">
             Meta se conecta con un login (JAB elige la página del cliente y listo). Google Ads
-            todavía necesita que JAB configure a mano el webhook de lead form assets.
+            todavía necesita que JAB configure a mano el webhook de lead form assets. WhatsApp se
+            vincula escaneando un código QR, como un dispositivo más.
           </p>
         </section>
       </main>

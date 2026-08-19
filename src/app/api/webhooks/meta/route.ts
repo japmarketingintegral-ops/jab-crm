@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createServiceClient } from '@/lib/supabase/service';
 import { proximoVendedorRoundRobin, notificarLeadAsignado } from '@/lib/auto-asignacion';
 import { META_GRAPH_URL, verificarFirmaWebhook } from '@/lib/meta';
+import { normalizarTelefono } from '@/lib/phone';
 
 /**
  * Verificación del webhook: Meta pega este GET una sola vez, al momento de
@@ -111,6 +112,7 @@ export async function POST(request: NextRequest) {
         full_name: datosLead.full_name,
         email: datosLead.email,
         phone: datosLead.phone,
+        phone_normalized: datosLead.phone ? normalizarTelefono(datosLead.phone) : null,
         raw_payload: { leadgen_id: leadgenId, page_id: pageId },
       });
 

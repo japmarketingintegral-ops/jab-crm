@@ -3,7 +3,8 @@
 import { esRolCompleto, requerirPerfil } from '@/lib/auth';
 import { createClient } from '@/lib/supabase/server';
 import { enviarEmail } from '@/lib/email';
-import type { LeadStatus } from '@/lib/supabase/types';
+import { enviarWhatsapp } from '@/lib/whatsapp';
+import type { LeadPlatform, LeadStatus } from '@/lib/supabase/types';
 
 /** Tenant dueño de un lead — para loguear actividad sin depender del tenant
  * del actor (JAB, viendo un cliente, no tiene tenant propio). */
@@ -22,7 +23,7 @@ export type FichaLead = {
   actualizadoEn: string;
   proximoSeguimiento: string | null;
   assignedTo: string | null;
-  plataforma: 'meta' | 'google' | null;
+  plataforma: LeadPlatform | null;
   campana: string | null;
   rawPayload: Record<string, unknown> | null;
   tags: string[];
@@ -239,17 +240,35 @@ export async function agregarNota(leadId: string, texto: string) {
  * contacto, que no tienen autor_id porque no vienen de nadie del equipo. */
 export async function enviarMensaje(leadId: string, texto: string) {
   const perfil = await requerirPerfil();
-  if (!texto.trim()) return { error: 'El mensaje no puede estar vacío.' };
+  const contenido = texto.trim();
+  if (!contenido) return { error: 'El mensaje no puede estar vacío.' };
 
   const supabase = await createClient();
-  const { error } = await supabase.from('lead_activities').insert({
-    lead_id: leadId,
-    tenant_id: (await tenantDelLead(supabase, leadId))!,
-    autor_id: perfil.id,
-    tipo: 'mensaje',
-    contenido: texto.trim(),
-  });
-  if (error) return { error: 'No se pudo enviar el mensaje.' };
+  const { data: actividad, error } = await supabase
+    .from('lead_activities')
+    .insert({
+      lead_id: leadId,
+      tenant_id: (await tenantDelLead(supabase, leadId))!,
+      autor_id: perfil.id,
+      tipo: 'mensaje',
+      contenido,
+      wa_status: 'pendiente',
+    })
+    .select('id')
+    .single();
+  if (error || !actividad) return { error: 'No se pudo enviar el mensaje.' };
+
+  const resultado = await enviarWhatsapp(supabase, leadId, contenido);
+  await supabase
+    .from('lead_activities')
+    .update(
+      resultado.ok
+        ? { wa_status: 'enviado', wa_message_id: resultado.waMessageId ?? null }
+        : { wa_status: 'fallido' },
+    )
+    .eq('id', actividad.id);
+
+  if (!resultado.ok) return { error: resultado.error ?? 'No se pudo enviar el mensaje por WhatsApp.' };
   return { ok: true };
 }
 
