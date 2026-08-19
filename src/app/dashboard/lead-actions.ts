@@ -2,6 +2,7 @@
 
 import { esRolCompleto, requerirPerfil } from '@/lib/auth';
 import { createClient } from '@/lib/supabase/server';
+import { createServiceClient } from '@/lib/supabase/service';
 import { enviarEmail } from '@/lib/email';
 import { enviarWhatsapp } from '@/lib/whatsapp';
 import type { LeadPlatform, LeadStatus } from '@/lib/supabase/types';
@@ -36,6 +37,7 @@ export type FichaLead = {
     autorId: string | null;
     autorNombre: string | null;
     creadoEn: string;
+    waStatus: string | null;
   }[];
 };
 
@@ -60,9 +62,16 @@ export async function obtenerFicha(
 
   const { data: actividades } = await supabase
     .from('lead_activities')
-    .select('id, tipo, contenido, created_at, autor_id, profiles(full_name)')
+    .select('id, tipo, contenido, created_at, autor_id, wa_status, profiles(full_name)')
     .eq('lead_id', leadId)
     .order('created_at', { ascending: true });
+
+  // Se abrió la ficha: cuenta como "visto" para la marca de mensaje nuevo
+  // en la lista de Bandeja.
+  await supabase
+    .from('leads')
+    .update({ ultima_actividad_vista_en: new Date().toISOString() })
+    .eq('id', leadId);
 
   const equipo: MiembroEquipo[] = [];
   if (esRolCompleto(perfil.role)) {
@@ -98,6 +107,7 @@ export async function obtenerFicha(
         autorId: a.autor_id,
         autorNombre: a.profiles?.full_name ?? null,
         creadoEn: a.created_at,
+        waStatus: a.wa_status,
       })),
     },
     equipo,
@@ -107,7 +117,7 @@ export async function obtenerFicha(
 const ESTADO_LABEL: Record<LeadStatus, string> = {
   nuevo: 'Nuevo',
   contactado: 'Contactado',
-  calificado: 'Con visita',
+  calificado: 'Calificado',
   ganado: 'Ganado',
   perdido: 'Perdido',
 };
@@ -258,8 +268,21 @@ export async function enviarMensaje(leadId: string, texto: string) {
     .single();
   if (error || !actividad) return { error: 'No se pudo enviar el mensaje.' };
 
-  const resultado = await enviarWhatsapp(supabase, leadId, contenido);
+  // Sin esto el lead queda "congelado" en la fecha de su última edición de
+  // campo (nada toca leads.updated_at al insertar una actividad) — no sube
+  // en Bandeja ni se saca la marca de "vencido" aunque haya conversación
+  // activa. Lo tocamos a mano en vez de depender de un trigger.
+  const ahora = new Date().toISOString();
   await supabase
+    .from('leads')
+    .update({ updated_at: ahora, ultima_actividad_vista_en: ahora })
+    .eq('id', leadId);
+
+  const resultado = await enviarWhatsapp(supabase, leadId, contenido);
+  // No hay policy de UPDATE en lead_activities para el usuario logueado
+  // (a propósito: nadie edita actividad pasada a mano) — este es un update
+  // de sistema post-envío, se hace con el cliente de service role.
+  await createServiceClient()
     .from('lead_activities')
     .update(
       resultado.ok

@@ -133,6 +133,7 @@ export interface Database {
           tags: string[];
           valor: number | null;
           cerrado_en: string | null;
+          ultima_actividad_vista_en: string | null;
         };
         Insert: {
           id?: string;
@@ -151,6 +152,7 @@ export interface Database {
           tags?: string[];
           valor?: number | null;
           cerrado_en?: string | null;
+          ultima_actividad_vista_en?: string | null;
         };
         Relationships: [
           {

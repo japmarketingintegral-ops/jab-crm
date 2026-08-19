@@ -52,6 +52,20 @@ export function BandejaInbox({ leads }: { leads: LeadFila[] }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [seleccionado]);
 
+  // Poll liviano: los mensajes de WhatsApp entrantes los escribe un proceso
+  // aparte (whatsapp-service) directo en la base, sin ninguna forma de
+  // avisarle a esta pantalla — sin este poll, un mensaje nuevo no aparece
+  // hasta que alguien recargue a mano.
+  useEffect(() => {
+    const intervalo = setInterval(() => {
+      if (document.visibilityState !== 'visible') return;
+      router.refresh();
+      if (seleccionado) recargar();
+    }, 6000);
+    return () => clearInterval(intervalo);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [seleccionado]);
+
   function conRecarga(accion: () => Promise<{ ok?: boolean; error?: string }>) {
     startTransition(async () => {
       const res = await accion();
@@ -81,17 +95,25 @@ export function BandejaInbox({ leads }: { leads: LeadFila[] }) {
                 esActivo ? 'bg-jab-panel-2' : 'hover:bg-jab-panel-2/50'
               }`}
             >
-              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-jab-accent/20 text-xs font-semibold text-jab-accent">
+              <span className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-jab-accent/20 text-xs font-semibold text-jab-accent">
                 {iniciales(l.nombre)}
+                {l.noLeido && (
+                  <span
+                    className="absolute -top-0.5 -right-0.5 h-2.5 w-2.5 rounded-full bg-jab-lime"
+                    aria-label="No leído"
+                  />
+                )}
               </span>
               <div className="min-w-0 flex-1">
                 <div className="flex items-center justify-between gap-2">
-                  <p className="text-sm font-medium truncate">{l.nombre ?? 'Sin nombre'}</p>
+                  <p className={`text-sm truncate ${l.noLeido ? 'font-bold' : 'font-medium'}`}>
+                    {l.nombre ?? 'Sin nombre'}
+                  </p>
                   <span className="text-[10px] text-jab-muted shrink-0">
                     {l.ultimoMensajeEn ? fechaCorta(l.ultimoMensajeEn) : tiempoRelativo(l.actualizadoEn)}
                   </span>
                 </div>
-                <p className="text-xs text-jab-muted truncate">
+                <p className={`text-xs truncate ${l.noLeido ? 'text-jab-text font-medium' : 'text-jab-muted'}`}>
                   {l.ultimoMensaje ?? l.telefono ?? '—'}
                 </p>
                 {l.plataforma && (

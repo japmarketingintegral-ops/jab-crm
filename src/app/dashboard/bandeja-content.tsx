@@ -1,8 +1,10 @@
 'use client';
 
 import { useMemo, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { nivelSLA, tiempoRelativo, SLA_BORDE, SLA_TEXTO } from '@/lib/format';
 import type { LeadPlatform, LeadStatus } from '@/lib/supabase/types';
+import type { BandejaKpis, Vendedor } from './page';
 import { LeadDetailPanel } from './lead-detail-panel';
 import { BandejaInbox } from './bandeja-inbox';
 
@@ -18,9 +20,14 @@ export type LeadFila = {
   plataforma: LeadPlatform | null;
   campana: string | null;
   vendedorNombre: string | null;
+  asignadoA: string | null;
+  valor: number | null;
+  tags: string[];
   esMio: boolean;
   ultimoMensaje: string | null;
   ultimoMensajeEn: string | null;
+  noLeido: boolean;
+  sinResponder: boolean;
 };
 
 const ESTADO_LABEL: Record<LeadStatus, string> = {
@@ -43,8 +50,7 @@ const FUENTE_COLOR: Record<LeadPlatform, string> = {
   whatsapp: 'bg-jab-whatsapp',
 };
 
-type FiltroEstado = 'todos' | 'vencidos' | 'nuevo' | 'contactado' | 'calificado';
-type FiltroFuente = 'todas' | LeadPlatform;
+type FiltroEstado = 'todos' | 'sin_responder' | 'contactado' | 'vencidos';
 
 function waHref(telefono: string | null) {
   if (!telefono) return null;
@@ -55,22 +61,32 @@ export function BandejaContent({
   leads,
   totalSinArchivar,
   mostrarCTAConfiguracion,
+  kpis,
+  vendedores,
+  vendedorFiltro,
 }: {
   leads: LeadFila[];
   totalSinArchivar: number;
   mostrarCTAConfiguracion?: boolean;
+  kpis?: BandejaKpis | null;
+  vendedores?: Vendedor[];
+  vendedorFiltro?: string;
 }) {
+  const router = useRouter();
   const [busqueda, setBusqueda] = useState('');
   const [filtroEstado, setFiltroEstado] = useState<FiltroEstado>('todos');
-  const [filtroFuente, setFiltroFuente] = useState<FiltroFuente>('todas');
-  const [masViejosPrimero, setMasViejosPrimero] = useState(true);
+  // Bandeja es pura conversación de WhatsApp: la conversación con actividad
+  // más reciente arriba, como cualquier inbox de chat — a diferencia de
+  // Pipeline, que sigue priorizando por antigüedad para trabajar la cola.
+  const [masViejosPrimero, setMasViejosPrimero] = useState(false);
   const [leadSeleccionado, setLeadSeleccionado] = useState<string | null>(null);
 
   const conteosEstado = useMemo(() => {
-    const c = { vencidos: 0, nuevo: 0, contactado: 0, calificado: 0 };
+    const c = { vencidos: 0, sin_responder: 0, contactado: 0 };
     for (const l of leads) {
       if (nivelSLA(l.actualizadoEn) === 'rojo') c.vencidos++;
-      if (l.estado in c) c[l.estado as keyof typeof c]++;
+      if (l.sinResponder) c.sin_responder++;
+      if (l.estado === 'contactado') c.contactado++;
     }
     return c;
   }, [leads]);
@@ -78,9 +94,8 @@ export function BandejaContent({
   const filtrados = useMemo(() => {
     let out = leads;
     if (filtroEstado === 'vencidos') out = out.filter((l) => nivelSLA(l.actualizadoEn) === 'rojo');
+    else if (filtroEstado === 'sin_responder') out = out.filter((l) => l.sinResponder);
     else if (filtroEstado !== 'todos') out = out.filter((l) => l.estado === filtroEstado);
-
-    if (filtroFuente !== 'todas') out = out.filter((l) => l.plataforma === filtroFuente);
 
     if (busqueda.trim()) {
       const q = busqueda.trim().toLowerCase();
@@ -93,7 +108,7 @@ export function BandejaContent({
       const diff = new Date(a.actualizadoEn).getTime() - new Date(b.actualizadoEn).getTime();
       return masViejosPrimero ? diff : -diff;
     });
-  }, [leads, filtroEstado, filtroFuente, busqueda, masViejosPrimero]);
+  }, [leads, filtroEstado, busqueda, masViejosPrimero]);
 
   const pasaron24h = leads.filter((l) => nivelSLA(l.actualizadoEn) === 'rojo').length;
 
@@ -106,6 +121,15 @@ export function BandejaContent({
             {filtrados.length} de {totalSinArchivar} leads · {pasaron24h} pasaron las 24 h
           </p>
         </div>
+
+        {kpis && (
+          <div className="flex items-center gap-2">
+            <KpiCard etiqueta="Sin responder" valor={String(kpis.sinResponder)} destacado={kpis.sinResponder > 0} />
+            <KpiCard etiqueta="Respuesta media" valor={kpis.respuestaMediaLabel} />
+            <KpiCard etiqueta="Ganados · mes" valor={String(kpis.ganadosMes)} />
+          </div>
+        )}
+
         <div className="flex items-center gap-3">
           <input
             value={busqueda}
@@ -123,42 +147,49 @@ export function BandejaContent({
         </div>
       </div>
 
-      <div className="px-6 py-4 flex flex-wrap gap-2 border-b border-jab-border">
+      <div className="px-6 py-4 flex flex-wrap items-center justify-between gap-2 border-b border-jab-border">
         <PillGroup>
           <Pill activo={filtroEstado === 'todos'} onClick={() => setFiltroEstado('todos')}>
             Todos
           </Pill>
-          <Pill activo={filtroEstado === 'vencidos'} onClick={() => setFiltroEstado('vencidos')}>
-            Vencidos {conteosEstado.vencidos}
-          </Pill>
-          <Pill activo={filtroEstado === 'nuevo'} onClick={() => setFiltroEstado('nuevo')}>
-            Nuevos {conteosEstado.nuevo}
+          <Pill activo={filtroEstado === 'sin_responder'} onClick={() => setFiltroEstado('sin_responder')}>
+            Sin responder {conteosEstado.sin_responder}
           </Pill>
           <Pill activo={filtroEstado === 'contactado'} onClick={() => setFiltroEstado('contactado')}>
             Contactados {conteosEstado.contactado}
           </Pill>
-          <Pill activo={filtroEstado === 'calificado'} onClick={() => setFiltroEstado('calificado')}>
-            Con visita {conteosEstado.calificado}
+          <Pill activo={filtroEstado === 'vencidos'} onClick={() => setFiltroEstado('vencidos')}>
+            Vencidos {conteosEstado.vencidos}
           </Pill>
         </PillGroup>
-        <PillGroup>
-          <Pill activo={filtroFuente === 'todas'} onClick={() => setFiltroFuente('todas')}>
-            Todas las fuentes
-          </Pill>
-          <Pill activo={filtroFuente === 'google'} onClick={() => setFiltroFuente('google')}>
-            Google Ads
-          </Pill>
-          <Pill activo={filtroFuente === 'meta'} onClick={() => setFiltroFuente('meta')}>
-            Meta Ads
-          </Pill>
-        </PillGroup>
+
+        {vendedores && vendedores.length > 0 && (
+          <select
+            value={vendedorFiltro ?? 'todos'}
+            onChange={(e) => {
+              const params = new URLSearchParams(window.location.search);
+              params.set('vista', 'bandeja');
+              if (e.target.value === 'todos') params.delete('vendedor');
+              else params.set('vendedor', e.target.value);
+              router.push(`/dashboard?${params.toString()}`);
+            }}
+            className="rounded-lg bg-jab-panel-2 border border-jab-border px-3 py-2 text-sm outline-none focus:border-jab-accent"
+          >
+            <option value="todos">Todo el equipo</option>
+            {vendedores.map((v) => (
+              <option key={v.id} value={v.id}>
+                {v.nombre}
+              </option>
+            ))}
+          </select>
+        )}
       </div>
 
       {filtrados.length === 0 ? (
         <div className="p-6">
           <p className="text-sm text-jab-muted">
             {leads.length === 0
-              ? 'Todavía no llegó ningún lead. Van a aparecer acá apenas se conecte una fuente (Meta o Google Ads).'
+              ? 'Todavía no llegó ninguna conversación. Van a aparecer acá apenas alguien te escriba por WhatsApp.'
               : 'No hay leads que coincidan con este filtro.'}
           </p>
           {leads.length === 0 && mostrarCTAConfiguracion && (
@@ -187,9 +218,14 @@ export function BandejaContent({
                   className={`cursor-pointer rounded-lg bg-jab-panel-2 border-l-4 ${SLA_BORDE[sla]} p-4`}
                 >
                   <div className="flex items-start justify-between">
-                    <div>
-                      <p className="font-medium">{l.nombre ?? 'Sin nombre'}</p>
-                      <p className="text-xs text-jab-muted">{l.telefono ?? '—'}</p>
+                    <div className="flex items-center gap-2">
+                      {l.noLeido && (
+                        <span className="h-2 w-2 shrink-0 rounded-full bg-jab-lime" aria-label="No leído" />
+                      )}
+                      <div>
+                        <p className="font-medium">{l.nombre ?? 'Sin nombre'}</p>
+                        <p className="text-xs text-jab-muted">{l.telefono ?? '—'}</p>
+                      </div>
                     </div>
                     <div className="text-right">
                       <p className={`text-sm font-semibold ${SLA_TEXTO[sla]}`}>
@@ -243,6 +279,23 @@ export function BandejaContent({
         <LeadDetailPanel leadId={leadSeleccionado} onClose={() => setLeadSeleccionado(null)} />
       )}
     </main>
+  );
+}
+
+function KpiCard({
+  etiqueta,
+  valor,
+  destacado,
+}: {
+  etiqueta: string;
+  valor: string;
+  destacado?: boolean;
+}) {
+  return (
+    <div className="rounded-lg bg-jab-panel-2 border border-jab-border px-3 py-1.5 leading-tight">
+      <p className="text-[10px] uppercase tracking-wide text-jab-muted whitespace-nowrap">{etiqueta}</p>
+      <p className={`text-sm font-bold ${destacado ? 'text-jab-whatsapp' : ''}`}>{valor}</p>
+    </div>
   );
 }
 

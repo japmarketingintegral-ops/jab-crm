@@ -8,6 +8,13 @@ export function tiempoRelativo(fecha: string): string {
   return `${dias} d`;
 }
 
+/** Duración en minutos a texto compacto: "8 min", "1.5 h", "—" si no hay dato. */
+export function formatearMinutos(minutos: number | null): string {
+  if (minutos === null) return '—';
+  const redondeado = Math.round(minutos);
+  return redondeado < 60 ? `${redondeado} min` : `${(redondeado / 60).toFixed(1)} h`;
+}
+
 export type NivelSLA = 'rojo' | 'ambar' | 'verde';
 
 /**

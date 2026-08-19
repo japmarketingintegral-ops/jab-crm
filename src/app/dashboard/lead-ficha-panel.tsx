@@ -17,7 +17,7 @@ import { ETIQUETAS_DISPONIBLES } from '@/lib/format';
 const ESTADOS: { valor: LeadStatus; etiqueta: string }[] = [
   { valor: 'nuevo', etiqueta: 'Nuevo' },
   { valor: 'contactado', etiqueta: 'Contactado' },
-  { valor: 'calificado', etiqueta: 'Con visita' },
+  { valor: 'calificado', etiqueta: 'Calificado' },
   { valor: 'ganado', etiqueta: 'Ganado' },
   { valor: 'perdido', etiqueta: 'Perdido' },
 ];

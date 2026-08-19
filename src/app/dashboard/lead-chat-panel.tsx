@@ -50,6 +50,10 @@ export function LeadChatPanel({
                   <p className={`text-[10px] mt-1 ${saliente ? 'text-jab-bg-deep/70' : 'text-jab-muted'}`}>
                     {saliente ? (m.autorNombre ?? 'Nosotros') : (ficha.nombre ?? 'Contacto')} ·{' '}
                     {fechaCorta(m.creadoEn)}
+                    {saliente && m.waStatus === 'fallido' && (
+                      <span className="text-jab-red font-medium"> · No se pudo enviar</span>
+                    )}
+                    {saliente && m.waStatus === 'pendiente' && <span> · Enviando…</span>}
                   </p>
                 </div>
               </div>
@@ -63,9 +67,10 @@ export function LeadChatPanel({
         </span>
         <textarea
           value={mensaje}
+          disabled={pending}
           onChange={(e) => setMensaje(e.target.value)}
           onKeyDown={(e) => {
-            if (e.key === 'Enter' && !e.shiftKey && mensaje.trim()) {
+            if (e.key === 'Enter' && !e.shiftKey && mensaje.trim() && !pending) {
               e.preventDefault();
               conRecarga(async () => {
                 const res = await enviarMensaje(leadId, mensaje);
@@ -76,7 +81,7 @@ export function LeadChatPanel({
           }}
           rows={1}
           placeholder="Escribir un mensaje..."
-          className="flex-1 rounded-lg bg-jab-panel-2 border border-jab-border px-3 py-2 text-sm outline-none placeholder:text-jab-muted focus:border-jab-accent resize-none"
+          className="flex-1 rounded-lg bg-jab-panel-2 border border-jab-border px-3 py-2 text-sm outline-none placeholder:text-jab-muted focus:border-jab-accent resize-none disabled:opacity-60"
         />
         <button
           disabled={pending || !mensaje.trim()}

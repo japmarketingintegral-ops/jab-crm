@@ -73,7 +73,15 @@ export async function manejarMensajeEntrante(supabase: SupabaseClient, tenantId:
   const texto = textoDeMensaje(msg);
   if (!texto) return;
 
-  const telefonoRaw = telefonoDesdeJid(remoteJid);
+  // WhatsApp puede mandar remoteJid como un LID (identificador opaco, no el
+  // número real) por privacidad — en ese caso el número de teléfono real
+  // viene aparte en key.senderPn. Si no está, no podemos resolver un
+  // teléfono real y descartamos el mensaje en vez de guardar el LID como si
+  // fuera un número (rompería el envío de respuestas).
+  const jidTelefono = remoteJid.endsWith('@lid') ? msg.key.senderPn : remoteJid;
+  if (!jidTelefono) return;
+
+  const telefonoRaw = telefonoDesdeJid(jidTelefono);
   const telefono = normalizarTelefono(telefonoRaw) ?? telefonoRaw;
 
   const { data: leadExistente } = await supabase

@@ -1,6 +1,6 @@
 import { esRolCompleto, requerirPerfil, requerirTenantActivo } from '@/lib/auth';
 import { createClient } from '@/lib/supabase/server';
-import { nivelSLA } from '@/lib/format';
+import { nivelSLA, formatearMinutos } from '@/lib/format';
 import { Sidebar } from '@/components/sidebar';
 import { BandejaContent, type LeadFila } from './bandeja-content';
 import { PipelineKanban } from './pipeline-kanban';
@@ -17,10 +17,14 @@ const ROL_LABEL: Record<string, string> = {
 type Vista = 'inicio' | 'bandeja' | 'pipeline';
 type Fuente = 'todos' | 'meta' | 'google';
 
+export type BandejaKpis = { sinResponder: number; respuestaMediaLabel: string; ganadosMes: number };
+export type PipelineKpis = { activos: number; tasaCierre: number; ticketMedio: number | null; enRiesgo: number };
+export type Vendedor = { id: string; nombre: string };
+
 export default async function DashboardPage({
   searchParams,
 }: {
-  searchParams: Promise<{ vista?: string; fuente?: string }>;
+  searchParams: Promise<{ vista?: string; fuente?: string; vendedor?: string }>;
 }) {
   const perfil = await requerirPerfil();
   const tenantId = await requerirTenantActivo(perfil);
@@ -29,6 +33,7 @@ export default async function DashboardPage({
   const params = await searchParams;
   const vista = (params.vista as Vista) ?? 'inicio';
   const fuente: Fuente = params.fuente === 'meta' || params.fuente === 'google' ? params.fuente : 'todos';
+  const vendedorFiltro = params.vendedor ?? 'todos';
 
   const supabase = await createClient();
 
@@ -37,43 +42,70 @@ export default async function DashboardPage({
     supabase
       .from('leads')
       .select(
-        'id, full_name, phone, email, status, created_at, updated_at, next_followup_at, assigned_to, lead_sources(platform, display_name), profiles(full_name)',
+        'id, full_name, phone, email, status, created_at, updated_at, next_followup_at, assigned_to, ultima_actividad_vista_en, valor, tags, lead_sources(platform, display_name), profiles(full_name)',
       )
       .eq('tenant_id', tenantId)
       .order('updated_at', { ascending: true }),
   ]);
 
-  const ultimoMensajePorLead = new Map<string, { texto: string; en: string }>();
+  const ultimoMensajePorLead = new Map<string, { texto: string; en: string; autorId: string | null }>();
+  // Historial completo (ascendente) por lead — hace falta para emparejar
+  // cada mensaje entrante con la primera respuesta saliente y sacar tiempos
+  // de respuesta, no solo para saber cuál fue el último mensaje.
+  const mensajesPorLead = new Map<string, { autorId: string | null; en: string }[]>();
   if (vista !== 'inicio') {
     const { data: mensajesRaw } = await supabase
       .from('lead_activities')
-      .select('lead_id, contenido, created_at')
+      .select('lead_id, contenido, created_at, autor_id')
       .eq('tenant_id', tenantId)
       .eq('tipo', 'mensaje')
-      .order('created_at', { ascending: false });
+      .order('created_at', { ascending: true });
     for (const m of mensajesRaw ?? []) {
-      if (!ultimoMensajePorLead.has(m.lead_id)) {
-        ultimoMensajePorLead.set(m.lead_id, { texto: m.contenido ?? '', en: m.created_at });
-      }
+      // Ascendente + set: el último que se visita por lead termina siendo el
+      // mensaje más reciente, así este mismo loop arma las dos cosas.
+      ultimoMensajePorLead.set(m.lead_id, {
+        texto: m.contenido ?? '',
+        en: m.created_at,
+        autorId: m.autor_id,
+      });
+      const arr = mensajesPorLead.get(m.lead_id) ?? [];
+      arr.push({ autorId: m.autor_id, en: m.created_at });
+      mensajesPorLead.set(m.lead_id, arr);
     }
   }
 
-  const leadsTodos: LeadFila[] = (leadsRaw ?? []).map((l) => ({
-    id: l.id,
-    nombre: l.full_name,
-    telefono: l.phone,
-    email: l.email,
-    estado: l.status,
-    creadoEn: l.created_at,
-    actualizadoEn: l.updated_at,
-    proximoSeguimiento: l.next_followup_at,
-    plataforma: l.lead_sources?.platform ?? null,
-    campana: l.lead_sources?.display_name ?? null,
-    vendedorNombre: l.profiles?.full_name ?? null,
-    esMio: l.assigned_to === perfil.id,
-    ultimoMensaje: ultimoMensajePorLead.get(l.id)?.texto ?? null,
-    ultimoMensajeEn: ultimoMensajePorLead.get(l.id)?.en ?? null,
-  }));
+  const leadsTodos: LeadFila[] = (leadsRaw ?? []).map((l) => {
+    const ultimoMensaje = ultimoMensajePorLead.get(l.id);
+    return {
+      id: l.id,
+      nombre: l.full_name,
+      telefono: l.phone,
+      email: l.email,
+      estado: l.status,
+      creadoEn: l.created_at,
+      actualizadoEn: l.updated_at,
+      proximoSeguimiento: l.next_followup_at,
+      plataforma: l.lead_sources?.platform ?? null,
+      campana: l.lead_sources?.display_name ?? null,
+      vendedorNombre: l.profiles?.full_name ?? null,
+      asignadoA: l.assigned_to,
+      valor: l.valor,
+      tags: l.tags ?? [],
+      esMio: l.assigned_to === perfil.id,
+      ultimoMensaje: ultimoMensaje?.texto ?? null,
+      ultimoMensajeEn: ultimoMensaje?.en ?? null,
+      // "No leído": el último mensaje es entrante (autor_id null, vino del
+      // contacto) y todavía nadie abrió la ficha desde que llegó.
+      noLeido: Boolean(
+        ultimoMensaje &&
+          ultimoMensaje.autorId === null &&
+          (!l.ultima_actividad_vista_en || ultimoMensaje.en > l.ultima_actividad_vista_en),
+      ),
+      // "Sin responder": el último mensaje es entrante, más allá de si
+      // alguien ya abrió la ficha o no — para el KPI de la barra superior.
+      sinResponder: Boolean(ultimoMensaje && ultimoMensaje.autorId === null),
+    };
+  });
 
   // El dueño/supervisor ve todos los leads del cliente; un vendedor solo ve
   // los suyos, en Bandeja y Pipeline por igual.
@@ -82,11 +114,106 @@ export default async function DashboardPage({
   const noArchivados = leads.filter((l) => l.estado !== 'ganado' && l.estado !== 'perdido');
   const vencidos = noArchivados.filter((l) => nivelSLA(l.actualizadoEn) === 'rojo');
 
+  // Bandeja es pura conversación de WhatsApp (anuncios de Meta que derivan a
+  // WhatsApp incluidos, porque técnicamente entran como platform:'whatsapp').
+  // Los leads de formulario (Meta Lead Ads, Google) viven solo en Pipeline —
+  // un lead no aparece en las dos pantallas a la vez.
+  const noArchivadosBandeja = noArchivados.filter((l) => l.plataforma === 'whatsapp');
+  const leadsPipeline = leads.filter((l) => l.plataforma !== 'whatsapp');
+
   const conteos: Record<Vista, number> = {
     inicio: 0,
-    bandeja: noArchivados.length,
-    pipeline: noArchivados.length,
+    bandeja: noArchivadosBandeja.length,
+    pipeline: leadsPipeline.filter((l) => l.estado !== 'ganado' && l.estado !== 'perdido').length,
   };
+
+  // Vista por vendedor / todo el equipo (Bandeja y Pipeline) ------------
+  let vendedores: Vendedor[] = [];
+  let bandejaKpis: BandejaKpis | null = null;
+  let pipelineKpis: PipelineKpis | null = null;
+  let noArchivadosBandejaFiltrado = noArchivadosBandeja;
+  let leadsPipelineFiltrado = leadsPipeline;
+
+  if (veTodo && (vista === 'bandeja' || vista === 'pipeline')) {
+    const { data: vendedoresRaw } = await supabase
+      .from('profiles')
+      .select('id, full_name, email')
+      .eq('tenant_id', tenantId)
+      .eq('role', 'salesperson');
+    vendedores = (vendedoresRaw ?? []).map((v) => ({ id: v.id, nombre: v.full_name ?? v.email }));
+
+    if (vendedorFiltro !== 'todos') {
+      noArchivadosBandejaFiltrado = noArchivadosBandeja.filter((l) => l.asignadoA === vendedorFiltro);
+      leadsPipelineFiltrado = leadsPipeline.filter((l) => l.asignadoA === vendedorFiltro);
+    }
+
+    if (vista === 'bandeja') {
+      // Empareja cada mensaje entrante con la primera respuesta saliente del
+      // mismo lead para sacar tiempo de respuesta — general y por vendedor
+      // (quien mandó esa respuesta, no necesariamente el asignado del lead).
+      const temposGeneral: number[] = [];
+      const temposPorVendedor = new Map<string, number[]>();
+      for (const lead of noArchivadosBandeja.concat(leads.filter((l) => l.plataforma === 'whatsapp' && (l.estado === 'ganado' || l.estado === 'perdido')))) {
+        const mensajes = mensajesPorLead.get(lead.id) ?? [];
+        for (let i = 0; i < mensajes.length; i++) {
+          if (mensajes[i].autorId !== null) continue;
+          const respuesta = mensajes.slice(i + 1).find((m) => m.autorId !== null);
+          if (!respuesta) continue;
+          const minutos = (new Date(respuesta.en).getTime() - new Date(mensajes[i].en).getTime()) / 60000;
+          temposGeneral.push(minutos);
+          const arr = temposPorVendedor.get(respuesta.autorId!) ?? [];
+          arr.push(minutos);
+          temposPorVendedor.set(respuesta.autorId!, arr);
+        }
+      }
+      const promedio = (arr: number[]) => (arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : null);
+      const minutosRespuesta =
+        vendedorFiltro === 'todos' ? promedio(temposGeneral) : promedio(temposPorVendedor.get(vendedorFiltro) ?? []);
+
+      const inicioMes = new Date();
+      inicioMes.setDate(1);
+      inicioMes.setHours(0, 0, 0, 0);
+      const ganadosMes = leads.filter(
+        (l) =>
+          l.plataforma === 'whatsapp' &&
+          l.estado === 'ganado' &&
+          (vendedorFiltro === 'todos' || l.asignadoA === vendedorFiltro) &&
+          l.actualizadoEn &&
+          new Date(l.actualizadoEn) >= inicioMes,
+      ).length;
+
+      bandejaKpis = {
+        sinResponder: noArchivadosBandejaFiltrado.filter((l) => l.sinResponder).length,
+        respuestaMediaLabel: formatearMinutos(minutosRespuesta),
+        ganadosMes,
+      };
+    } else {
+      const archivadosPipeline = leadsTodos.filter(
+        (l) =>
+          l.plataforma !== 'whatsapp' &&
+          (veTodo ? true : l.esMio) &&
+          (vendedorFiltro === 'todos' || l.asignadoA === vendedorFiltro) &&
+          (l.estado === 'ganado' || l.estado === 'perdido'),
+      );
+      const ganadosPipeline = archivadosPipeline.filter((l) => l.estado === 'ganado');
+      const tasaCierre = archivadosPipeline.length
+        ? Math.round((ganadosPipeline.length / archivadosPipeline.length) * 100)
+        : 0;
+      const valoresGanados = ganadosPipeline.map((l) => l.valor).filter((v): v is number => v !== null);
+      const ticketMedio = valoresGanados.length
+        ? Math.round(valoresGanados.reduce((a, b) => a + b, 0) / valoresGanados.length)
+        : null;
+
+      pipelineKpis = {
+        activos: leadsPipelineFiltrado.filter((l) => l.estado !== 'ganado' && l.estado !== 'perdido').length,
+        tasaCierre,
+        ticketMedio,
+        enRiesgo: leadsPipelineFiltrado.filter(
+          (l) => l.estado !== 'ganado' && l.estado !== 'perdido' && nivelSLA(l.actualizadoEn) === 'rojo',
+        ).length,
+      };
+    }
+  }
 
   // Datos de Inicio ------------------------------------------------------
   let pedidosRecientes: PedidoResumen[] = [];
@@ -292,12 +419,21 @@ export default async function DashboardPage({
           />
         )
       ) : vista === 'pipeline' ? (
-        <PipelineKanban leads={leads} pipelineConfig={tenant?.pipeline_config} />
+        <PipelineKanban
+          leads={leadsPipelineFiltrado}
+          pipelineConfig={tenant?.pipeline_config}
+          kpis={pipelineKpis}
+          vendedores={vendedores}
+          vendedorFiltro={vendedorFiltro}
+        />
       ) : (
         <BandejaContent
-          leads={noArchivados}
-          totalSinArchivar={noArchivados.length}
+          leads={noArchivadosBandejaFiltrado}
+          totalSinArchivar={noArchivadosBandejaFiltrado.length}
           mostrarCTAConfiguracion={perfil.role === 'client_admin' || perfil.role === 'super_admin'}
+          kpis={bandejaKpis}
+          vendedores={vendedores}
+          vendedorFiltro={vendedorFiltro}
         />
       )}
     </div>

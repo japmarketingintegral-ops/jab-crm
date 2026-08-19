@@ -1079,6 +1079,11 @@ alter table public.leads add column if not exists phone_normalized text;
 create index if not exists leads_tenant_id_phone_normalized_idx
   on public.leads (tenant_id, phone_normalized);
 
+-- Última vez que alguien del equipo abrió la ficha/chat de este lead — sirve
+-- para marcar "no leído" en Bandeja cuando el último mensaje es entrante y
+-- llegó después de esta marca de tiempo.
+alter table public.leads add column if not exists ultima_actividad_vista_en timestamptz;
+
 -- Estado de la conexión de WhatsApp (Baileys) por tenant.
 create table if not exists public.whatsapp_conexiones (
   id uuid primary key default gen_random_uuid(),

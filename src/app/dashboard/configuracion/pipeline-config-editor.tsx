@@ -8,7 +8,7 @@ import type { LeadStatus, PipelineConfig } from '@/lib/supabase/types';
 const ETAPAS_DEFAULT: { estado: LeadStatus; label: string }[] = [
   { estado: 'nuevo', label: 'Nuevo' },
   { estado: 'contactado', label: 'Contactado' },
-  { estado: 'calificado', label: 'Con visita' },
+  { estado: 'calificado', label: 'Calificado' },
   { estado: 'ganado', label: 'Ganado' },
   { estado: 'perdido', label: 'Perdido' },
 ];
