@@ -10,20 +10,15 @@ import type { Database, SocialPlatform } from '@/lib/supabase/types';
 
 type Post = Database['public']['Tables']['social_posts']['Row'];
 
-function hace30Dias() {
-  const d = new Date();
-  d.setDate(d.getDate() - 30);
-  return d.toISOString().slice(0, 10);
-}
-function hoy() {
-  return new Date().toISOString().slice(0, 10);
-}
-
 const PLATAFORMAS_FILTRO: SocialPlatform[] = ['instagram', 'facebook', 'linkedin'];
 
 export function RedesReporte({ posts, esAdmin }: { posts: Post[]; esAdmin: boolean }) {
-  const [desde, setDesde] = useState(hace30Dias());
-  const [hasta, setHasta] = useState(hoy());
+  // Arranca sin filtro de fecha: si el cliente no publicó nada en los
+  // últimos 30 días, un default acotado tapa todo su historial y da la
+  // falsa impresión de que no hay datos (o de que se perdió lo
+  // sincronizado). El usuario acota el rango si quiere, no al revés.
+  const [desde, setDesde] = useState('');
+  const [hasta, setHasta] = useState('');
   const [plataforma, setPlataforma] = useState<SocialPlatform | 'todas'>('todas');
 
   const lista = useMemo(
