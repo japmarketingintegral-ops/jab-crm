@@ -101,6 +101,11 @@ export default async function DashboardPage({
           ultimoMensaje.autorId === null &&
           (!l.ultima_actividad_vista_en || ultimoMensaje.en > l.ultima_actividad_vista_en),
       ),
+      // Cuántos mensajes entrantes llegaron después de la última vez que se
+      // abrió la ficha — para el número en la lista de Bandeja.
+      sinLeerCount: (mensajesPorLead.get(l.id) ?? []).filter(
+        (m) => m.autorId === null && (!l.ultima_actividad_vista_en || m.en > l.ultima_actividad_vista_en),
+      ).length,
       // "Sin responder": el último mensaje es entrante, más allá de si
       // alguien ya abrió la ficha o no — para el KPI de la barra superior.
       sinResponder: Boolean(ultimoMensaje && ultimoMensaje.autorId === null),

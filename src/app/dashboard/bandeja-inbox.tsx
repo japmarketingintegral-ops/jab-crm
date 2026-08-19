@@ -2,20 +2,39 @@
 
 import { useEffect, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
-import { nivelSLA, tiempoRelativo, iniciales, SLA_BORDE } from '@/lib/format';
+import { tiempoRelativo, iniciales } from '@/lib/format';
 import { obtenerFicha, type FichaLead, type MiembroEquipo } from './lead-actions';
 import { LeadChatPanel } from './lead-chat-panel';
 import { LeadFichaPanel } from './lead-ficha-panel';
 import type { LeadFila } from './bandeja-content';
+import type { LeadStatus } from '@/lib/supabase/types';
 
-const FUENTE_COLOR: Record<string, string> = {
-  meta: 'bg-jab-meta',
-  google: 'bg-jab-google',
-  whatsapp: 'bg-jab-whatsapp',
+const ESTADO_LABEL: Record<LeadStatus, string> = {
+  nuevo: 'Nuevo',
+  contactado: 'Contactado',
+  calificado: 'Calificado',
+  ganado: 'Ganado',
+  perdido: 'Perdido',
+};
+
+const ESTADO_COLOR: Record<LeadStatus, string> = {
+  nuevo: 'bg-jab-meta/15 text-jab-meta',
+  contactado: 'bg-jab-violet/15 text-jab-violet',
+  calificado: 'bg-jab-amber/15 text-jab-amber',
+  ganado: 'bg-jab-whatsapp/15 text-jab-whatsapp',
+  perdido: 'bg-jab-red/15 text-jab-red',
 };
 
 function fechaCorta(iso: string) {
   return new Date(iso).toLocaleString('es-AR', { day: '2-digit', month: '2-digit' });
+}
+
+function esHoy(iso: string) {
+  const d = new Date(iso);
+  const hoy = new Date();
+  return (
+    d.getFullYear() === hoy.getFullYear() && d.getMonth() === hoy.getMonth() && d.getDate() === hoy.getDate()
+  );
 }
 
 export function BandejaInbox({ leads }: { leads: LeadFila[] }) {
@@ -80,53 +99,75 @@ export function BandejaInbox({ leads }: { leads: LeadFila[] }) {
 
   const activo = leads.find((l) => l.id === seleccionado) ?? null;
 
+  const sinResponder = leads.filter((l) => l.sinResponder);
+  const hoy = leads.filter((l) => !l.sinResponder && esHoy(l.ultimoMensajeEn ?? l.actualizadoEn));
+  const anteriores = leads.filter((l) => !sinResponder.includes(l) && !hoy.includes(l));
+
+  const grupos: { titulo: string; items: LeadFila[] }[] = [
+    { titulo: 'Sin responder', items: sinResponder },
+    { titulo: 'Hoy', items: hoy },
+    { titulo: 'Anteriores', items: anteriores },
+  ].filter((g) => g.items.length > 0);
+
   return (
     <div className="hidden lg:flex flex-1 min-h-0">
       {/* Lista de conversaciones */}
       <div className="w-80 shrink-0 border-r border-jab-border overflow-y-auto">
-        {leads.map((l) => {
-          const sla = nivelSLA(l.actualizadoEn);
-          const esActivo = l.id === seleccionado;
-          return (
-            <button
-              key={l.id}
-              onClick={() => setSeleccionado(l.id)}
-              className={`w-full text-left flex gap-3 px-4 py-3 border-b border-jab-border border-l-4 ${SLA_BORDE[sla]} ${
-                esActivo ? 'bg-jab-panel-2' : 'hover:bg-jab-panel-2/50'
-              }`}
-            >
-              <span className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-jab-accent/20 text-xs font-semibold text-jab-accent">
-                {iniciales(l.nombre)}
-                {l.noLeido && (
-                  <span
-                    className="absolute -top-0.5 -right-0.5 h-2.5 w-2.5 rounded-full bg-jab-lime"
-                    aria-label="No leído"
-                  />
-                )}
-              </span>
-              <div className="min-w-0 flex-1">
-                <div className="flex items-center justify-between gap-2">
-                  <p className={`text-sm truncate ${l.noLeido ? 'font-bold' : 'font-medium'}`}>
-                    {l.nombre ?? 'Sin nombre'}
-                  </p>
-                  <span className="text-[10px] text-jab-muted shrink-0">
-                    {l.ultimoMensajeEn ? fechaCorta(l.ultimoMensajeEn) : tiempoRelativo(l.actualizadoEn)}
+        {grupos.map((grupo) => (
+          <div key={grupo.titulo}>
+            <p className="px-4 pt-3 pb-1 text-[10px] font-bold tracking-widest text-jab-muted uppercase">
+              {grupo.titulo} {grupo.items.length}
+            </p>
+            {grupo.items.map((l) => {
+              const esActivo = l.id === seleccionado;
+              return (
+                <button
+                  key={l.id}
+                  onClick={() => setSeleccionado(l.id)}
+                  className={`w-full text-left flex gap-3 px-4 py-3 border-b border-jab-border ${
+                    esActivo ? 'bg-jab-panel-2' : 'hover:bg-jab-panel-2/50'
+                  }`}
+                >
+                  <span className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-jab-accent/20 text-xs font-semibold text-jab-accent">
+                    {iniciales(l.nombre)}
                   </span>
-                </div>
-                <p className={`text-xs truncate ${l.noLeido ? 'text-jab-text font-medium' : 'text-jab-muted'}`}>
-                  {l.ultimoMensaje ?? l.telefono ?? '—'}
-                </p>
-                {l.plataforma && (
-                  <span
-                    className={`inline-block mt-1 rounded px-1.5 py-0.5 text-[9px] font-bold uppercase ${FUENTE_COLOR[l.plataforma]}`}
-                  >
-                    {l.plataforma}
-                  </span>
-                )}
-              </div>
-            </button>
-          );
-        })}
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center justify-between gap-2">
+                      <p className={`text-sm truncate ${l.noLeido ? 'font-bold' : 'font-medium'}`}>
+                        {l.nombre ?? 'Sin nombre'}
+                      </p>
+                      <span className="text-[10px] text-jab-muted shrink-0">
+                        {l.ultimoMensajeEn ? fechaCorta(l.ultimoMensajeEn) : tiempoRelativo(l.actualizadoEn)}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between gap-2 mt-0.5">
+                      <p
+                        className={`text-xs truncate ${l.noLeido ? 'text-jab-text font-medium' : 'text-jab-muted'}`}
+                      >
+                        {l.ultimoMensaje ?? l.telefono ?? '—'}
+                      </p>
+                      {l.sinLeerCount > 0 && (
+                        <span className="shrink-0 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-jab-whatsapp px-1 text-[10px] font-bold text-white">
+                          {l.sinLeerCount}
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex items-center justify-between mt-1">
+                      <span
+                        className={`inline-block rounded px-1.5 py-0.5 text-[9px] font-bold uppercase ${ESTADO_COLOR[l.estado]}`}
+                      >
+                        {ESTADO_LABEL[l.estado]}
+                      </span>
+                      <span className="text-[10px] text-jab-muted truncate max-w-[100px]">
+                        {l.vendedorNombre ?? 'Sin asignar'}
+                      </span>
+                    </div>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        ))}
       </div>
 
       {!activo ? (
@@ -141,19 +182,13 @@ export function BandejaInbox({ leads }: { leads: LeadFila[] }) {
         <>
           {/* Chat */}
           <div className="flex-1 min-w-0 flex flex-col border-r border-jab-border">
-            <div className="px-5 py-3 border-b border-jab-border">
-              <p className="text-sm font-semibold">{ficha.nombre ?? 'Sin nombre'}</p>
-              <p className="text-xs text-jab-muted">{ficha.telefono ?? '—'}</p>
-            </div>
-            <div className="flex-1 min-h-0 p-4">
-              <LeadChatPanel
-                ficha={ficha}
-                leadId={seleccionado!}
-                pending={pending}
-                conRecarga={conRecarga}
-                alto="100%"
-              />
-            </div>
+            <LeadChatPanel
+              ficha={ficha}
+              leadId={seleccionado!}
+              pending={pending}
+              conRecarga={conRecarga}
+              alto="100%"
+            />
           </div>
 
           {/* Ficha */}

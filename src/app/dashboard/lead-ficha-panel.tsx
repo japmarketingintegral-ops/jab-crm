@@ -22,6 +22,12 @@ const ESTADOS: { valor: LeadStatus; etiqueta: string }[] = [
   { valor: 'perdido', etiqueta: 'Perdido' },
 ];
 
+const PLATAFORMA_LABEL: Record<string, string> = {
+  meta: 'Meta Ads',
+  google: 'Google Ads',
+  whatsapp: 'WhatsApp',
+};
+
 const ACTIVIDAD_LABEL: Record<string, string> = {
   nota: 'Nota',
   cambio_estado: 'Estado',
@@ -55,13 +61,26 @@ export function LeadFichaPanel({
   const [pidiendoValor, setPidiendoValor] = useState(false);
   const [valorInput, setValorInput] = useState('');
 
+  const indiceEstado = ESTADOS.findIndex((e) => e.valor === ficha.estado);
+
   return (
     <div className="space-y-6">
+      <div className="flex gap-1">
+        {ESTADOS.map((e, i) => (
+          <span
+            key={e.valor}
+            className={`h-1.5 flex-1 rounded-full first:rounded-l-full last:rounded-r-full ${
+              indiceEstado >= 0 && i <= indiceEstado ? 'bg-jab-whatsapp' : 'bg-jab-panel-2'
+            }`}
+          />
+        ))}
+      </div>
+
       <div>
         <p className="text-[11px] font-semibold tracking-widest text-jab-muted uppercase mb-1">Origen</p>
         <p className="text-sm">
-          {ficha.plataforma === 'meta' ? 'Meta Ads' : ficha.plataforma === 'google' ? 'Google Ads' : '—'}
-          {ficha.campana ? ` · ${ficha.campana}` : ''}
+          {ficha.plataforma ? (PLATAFORMA_LABEL[ficha.plataforma] ?? ficha.plataforma) : '—'}
+          {ficha.campana && ficha.campana !== PLATAFORMA_LABEL[ficha.plataforma ?? ''] ? ` · ${ficha.campana}` : ''}
         </p>
       </div>
 
@@ -170,6 +189,27 @@ export function LeadFichaPanel({
         <p className="text-[11px] font-semibold tracking-widest text-jab-muted uppercase mb-2">
           Próximo seguimiento
         </p>
+        <div className="flex gap-1.5 mb-2">
+          {[
+            { etiqueta: 'Hoy', dias: 0 },
+            { etiqueta: 'Mañana', dias: 1 },
+            { etiqueta: 'En 3 días', dias: 3 },
+          ].map((opcion) => (
+            <button
+              key={opcion.etiqueta}
+              disabled={pending}
+              onClick={() => {
+                const fecha = new Date();
+                fecha.setDate(fecha.getDate() + opcion.dias);
+                fecha.setHours(9, 0, 0, 0);
+                conRecarga(() => programarSeguimiento(leadId, fecha.toISOString()));
+              }}
+              className="rounded-full bg-jab-panel-2 text-jab-muted hover:text-jab-text px-3 py-1.5 text-xs font-medium disabled:opacity-50"
+            >
+              {opcion.etiqueta}
+            </button>
+          ))}
+        </div>
         <input
           type="datetime-local"
           disabled={pending}

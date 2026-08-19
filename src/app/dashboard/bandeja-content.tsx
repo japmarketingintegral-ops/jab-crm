@@ -27,6 +27,7 @@ export type LeadFila = {
   ultimoMensaje: string | null;
   ultimoMensajeEn: string | null;
   noLeido: boolean;
+  sinLeerCount: number;
   sinResponder: boolean;
 };
 

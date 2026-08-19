@@ -1,8 +1,12 @@
 'use client';
 
 import { useState } from 'react';
-import { enviarMensaje, type FichaLead } from './lead-actions';
-import { iniciales } from '@/lib/format';
+import { enviarMensaje, agregarNota, cambiarEstado, type FichaLead } from './lead-actions';
+import { iniciales, tiempoRelativo } from '@/lib/format';
+
+const PLATAFORMA_LABEL: Record<string, string> = { meta: 'Meta Ads', google: 'Google Ads', whatsapp: 'WhatsApp' };
+
+const RESPUESTAS_RAPIDAS = ['Hola, ¿seguís interesado?', 'Te paso precios', '¿Te llamo hoy?'];
 
 function fechaCorta(iso: string) {
   return new Date(iso).toLocaleString('es-AR', {
@@ -27,11 +31,59 @@ export function LeadChatPanel({
   alto?: string;
 }) {
   const [mensaje, setMensaje] = useState('');
+  const [modo, setModo] = useState<'mensaje' | 'nota'>('mensaje');
   const mensajes = ficha.actividades.filter((a) => a.tipo === 'mensaje');
+  const ultimoMensaje = mensajes[mensajes.length - 1];
+  const sinResponder = ultimoMensaje && ultimoMensaje.autorId === null;
+
+  function enviar() {
+    if (!mensaje.trim()) return;
+    conRecarga(async () => {
+      const res = modo === 'mensaje' ? await enviarMensaje(leadId, mensaje) : await agregarNota(leadId, mensaje);
+      if (!res.error) setMensaje('');
+      return res;
+    });
+  }
 
   return (
     <div className="flex flex-col" style={{ height: alto }}>
-      <div className="flex-1 overflow-y-auto space-y-2 px-1">
+      <div className="flex items-center gap-3 px-5 py-3 border-b border-jab-border">
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2">
+            <p className="text-sm font-semibold truncate">{ficha.nombre ?? 'Sin nombre'}</p>
+            {sinResponder && (
+              <span className="shrink-0 text-[10px] font-semibold text-jab-red">
+                sin responder {tiempoRelativo(ultimoMensaje.creadoEn)}
+              </span>
+            )}
+          </div>
+          <p className="text-xs text-jab-muted truncate">
+            {ficha.telefono ?? '—'}
+            {ficha.plataforma && ` · ${PLATAFORMA_LABEL[ficha.plataforma] ?? ficha.plataforma}`}
+          </p>
+        </div>
+        <div className="flex items-center gap-2 shrink-0">
+          {ficha.telefono && (
+            <a
+              href={`tel:${ficha.telefono}`}
+              className="rounded-full border border-jab-border px-3 py-1.5 text-xs font-medium text-jab-muted hover:text-jab-text"
+            >
+              Llamar
+            </a>
+          )}
+          {ficha.estado === 'nuevo' && (
+            <button
+              disabled={pending}
+              onClick={() => conRecarga(() => cambiarEstado(leadId, 'contactado'))}
+              className="rounded-full bg-jab-whatsapp text-white px-3 py-1.5 text-xs font-bold uppercase tracking-wide disabled:opacity-50"
+            >
+              Marcar contactado
+            </button>
+          )}
+        </div>
+      </div>
+
+      <div className="flex-1 overflow-y-auto space-y-2 px-4 py-3">
         {mensajes.length === 0 ? (
           <p className="text-sm text-jab-muted">Todavía no hay mensajes con este contacto.</p>
         ) : (
@@ -61,41 +113,71 @@ export function LeadChatPanel({
           })
         )}
       </div>
-      <div className="flex items-end gap-2 pt-3 border-t border-jab-border mt-2 px-1">
-        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-jab-accent/20 text-[10px] font-semibold text-jab-accent">
-          {iniciales(ficha.nombre)}
-        </span>
-        <textarea
-          value={mensaje}
-          disabled={pending}
-          onChange={(e) => setMensaje(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' && !e.shiftKey && mensaje.trim() && !pending) {
-              e.preventDefault();
-              conRecarga(async () => {
-                const res = await enviarMensaje(leadId, mensaje);
-                if (!res.error) setMensaje('');
-                return res;
-              });
-            }
-          }}
-          rows={1}
-          placeholder="Escribir un mensaje..."
-          className="flex-1 rounded-lg bg-jab-panel-2 border border-jab-border px-3 py-2 text-sm outline-none placeholder:text-jab-muted focus:border-jab-accent resize-none disabled:opacity-60"
-        />
-        <button
-          disabled={pending || !mensaje.trim()}
-          onClick={() =>
-            conRecarga(async () => {
-              const res = await enviarMensaje(leadId, mensaje);
-              if (!res.error) setMensaje('');
-              return res;
-            })
-          }
-          className="shrink-0 rounded-full bg-jab-lime text-jab-lime-ink px-4 py-2 text-xs font-bold uppercase tracking-wide disabled:opacity-50"
-        >
-          Enviar
-        </button>
+
+      <div className="px-4 pt-2 border-t border-jab-border">
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex gap-1">
+            <button
+              onClick={() => setModo('mensaje')}
+              className={`rounded-full px-3 py-1 text-xs font-medium ${
+                modo === 'mensaje' ? 'bg-jab-panel-2 text-jab-text' : 'text-jab-muted hover:text-jab-text'
+              }`}
+            >
+              Mensaje
+            </button>
+            <button
+              onClick={() => setModo('nota')}
+              className={`rounded-full px-3 py-1 text-xs font-medium ${
+                modo === 'nota' ? 'bg-jab-panel-2 text-jab-text' : 'text-jab-muted hover:text-jab-text'
+              }`}
+            >
+              Nota
+            </button>
+          </div>
+          {modo === 'mensaje' && (
+            <div className="flex gap-1.5 overflow-x-auto">
+              {RESPUESTAS_RAPIDAS.map((texto) => (
+                <button
+                  key={texto}
+                  type="button"
+                  onClick={() => setMensaje(texto)}
+                  className="shrink-0 rounded-full border border-jab-border px-2.5 py-1 text-[11px] text-jab-muted hover:text-jab-text whitespace-nowrap"
+                >
+                  {texto}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div className="flex items-end gap-2 py-3">
+          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-jab-accent/20 text-[10px] font-semibold text-jab-accent">
+            {iniciales(ficha.nombre)}
+          </span>
+          <textarea
+            value={mensaje}
+            disabled={pending}
+            onChange={(e) => setMensaje(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && !e.shiftKey && mensaje.trim() && !pending) {
+                e.preventDefault();
+                enviar();
+              }
+            }}
+            rows={1}
+            placeholder={modo === 'mensaje' ? 'Escribir un mensaje...' : 'Escribir una nota interna...'}
+            className="flex-1 rounded-lg bg-jab-panel-2 border border-jab-border px-3 py-2 text-sm outline-none placeholder:text-jab-muted focus:border-jab-accent resize-none disabled:opacity-60"
+          />
+          <button
+            disabled={pending || !mensaje.trim()}
+            onClick={enviar}
+            className={`shrink-0 rounded-full px-4 py-2 text-xs font-bold uppercase tracking-wide disabled:opacity-50 ${
+              modo === 'nota' ? 'bg-jab-amber text-jab-bg-deep' : 'bg-jab-lime text-jab-lime-ink'
+            }`}
+          >
+            {modo === 'nota' ? 'Guardar' : 'Enviar'}
+          </button>
+        </div>
       </div>
     </div>
   );
