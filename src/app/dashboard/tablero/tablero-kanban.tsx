@@ -64,8 +64,15 @@ export function TableroKanban({ tarjetas, equipo }: { tarjetas: TarjetaTablero[]
   const [seleccion, setSeleccion] = useState<TarjetaTablero | null>(null);
   const [busqueda, setBusqueda] = useState('');
   const [miembroFiltro, setMiembroFiltro] = useState('todos');
+  const [etiquetaFiltro, setEtiquetaFiltro] = useState('todas');
   const [soloVencidas, setSoloVencidas] = useState(false);
   const [soloPedidos, setSoloPedidos] = useState(false);
+
+  const etiquetasDisponibles = useMemo(() => {
+    const set = new Set<string>();
+    for (const t of tarjetas) for (const e of t.etiquetas) set.add(e);
+    return Array.from(set).sort();
+  }, [tarjetas]);
 
   const metricas = useMemo(() => {
     let vencidas = 0;
@@ -87,10 +94,11 @@ export function TableroKanban({ tarjetas, equipo }: { tarjetas: TarjetaTablero[]
       out = out.filter((t) => t.titulo.toLowerCase().includes(q));
     }
     if (miembroFiltro !== 'todos') out = out.filter((t) => t.asignadoA === miembroFiltro);
+    if (etiquetaFiltro !== 'todas') out = out.filter((t) => t.etiquetas.includes(etiquetaFiltro));
     if (soloVencidas) out = out.filter((t) => nivelVencimiento(t.fechaProgramada) === 'vencida');
     if (soloPedidos) out = out.filter((t) => t.origen === 'pedido');
     return out;
-  }, [tarjetas, busqueda, miembroFiltro, soloVencidas, soloPedidos]);
+  }, [tarjetas, busqueda, miembroFiltro, etiquetaFiltro, soloVencidas, soloPedidos]);
 
   function soltarEn(columna: (typeof COLUMNAS)[number]) {
     if (!arrastrando) return;
@@ -152,6 +160,20 @@ export function TableroKanban({ tarjetas, equipo }: { tarjetas: TarjetaTablero[]
             ))}
           </select>
         )}
+        {etiquetasDisponibles.length > 0 && (
+          <select
+            value={etiquetaFiltro}
+            onChange={(e) => setEtiquetaFiltro(e.target.value)}
+            className="rounded-lg bg-jab-panel-2 border border-jab-border px-3 py-2 text-sm outline-none focus:border-jab-accent"
+          >
+            <option value="todas">Todas las etiquetas</option>
+            {etiquetasDisponibles.map((et) => (
+              <option key={et} value={et}>
+                {et}
+              </option>
+            ))}
+          </select>
+        )}
         <button
           type="button"
           onClick={() => setSoloVencidas((v) => !v)}
@@ -170,12 +192,13 @@ export function TableroKanban({ tarjetas, equipo }: { tarjetas: TarjetaTablero[]
         >
           Solo pedidos
         </button>
-        {(busqueda || miembroFiltro !== 'todos' || soloVencidas || soloPedidos) && (
+        {(busqueda || miembroFiltro !== 'todos' || etiquetaFiltro !== 'todas' || soloVencidas || soloPedidos) && (
           <button
             type="button"
             onClick={() => {
               setBusqueda('');
               setMiembroFiltro('todos');
+              setEtiquetaFiltro('todas');
               setSoloVencidas(false);
               setSoloPedidos(false);
             }}
