@@ -63,7 +63,7 @@ export async function sincronizarMetricasMeta(): Promise<{ ok?: boolean; error?:
 
     const { error } = await supabase
       .from('social_posts')
-      .upsert(filas, { onConflict: 'tenant_id,external_id' });
+      .upsert(filas, { onConflict: 'external_id' });
     if (error) return { error: 'No se pudo guardar lo sincronizado.' };
   } catch (err) {
     return { error: err instanceof Error ? err.message : 'Falló la sincronización con Meta.' };

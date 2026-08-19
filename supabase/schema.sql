@@ -1038,3 +1038,15 @@ create policy "onboarding_accesos_all" on public.onboarding_accesos for all
     public.is_super_admin()
     or (public.current_role() = 'client_admin' and tenant_id = public.current_tenant_id())
   );
+
+-- El índice parcial (con "where external_id is not null") no sirve como
+-- target de ON CONFLICT para el .upsert() de Supabase, que genera
+-- "on conflict (...)" sin ese where — Postgres no lo matchea y el sync de
+-- Redes fallaba al guardar. external_id ya es único a nivel global (los
+-- ids de post/media de Meta no se repiten entre páginas ni cuentas), así
+-- que alcanza con una constraint unique sobre esa sola columna — más
+-- simple que la compuesta con tenant_id, y sigue sin chocar entre los
+-- posts cargados a mano (NULL nunca colisiona con NULL en una unique).
+drop index if exists public.social_posts_tenant_external_idx;
+alter table public.social_posts
+  add constraint social_posts_external_id_key unique (external_id);
