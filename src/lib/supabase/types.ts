@@ -350,6 +350,7 @@ export interface Database {
           tenant_id: string;
           autor_id: string | null;
           texto: string;
+          tipo: string;
           created_at: string;
         };
         Insert: {
@@ -358,6 +359,7 @@ export interface Database {
           tenant_id: string;
           autor_id?: string | null;
           texto: string;
+          tipo?: string;
           created_at?: string;
         };
         Relationships: [
@@ -377,6 +379,140 @@ export interface Database {
           },
         ];
         Update: Partial<Database['public']['Tables']['pedido_comentarios']['Insert']>;
+      };
+      pedido_checklist_items: {
+        Row: {
+          id: string;
+          created_at: string;
+          pedido_id: string;
+          texto: string;
+          completado: boolean;
+          orden: number;
+          tenant_id: string;
+        };
+        Insert: {
+          id?: string;
+          created_at?: string;
+          pedido_id: string;
+          texto: string;
+          completado?: boolean;
+          orden?: number;
+          tenant_id: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'pedido_checklist_items_pedido_id_fkey';
+            columns: ['pedido_id'];
+            isOneToOne: false;
+            referencedRelation: 'pedidos';
+            referencedColumns: ['id'];
+          },
+        ];
+        Update: Partial<Database['public']['Tables']['pedido_checklist_items']['Insert']>;
+      };
+      tarea_comentarios: {
+        Row: {
+          id: string;
+          tarea_id: string;
+          tenant_id: string;
+          autor_id: string | null;
+          texto: string;
+          tipo: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          tarea_id: string;
+          tenant_id: string;
+          autor_id?: string | null;
+          texto: string;
+          tipo?: string;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'tarea_comentarios_tarea_id_fkey';
+            columns: ['tarea_id'];
+            isOneToOne: false;
+            referencedRelation: 'tareas_internas';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'tarea_comentarios_autor_id_fkey';
+            columns: ['autor_id'];
+            isOneToOne: false;
+            referencedRelation: 'profiles';
+            referencedColumns: ['id'];
+          },
+        ];
+        Update: Partial<Database['public']['Tables']['tarea_comentarios']['Insert']>;
+      };
+      tarea_archivos: {
+        Row: {
+          id: string;
+          tarea_id: string;
+          tenant_id: string;
+          nombre_archivo: string;
+          ruta_storage: string;
+          subido_por: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          tarea_id: string;
+          tenant_id: string;
+          nombre_archivo: string;
+          ruta_storage: string;
+          subido_por?: string | null;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'tarea_archivos_tarea_id_fkey';
+            columns: ['tarea_id'];
+            isOneToOne: false;
+            referencedRelation: 'tareas_internas';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'tarea_archivos_subido_por_fkey';
+            columns: ['subido_por'];
+            isOneToOne: false;
+            referencedRelation: 'profiles';
+            referencedColumns: ['id'];
+          },
+        ];
+        Update: Partial<Database['public']['Tables']['tarea_archivos']['Insert']>;
+      };
+      tarea_checklist_items: {
+        Row: {
+          id: string;
+          created_at: string;
+          tarea_id: string;
+          texto: string;
+          completado: boolean;
+          orden: number;
+          tenant_id: string;
+        };
+        Insert: {
+          id?: string;
+          created_at?: string;
+          tarea_id: string;
+          texto: string;
+          completado?: boolean;
+          orden?: number;
+          tenant_id: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'tarea_checklist_items_tarea_id_fkey';
+            columns: ['tarea_id'];
+            isOneToOne: false;
+            referencedRelation: 'tareas_internas';
+            referencedColumns: ['id'];
+          },
+        ];
+        Update: Partial<Database['public']['Tables']['tarea_checklist_items']['Insert']>;
       };
       materiales: {
         Row: {

@@ -386,12 +386,17 @@ create policy "pedido_archivos_insert" on public.pedido_archivos for insert
 
 -- Comentarios: para que el ida y vuelta entre el cliente y JAB sobre un
 -- pedido quede a la vista de los dos, no en un chat de WhatsApp aparte.
+-- `tipo` distingue un comentario real ('comentario', default) de un
+-- renglón de actividad generado por el sistema ('sistema' — cambios de
+-- estado, asignación, fecha) para que la ficha del pedido muestre todo
+-- mezclado y ordenado en un solo timeline, como en Trello.
 create table if not exists public.pedido_comentarios (
   id uuid primary key default gen_random_uuid(),
   pedido_id uuid not null references public.pedidos (id) on delete cascade,
   tenant_id uuid not null references public.tenants (id) on delete cascade,
   autor_id uuid references public.profiles (id) on delete set null,
   texto text not null,
+  tipo text default 'comentario',
   created_at timestamptz not null default now()
 );
 
@@ -764,12 +769,16 @@ create policy "tareas_internas_write" on public.tareas_internas for all
 -- Comentarios y adjuntos de tareas internas — mismo patrón que
 -- pedido_comentarios/pedido_archivos, para que la ficha de una tarea del
 -- Tablero tenga la misma funcionalidad que la de un Pedido.
+-- `tipo` distingue un comentario real ('comentario', default) de un
+-- renglón de actividad generado por el sistema ('sistema'), igual que en
+-- pedido_comentarios — mismo timeline mezclado estilo Trello.
 create table if not exists public.tarea_comentarios (
   id uuid primary key default gen_random_uuid(),
   tarea_id uuid not null references public.tareas_internas (id) on delete cascade,
   tenant_id uuid not null references public.tenants (id) on delete cascade,
   autor_id uuid references public.profiles (id) on delete set null,
   texto text not null,
+  tipo text default 'comentario',
   created_at timestamptz not null default now()
 );
 
@@ -822,6 +831,53 @@ create policy "tarea_archivos_insert" on public.tarea_archivos for insert
 insert into storage.buckets (id, name, public)
 values ('tareas-adjuntos', 'tareas-adjuntos', false)
 on conflict (id) do nothing;
+
+-- Checklists de pedidos y tareas internas — mismo patrón de acceso que ya
+-- usa cada tabla padre (pedido_checklist_items sigue el criterio de
+-- pedidos_select, tarea_checklist_items el de tareas_internas_write).
+create table if not exists public.pedido_checklist_items (
+  id uuid primary key default gen_random_uuid(),
+  pedido_id uuid not null references public.pedidos (id) on delete cascade,
+  tenant_id uuid not null,
+  texto text not null,
+  completado boolean not null default false,
+  orden integer not null default 0,
+  created_at timestamptz not null default now()
+);
+
+create index if not exists pedido_checklist_items_pedido_id_idx on public.pedido_checklist_items (pedido_id);
+
+alter table public.pedido_checklist_items enable row level security;
+
+drop policy if exists "pedido_checklist_items_write" on public.pedido_checklist_items;
+create policy "pedido_checklist_items_write" on public.pedido_checklist_items for all
+  using (public.tiene_acceso_tenant(tenant_id))
+  with check (public.tiene_acceso_tenant(tenant_id));
+
+create table if not exists public.tarea_checklist_items (
+  id uuid primary key default gen_random_uuid(),
+  tarea_id uuid not null references public.tareas_internas (id) on delete cascade,
+  tenant_id uuid not null,
+  texto text not null,
+  completado boolean not null default false,
+  orden integer not null default 0,
+  created_at timestamptz not null default now()
+);
+
+create index if not exists tarea_checklist_items_tarea_id_idx on public.tarea_checklist_items (tarea_id);
+
+alter table public.tarea_checklist_items enable row level security;
+
+drop policy if exists "tarea_checklist_items_write" on public.tarea_checklist_items;
+create policy "tarea_checklist_items_write" on public.tarea_checklist_items for all
+  using (
+    public.is_super_admin()
+    or (public.es_staff() and public.staff_tiene_acceso(tenant_id))
+  )
+  with check (
+    public.is_super_admin()
+    or (public.es_staff() and public.staff_tiene_acceso(tenant_id))
+  );
 
 -- Conexión real con Meta (Facebook/Instagram): guarda el token de la Página
 -- que se obtiene al conectar por OAuth (Facebook Login for Business), para

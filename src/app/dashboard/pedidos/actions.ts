@@ -91,10 +91,39 @@ export async function obtenerUrlArchivo(
   return { url: data.signedUrl };
 }
 
+const ESTADO_LABEL: Record<PedidoEstado, string> = {
+  pedido: 'Pedido',
+  en_proceso: 'En proceso',
+  revision: 'Revisión',
+  aprobado: 'Aprobado',
+};
+
+/** Deja un renglón de "actividad" (no un comentario real) en el timeline del
+ * pedido — mismo lugar que los comentarios, distinguido por tipo, para que
+ * la ficha muestre todo mezclado y ordenado como en Trello. */
+async function registrarActividadPedido(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  pedidoId: string,
+  tenantId: string,
+  autorId: string | null,
+  texto: string,
+) {
+  await supabase
+    .from('pedido_comentarios')
+    .insert({ pedido_id: pedidoId, tenant_id: tenantId, autor_id: autorId, texto, tipo: 'sistema' });
+}
+
 export async function cambiarEstadoPedido(pedidoId: string, estado: PedidoEstado) {
+  const perfil = await requerirPerfil();
   const supabase = await createClient();
-  const { error } = await supabase.from('pedidos').update({ estado }).eq('id', pedidoId);
-  if (error) return { error: 'No se pudo cambiar el estado.' };
+  const { data: pedido, error } = await supabase
+    .from('pedidos')
+    .update({ estado })
+    .eq('id', pedidoId)
+    .select('tenant_id')
+    .single();
+  if (error || !pedido) return { error: 'No se pudo cambiar el estado.' };
+  await registrarActividadPedido(supabase, pedidoId, pedido.tenant_id, perfil.id, `Pasó a "${ESTADO_LABEL[estado]}"`);
   return { ok: true };
 }
 
@@ -104,34 +133,93 @@ export async function asignarPedido(pedidoId: string, userId: string | null) {
     return { error: 'Solo un admin o supervisor puede asignar.' };
   }
   const supabase = await createClient();
-  const { error } = await supabase.from('pedidos').update({ asignado_a: userId }).eq('id', pedidoId);
-  if (error) return { error: 'No se pudo asignar.' };
+  const { data: pedido, error } = await supabase
+    .from('pedidos')
+    .update({ asignado_a: userId })
+    .eq('id', pedidoId)
+    .select('tenant_id, titulo')
+    .single();
+  if (error || !pedido) return { error: 'No se pudo asignar.' };
 
   if (userId) {
-    const [{ data: asignado }, { data: pedido }] = await Promise.all([
-      supabase.from('profiles').select('email').eq('id', userId).single(),
-      supabase.from('pedidos').select('titulo').eq('id', pedidoId).single(),
-    ]);
+    const { data: asignado } = await supabase.from('profiles').select('full_name, email').eq('id', userId).single();
+    await registrarActividadPedido(
+      supabase,
+      pedidoId,
+      pedido.tenant_id,
+      perfil.id,
+      `Asignó a ${asignado?.full_name ?? asignado?.email ?? 'alguien'}`,
+    );
     if (asignado?.email) {
       await enviarEmail({
         to: asignado.email,
-        subject: `Te asignaron un pedido: ${pedido?.titulo ?? 'sin título'}`,
+        subject: `Te asignaron un pedido: ${pedido.titulo ?? 'sin título'}`,
         html: `
           <p>Te asignaron un pedido en Jab CRM.</p>
-          <p><strong>${pedido?.titulo ?? 'Sin título'}</strong></p>
+          <p><strong>${pedido.titulo ?? 'Sin título'}</strong></p>
           <p><a href="https://clientes.jabmarketing.site/dashboard/pedidos" style="color:#3b6fe0;">Ver en Pedidos →</a></p>
         `,
       });
     }
+  } else {
+    await registrarActividadPedido(supabase, pedidoId, pedido.tenant_id, perfil.id, 'Quitó la asignación');
   }
 
   return { ok: true };
 }
 
 export async function programarFechaPedido(pedidoId: string, fecha: string | null) {
+  const perfil = await requerirPerfil();
   const supabase = await createClient();
-  const { error } = await supabase.from('pedidos').update({ fecha_programada: fecha }).eq('id', pedidoId);
-  if (error) return { error: 'No se pudo programar la fecha.' };
+  const { data: pedido, error } = await supabase
+    .from('pedidos')
+    .update({ fecha_programada: fecha })
+    .eq('id', pedidoId)
+    .select('tenant_id')
+    .single();
+  if (error || !pedido) return { error: 'No se pudo programar la fecha.' };
+  await registrarActividadPedido(
+    supabase,
+    pedidoId,
+    pedido.tenant_id,
+    perfil.id,
+    fecha ? `Programó la fecha para ${fecha}` : 'Sacó la fecha programada',
+  );
+  return { ok: true };
+}
+
+export type ItemChecklist = { id: string; texto: string; completado: boolean; orden: number };
+
+export async function agregarItemChecklistPedido(pedidoId: string, texto: string) {
+  if (!texto.trim()) return { error: 'El ítem no puede estar vacío.' };
+  const supabase = await createClient();
+  const { data: pedido } = await supabase.from('pedidos').select('tenant_id').eq('id', pedidoId).single();
+  if (!pedido) return { error: 'No se encontró el pedido.' };
+  const { count } = await supabase
+    .from('pedido_checklist_items')
+    .select('id', { count: 'exact', head: true })
+    .eq('pedido_id', pedidoId);
+  const { error } = await supabase.from('pedido_checklist_items').insert({
+    pedido_id: pedidoId,
+    tenant_id: pedido.tenant_id,
+    texto: texto.trim(),
+    orden: count ?? 0,
+  });
+  if (error) return { error: 'No se pudo agregar el ítem.' };
+  return { ok: true };
+}
+
+export async function toggleItemChecklistPedido(itemId: string, completado: boolean) {
+  const supabase = await createClient();
+  const { error } = await supabase.from('pedido_checklist_items').update({ completado }).eq('id', itemId);
+  if (error) return { error: 'No se pudo actualizar el ítem.' };
+  return { ok: true };
+}
+
+export async function eliminarItemChecklistPedido(itemId: string) {
+  const supabase = await createClient();
+  const { error } = await supabase.from('pedido_checklist_items').delete().eq('id', itemId);
+  if (error) return { error: 'No se pudo eliminar el ítem.' };
   return { ok: true };
 }
 
@@ -147,7 +235,8 @@ export type DetallePedido = {
   asignadoNombre: string | null;
   fechaProgramada: string | null;
   archivos: { id: string; nombre: string; ruta: string; subidoEn: string }[];
-  comentarios: { id: string; texto: string; autorNombre: string | null; creadoEn: string }[];
+  comentarios: { id: string; texto: string; tipo: string; autorNombre: string | null; creadoEn: string }[];
+  checklist: ItemChecklist[];
 };
 
 export type MiembroEquipo = { id: string; nombre: string };
@@ -167,7 +256,7 @@ export async function obtenerDetallePedido(
     .single();
   if (error || !pedido) return { error: 'No se encontró el pedido.' };
 
-  const [{ data: archivos }, { data: comentarios }] = await Promise.all([
+  const [{ data: archivos }, { data: comentarios }, { data: checklist }] = await Promise.all([
     supabase
       .from('pedido_archivos')
       .select('id, nombre_archivo, ruta_storage, created_at')
@@ -175,9 +264,14 @@ export async function obtenerDetallePedido(
       .order('created_at', { ascending: true }),
     supabase
       .from('pedido_comentarios')
-      .select('id, texto, created_at, profiles(full_name, email)')
+      .select('id, texto, tipo, created_at, profiles(full_name, email)')
       .eq('pedido_id', pedidoId)
       .order('created_at', { ascending: true }),
+    supabase
+      .from('pedido_checklist_items')
+      .select('id, texto, completado, orden')
+      .eq('pedido_id', pedidoId)
+      .order('orden', { ascending: true }),
   ]);
 
   const equipo: MiembroEquipo[] = [];
@@ -211,8 +305,15 @@ export async function obtenerDetallePedido(
       comentarios: (comentarios ?? []).map((c) => ({
         id: c.id,
         texto: c.texto,
+        tipo: c.tipo,
         autorNombre: c.profiles?.full_name ?? c.profiles?.email ?? null,
         creadoEn: c.created_at,
+      })),
+      checklist: (checklist ?? []).map((i) => ({
+        id: i.id,
+        texto: i.texto,
+        completado: i.completado,
+        orden: i.orden,
       })),
     },
     equipo,
