@@ -1,4 +1,7 @@
 {
   "regions": ["gru1"],
-  "crons": [{ "path": "/api/cron/notificaciones-diarias", "schedule": "0 12 * * *" }]
+  "crons": [
+    { "path": "/api/cron/notificaciones-diarias", "schedule": "0 12 * * *" },
+    { "path": "/api/cron/sincronizar-redes", "schedule": "0 9 * * *" }
+  ]
 }

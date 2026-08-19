@@ -1,6 +1,6 @@
 import crypto from 'crypto';
 import type { SupabaseClient } from '@supabase/supabase-js';
-import type { Database } from '@/lib/supabase/types';
+import type { Database, SocialPlatform } from '@/lib/supabase/types';
 
 export const META_GRAPH_VERSION = 'v21.0';
 export const META_GRAPH_URL = `https://graph.facebook.com/${META_GRAPH_VERSION}`;
@@ -251,4 +251,64 @@ export async function traerPublicacionesInstagram(
   );
 
   return conAlcance;
+}
+
+export type FuenteMeta = {
+  external_account_id: string;
+  access_token: string;
+  instagram_business_account_id: string | null;
+};
+
+/**
+ * Trae y guarda las publicaciones de un tenant (usada tanto por el botón
+ * "Sincronizar con Meta" como por el cron diario). Facebook e Instagram se
+ * traen por separado: si uno falla (ej. pages_read_engagement todavía sin
+ * Acceso Avanzado aprobado por Meta), no descarta el resultado del otro que
+ * sí haya funcionado.
+ */
+export async function sincronizarPublicacionesMeta(
+  supabase: SupabaseClient<Database>,
+  tenantId: string,
+  fuente: FuenteMeta,
+  creadoPor: string | null,
+): Promise<{ ok?: boolean; error?: string }> {
+  const [facebookResult, instagramResult] = await Promise.allSettled([
+    traerPublicacionesFacebook(fuente.external_account_id, fuente.access_token),
+    fuente.instagram_business_account_id
+      ? traerPublicacionesInstagram(fuente.instagram_business_account_id, fuente.access_token)
+      : Promise.resolve([]),
+  ]);
+
+  const posts = facebookResult.status === 'fulfilled' ? facebookResult.value : [];
+  const media = instagramResult.status === 'fulfilled' ? instagramResult.value : [];
+
+  if (facebookResult.status === 'rejected' && instagramResult.status === 'rejected') {
+    return { error: 'Falló la sincronización con Meta.' };
+  }
+
+  try {
+    const filas = [...posts, ...media].map((p) => ({
+      tenant_id: tenantId,
+      external_id: p.external_id,
+      plataforma: p.plataforma as SocialPlatform,
+      titulo: p.titulo,
+      url: p.url,
+      imagen_url: p.imagen_url,
+      publicado_en: p.publicado_en.slice(0, 10),
+      alcance: p.alcance,
+      me_gusta: p.me_gusta,
+      comentarios: p.comentarios,
+      compartidos: p.compartidos,
+      creado_por: creadoPor,
+    }));
+
+    if (filas.length === 0) return { ok: true };
+
+    const { error } = await supabase.from('social_posts').upsert(filas, { onConflict: 'external_id' });
+    if (error) return { error: 'No se pudo guardar lo sincronizado.' };
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : 'Falló la sincronización con Meta.' };
+  }
+
+  return { ok: true };
 }
