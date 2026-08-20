@@ -545,6 +545,36 @@ export interface Database {
         Relationships: [];
         Update: Partial<Database['public']['Tables']['tablero_etiquetas']['Insert']>;
       };
+      tarea_tiempo_registros: {
+        Row: {
+          id: string;
+          created_at: string;
+          tarea_id: string;
+          tenant_id: string;
+          usuario_id: string;
+          iniciado_en: string;
+          finalizado_en: string | null;
+        };
+        Insert: {
+          id?: string;
+          created_at?: string;
+          tarea_id: string;
+          tenant_id: string;
+          usuario_id: string;
+          iniciado_en?: string;
+          finalizado_en?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'tarea_tiempo_registros_tarea_id_fkey';
+            columns: ['tarea_id'];
+            isOneToOne: false;
+            referencedRelation: 'tareas_internas';
+            referencedColumns: ['id'];
+          },
+        ];
+        Update: Partial<Database['public']['Tables']['tarea_tiempo_registros']['Insert']>;
+      };
       materiales: {
         Row: {
           id: string;

@@ -14,10 +14,13 @@ import {
   eliminarItemChecklistTarea,
   agregarComentarioTarea,
   eliminarTareaInterna,
+  iniciarCronometroTarea,
+  detenerCronometroTarea,
   type DetalleTarea,
   type MiembroEquipoTablero,
   type EtiquetaTablero,
 } from './actions';
+import { formatearMinutos } from '@/lib/format';
 import type { TareaInternaEstado } from '@/lib/supabase/types';
 
 const ESTADOS: { valor: TareaInternaEstado; etiqueta: string }[] = [
@@ -43,6 +46,10 @@ const COLORES_PRESET = [
 
 function fechaCorta(iso: string) {
   return new Date(iso).toLocaleString('es-AR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+}
+
+function minutosEntre(desde: string, hasta: string) {
+  return Math.round((new Date(hasta).getTime() - new Date(desde).getTime()) / 60000);
 }
 
 export function TareaDetailPanel({
@@ -95,6 +102,10 @@ export function TareaDetailPanel({
 
   const checklistTotal = detalle?.checklist.length ?? 0;
   const checklistHechos = detalle?.checklist.filter((i) => i.completado).length ?? 0;
+  const totalMinutos = (detalle?.tiempoRegistros ?? []).reduce(
+    (acc, r) => acc + minutosEntre(r.iniciadoEn, r.finalizadoEn ?? new Date().toISOString()),
+    0,
+  );
 
   return (
     <div className="fixed inset-0 z-40 flex items-start justify-center overflow-y-auto p-6">
@@ -253,6 +264,49 @@ export function TareaDetailPanel({
                     Crear
                   </button>
                 </div>
+              )}
+            </div>
+
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-[11px] font-semibold tracking-widest text-jab-muted uppercase">Tiempo</p>
+                {totalMinutos > 0 && (
+                  <p className="text-xs text-jab-muted">{formatearMinutos(totalMinutos)} total</p>
+                )}
+              </div>
+              <button
+                type="button"
+                disabled={pending}
+                onClick={() => conRecarga(() => iniciarCronometroTarea(tareaId))}
+                className="rounded-full bg-jab-accent text-jab-bg-deep px-3 py-1.5 text-xs font-bold uppercase tracking-wide disabled:opacity-50"
+              >
+                ▶ Iniciar cronómetro
+              </button>
+              {detalle.tiempoRegistros.length > 0 && (
+                <ul className="space-y-1 mt-2">
+                  {detalle.tiempoRegistros.map((r) => (
+                    <li key={r.id} className="flex items-center justify-between text-xs">
+                      <span className="text-jab-muted">
+                        {r.usuarioNombre ?? 'Alguien'} · {fechaCorta(r.iniciadoEn)}
+                      </span>
+                      {r.finalizadoEn ? (
+                        <span className="text-jab-muted">{formatearMinutos(minutosEntre(r.iniciadoEn, r.finalizadoEn))}</span>
+                      ) : (
+                        <span className="flex items-center gap-2">
+                          <span className="text-jab-amber font-medium">En curso</span>
+                          <button
+                            type="button"
+                            disabled={pending}
+                            onClick={() => conRecarga(() => detenerCronometroTarea(r.id))}
+                            className="rounded-full border border-jab-border px-2 py-0.5 text-[10px] font-medium hover:text-jab-text disabled:opacity-50"
+                          >
+                            Detener
+                          </button>
+                        </span>
+                      )}
+                    </li>
+                  ))}
+                </ul>
               )}
             </div>
 

@@ -250,9 +250,53 @@ export type DetalleTarea = {
   creadoEn: string;
   comentarios: { id: string; texto: string; tipo: string; autorNombre: string | null; creadoEn: string }[];
   checklist: ItemChecklistTarea[];
+  tiempoRegistros: RegistroTiempo[];
 };
 
 export type MiembroEquipoTablero = { id: string; nombre: string };
+
+export type RegistroTiempo = {
+  id: string;
+  usuarioId: string;
+  usuarioNombre: string | null;
+  iniciadoEn: string;
+  finalizadoEn: string | null;
+};
+
+/** Prende el cronómetro de esta tarea para quien está logueado — si tenía
+ * uno corriendo en otra tarea lo cierra antes, como Toggl: una sola cosa
+ * cronometrada a la vez. */
+export async function iniciarCronometroTarea(tareaId: string) {
+  const perfil = await requerirPerfil();
+  if (!esEquipoJab(perfil.role)) return { error: 'Esto es solo para el equipo de JAB.' };
+  const supabase = await createClient();
+  const { data: tarea } = await supabase.from('tareas_internas').select('tenant_id').eq('id', tareaId).single();
+  if (!tarea) return { error: 'No se encontró la tarea.' };
+
+  await supabase
+    .from('tarea_tiempo_registros')
+    .update({ finalizado_en: new Date().toISOString() })
+    .eq('usuario_id', perfil.id)
+    .is('finalizado_en', null);
+
+  const { error } = await supabase
+    .from('tarea_tiempo_registros')
+    .insert({ tarea_id: tareaId, tenant_id: tarea.tenant_id, usuario_id: perfil.id });
+  if (error) return { error: 'No se pudo iniciar el cronómetro.' };
+  return { ok: true };
+}
+
+export async function detenerCronometroTarea(registroId: string) {
+  const perfil = await requerirPerfil();
+  if (!esEquipoJab(perfil.role)) return { error: 'Esto es solo para el equipo de JAB.' };
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from('tarea_tiempo_registros')
+    .update({ finalizado_en: new Date().toISOString() })
+    .eq('id', registroId);
+  if (error) return { error: 'No se pudo detener el cronómetro.' };
+  return { ok: true };
+}
 
 export async function obtenerDetalleTarea(
   tareaId: string,
@@ -270,7 +314,7 @@ export async function obtenerDetalleTarea(
     .single();
   if (error || !tarea) return { error: 'No se encontró la tarea.' };
 
-  const [{ data: superAdmins }, { data: staffAccesos }, { data: comentarios }, { data: checklist }] =
+  const [{ data: superAdmins }, { data: staffAccesos }, { data: comentarios }, { data: checklist }, { data: tiempoRegistros }] =
     await Promise.all([
       supabase.from('profiles').select('id, full_name, email').eq('role', 'super_admin'),
       supabase
@@ -287,6 +331,11 @@ export async function obtenerDetalleTarea(
         .select('id, texto, completado, orden')
         .eq('tarea_id', tareaId)
         .order('orden', { ascending: true }),
+      supabase
+        .from('tarea_tiempo_registros')
+        .select('id, usuario_id, iniciado_en, finalizado_en')
+        .eq('tarea_id', tareaId)
+        .order('iniciado_en', { ascending: false }),
     ]);
 
   const equipoMap = new Map<string, MiembroEquipoTablero>();
@@ -318,6 +367,13 @@ export async function obtenerDetalleTarea(
         texto: i.texto,
         completado: i.completado,
         orden: i.orden,
+      })),
+      tiempoRegistros: (tiempoRegistros ?? []).map((r) => ({
+        id: r.id,
+        usuarioId: r.usuario_id,
+        usuarioNombre: equipoMap.get(r.usuario_id)?.nombre ?? null,
+        iniciadoEn: r.iniciado_en,
+        finalizadoEn: r.finalizado_en,
       })),
     },
     equipo: Array.from(equipoMap.values()),

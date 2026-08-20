@@ -1207,3 +1207,31 @@ alter table public.whatsapp_credenciales enable row level security;
 alter table public.tenants add column if not exists ia_habilitada boolean not null default false;
 alter table public.tenants add column if not exists ia_personalidad text;
 alter table public.tenants add column if not exists ia_nombre_asistente text;
+
+-- Cronómetro de tiempo por tarea interna (estilo Toggl Track). Una sola
+-- persona puede tener un registro sin finalizado_en a la vez — arrancar
+-- uno nuevo cierra automáticamente el anterior (ver iniciarCronometroTarea
+-- en tablero/actions.ts). Cualquiera del equipo de JAB puede detener el
+-- cronómetro de otra persona, no solo quien lo arrancó.
+create table if not exists public.tarea_tiempo_registros (
+  id uuid primary key default gen_random_uuid(),
+  tarea_id uuid not null references public.tareas_internas (id) on delete cascade,
+  tenant_id uuid not null,
+  usuario_id uuid not null,
+  iniciado_en timestamptz not null default now(),
+  finalizado_en timestamptz,
+  created_at timestamptz not null default now()
+);
+
+alter table public.tarea_tiempo_registros enable row level security;
+
+drop policy if exists "tarea_tiempo_registros_write" on public.tarea_tiempo_registros;
+create policy "tarea_tiempo_registros_write" on public.tarea_tiempo_registros for all
+  using (
+    public.is_super_admin()
+    or (public.es_staff() and public.staff_tiene_acceso(tenant_id))
+  )
+  with check (
+    public.is_super_admin()
+    or (public.es_staff() and public.staff_tiene_acceso(tenant_id))
+  );
