@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { KpiCard } from './reportes/kpi-card';
-import { GraficoLeadsPorDia } from './reportes/grafico';
+import { GraficoLeadsPorDia, GraficoLeadsPorEstado, GraficoLeadsPorFuente } from './reportes/dashboard-charts';
 import { CATEGORIA_LABEL, CATEGORIA_COLOR } from './pedidos/pedido-detail-panel';
 import { PLATAFORMA_LABEL, PLATAFORMA_COLOR, interaccionesPost } from '@/lib/social';
 import { nivelSLA, tiempoRelativo, SLA_BORDE, SLA_TEXTO, fechaCortaSinHora } from '@/lib/format';
@@ -74,6 +74,10 @@ export function InicioContent({
   tiempoRespuestaLabel,
   tasaConversion,
   leadsPorDia,
+  leadsPorEstado,
+  leadsPorFuente,
+  tendenciaLeads,
+  tendenciaConversion,
   actividadReciente,
   ranking,
   fuente,
@@ -90,6 +94,10 @@ export function InicioContent({
   tiempoRespuestaLabel: string;
   tasaConversion: number;
   leadsPorDia: { fecha: string; cantidad: number }[];
+  leadsPorEstado: { etiqueta: string; cantidad: number; color: string }[];
+  leadsPorFuente: { etiqueta: string; cantidad: number; color: string }[];
+  tendenciaLeads: { valor: number; sufijo?: string; positivoEsBueno?: boolean } | null;
+  tendenciaConversion: { valor: number; sufijo?: string; positivoEsBueno?: boolean } | null;
   actividadReciente: ActividadResumen[];
   ranking: RankingVendedor[];
   fuente: Fuente;
@@ -124,16 +132,22 @@ export function InicioContent({
       </div>
 
       <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 mb-8">
-        <KpiCard etiqueta="Leads totales" valor={String(leadsTotales)} />
+        <KpiCard etiqueta="Leads totales" valor={String(leadsTotales)} tendencia={tendenciaLeads} />
         <KpiCard etiqueta="Sin contactar" valor={String(sinContactar)} />
         <KpiCard etiqueta="Tasa de respuesta" valor={`${tasaRespuesta}%`} />
         <KpiCard etiqueta="1ª respuesta (prom.)" valor={tiempoRespuestaLabel} />
-        <KpiCard etiqueta="Tasa de conversión" valor={`${tasaConversion}%`} />
+        <KpiCard etiqueta="Tasa de conversión" valor={`${tasaConversion}%`} tendencia={tendenciaConversion} />
+      </div>
+
+      <div className="grid lg:grid-cols-3 gap-3 mb-8">
+        <div className="lg:col-span-2">
+          <GraficoLeadsPorDia datos={leadsPorDia} />
+        </div>
+        <GraficoLeadsPorFuente datos={leadsPorFuente} />
       </div>
 
       <div className="mb-8">
-        <p className="text-sm font-semibold mb-3">Leads por día (últimos 14 días)</p>
-        <GraficoLeadsPorDia datos={leadsPorDia} />
+        <GraficoLeadsPorEstado datos={leadsPorEstado} />
       </div>
 
       <div className="grid lg:grid-cols-2 gap-8 mb-8">
@@ -285,7 +299,7 @@ export function InicioContent({
                   <th className="py-2 pr-4">Asignados</th>
                   <th className="py-2 pr-4">Contactados+</th>
                   <th className="py-2 pr-4">Ganados</th>
-                  <th className="py-2 pr-4">Conversión</th>
+                  <th className="py-2 pr-4 min-w-[140px]">Conversión</th>
                 </tr>
               </thead>
               <tbody>
@@ -295,7 +309,17 @@ export function InicioContent({
                     <td className="py-2 pr-4">{r.total}</td>
                     <td className="py-2 pr-4">{r.contactados}</td>
                     <td className="py-2 pr-4">{r.ganados}</td>
-                    <td className="py-2 pr-4">{r.conversion}%</td>
+                    <td className="py-2 pr-4">
+                      <div className="flex items-center gap-2">
+                        <div className="h-1.5 flex-1 min-w-[60px] rounded-full bg-jab-panel-2 overflow-hidden">
+                          <div
+                            className="h-full rounded-full bg-jab-whatsapp"
+                            style={{ width: `${Math.min(100, r.conversion)}%` }}
+                          />
+                        </div>
+                        <span className="shrink-0 text-xs font-medium">{r.conversion}%</span>
+                      </div>
+                    </td>
                   </tr>
                 ))}
               </tbody>

@@ -6,6 +6,7 @@ import { BandejaContent, type LeadFila } from './bandeja-content';
 import { PipelineKanban } from './pipeline-kanban';
 import { InicioContent, type PedidoResumen, type PostResumen, type ActividadResumen, type RankingVendedor } from './inicio-content';
 import { InicioVendedor } from './inicio-vendedor';
+import type { LeadStatus, LeadPlatform } from '@/lib/supabase/types';
 
 const ROL_LABEL: Record<string, string> = {
   super_admin: 'JAB',
@@ -233,6 +234,10 @@ export default async function DashboardPage({
   let tiempoRespuestaLabel = '—';
   let tasaConversion = 0;
   let leadsPorDia: { fecha: string; cantidad: number }[] = [];
+  let leadsPorEstado: { etiqueta: string; cantidad: number; color: string }[] = [];
+  let leadsPorFuente: { etiqueta: string; cantidad: number; color: string }[] = [];
+  let tendenciaLeads: { valor: number; positivoEsBueno?: boolean } | null = null;
+  let tendenciaConversion: { valor: number; sufijo: string; positivoEsBueno?: boolean } | null = null;
   let actividadReciente: ActividadResumen[] = [];
   let ranking: RankingVendedor[] = [];
 
@@ -344,6 +349,63 @@ export default async function DashboardPage({
         });
       }
 
+      const ESTADO_ORDEN: LeadStatus[] = ['nuevo', 'contactado', 'calificado', 'ganado', 'perdido'];
+      const ESTADO_LABEL_DEFAULT: Record<LeadStatus, string> = {
+        nuevo: 'Nuevo',
+        contactado: 'Contactado',
+        calificado: 'Calificado',
+        ganado: 'Ganado',
+        perdido: 'Perdido',
+      };
+      const ESTADO_COLOR: Record<LeadStatus, string> = {
+        nuevo: '#3b6fe0',
+        contactado: '#a78bfa',
+        calificado: '#f5b942',
+        ganado: '#25d366',
+        perdido: '#f0546a',
+      };
+      leadsPorEstado = ESTADO_ORDEN.map((estado) => ({
+        etiqueta: tenant?.pipeline_config?.[estado]?.label || ESTADO_LABEL_DEFAULT[estado],
+        cantidad: todosLeads.filter((l) => l.estado === estado).length,
+        color: ESTADO_COLOR[estado],
+      }));
+
+      const FUENTE_LABEL: Record<LeadPlatform, string> = { whatsapp: 'WhatsApp', meta: 'Meta Ads', google: 'Google Ads' };
+      const FUENTE_COLOR: Record<LeadPlatform, string> = { whatsapp: '#25d366', meta: '#3b6fe0', google: '#ea4335' };
+      leadsPorFuente = (['whatsapp', 'meta', 'google'] as LeadPlatform[])
+        .map((p) => ({
+          etiqueta: FUENTE_LABEL[p],
+          cantidad: todosLeads.filter((l) => l.plataforma === p).length,
+          color: FUENTE_COLOR[p],
+        }))
+        .filter((f) => f.cantidad > 0);
+
+      // Variación vs. los 14 días anteriores — misma ventana que el gráfico
+      // de leads por día, para que ambos cuenten la misma historia.
+      const ahoraMs = new Date().getTime();
+      const catorceDiasMs = 14 * 24 * 60 * 60 * 1000;
+      const corteActual = ahoraMs - catorceDiasMs;
+      const cortePrevio = ahoraMs - 2 * catorceDiasMs;
+      const periodoActual = todosLeads.filter((l) => new Date(l.creadoEn).getTime() >= corteActual);
+      const periodoPrevio = todosLeads.filter((l) => {
+        const t = new Date(l.creadoEn).getTime();
+        return t >= cortePrevio && t < corteActual;
+      });
+      if (periodoPrevio.length > 0) {
+        tendenciaLeads = {
+          valor: Math.round(((periodoActual.length - periodoPrevio.length) / periodoPrevio.length) * 100),
+        };
+        const conversionActualPct = periodoActual.length
+          ? (periodoActual.filter((l) => l.estado === 'ganado').length / periodoActual.length) * 100
+          : 0;
+        const conversionPreviaPct =
+          (periodoPrevio.filter((l) => l.estado === 'ganado').length / periodoPrevio.length) * 100;
+        tendenciaConversion = {
+          valor: Math.round(conversionActualPct - conversionPreviaPct),
+          sufijo: ' pts',
+        };
+      }
+
       ranking = (equipo ?? [])
         .map((p) => {
           const propios = leadsTodos.filter((l) => l.vendedorNombre === (p.full_name ?? p.email));
@@ -411,6 +473,10 @@ export default async function DashboardPage({
             tiempoRespuestaLabel={tiempoRespuestaLabel}
             tasaConversion={tasaConversion}
             leadsPorDia={leadsPorDia}
+            leadsPorEstado={leadsPorEstado}
+            leadsPorFuente={leadsPorFuente}
+            tendenciaLeads={tendenciaLeads}
+            tendenciaConversion={tendenciaConversion}
             actividadReciente={actividadReciente}
             ranking={ranking}
             fuente={fuente}
