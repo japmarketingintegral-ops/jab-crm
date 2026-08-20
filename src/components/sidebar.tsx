@@ -152,6 +152,14 @@ export function Sidebar({
                   Tablero
                 </Link>
               </li>
+              <li>
+                <Link
+                  href="/mi-trabajo"
+                  className="block rounded-md px-2 py-1.5 text-sm text-jab-muted hover:text-jab-text"
+                >
+                  Mi trabajo
+                </Link>
+              </li>
             </ul>
           </div>
         )}

@@ -303,6 +303,13 @@ export interface Database {
             referencedRelation: 'profiles';
             referencedColumns: ['id'];
           },
+          {
+            foreignKeyName: 'pedidos_tenant_id_fkey';
+            columns: ['tenant_id'];
+            isOneToOne: false;
+            referencedRelation: 'tenants';
+            referencedColumns: ['id'];
+          },
         ];
         Update: Partial<Database['public']['Tables']['pedidos']['Insert']>;
       };
@@ -635,6 +642,13 @@ export interface Database {
             columns: ['creado_por'];
             isOneToOne: false;
             referencedRelation: 'profiles';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'tareas_internas_tenant_id_fkey';
+            columns: ['tenant_id'];
+            isOneToOne: false;
+            referencedRelation: 'tenants';
             referencedColumns: ['id'];
           },
         ];

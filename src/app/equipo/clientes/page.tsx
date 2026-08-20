@@ -1,6 +1,7 @@
 import { requerirPerfil } from '@/lib/auth';
 import { createClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
+import Link from 'next/link';
 import { CerrarSesionButton } from '@/components/cerrar-sesion-button';
 import { iniciales } from '@/lib/format';
 import { entrarComoEquipo } from './actions';
@@ -43,7 +44,12 @@ export default async function ElegirClientePage() {
               </p>
             </div>
           </div>
-          <CerrarSesionButton />
+          <div className="flex items-center gap-4">
+            <Link href="/mi-trabajo" className="text-sm text-jab-muted hover:text-jab-text">
+              Mi trabajo
+            </Link>
+            <CerrarSesionButton />
+          </div>
         </div>
 
         {clientes.length === 0 ? (
