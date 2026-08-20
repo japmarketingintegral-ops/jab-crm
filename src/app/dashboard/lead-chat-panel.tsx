@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { enviarMensaje, agregarNota, cambiarEstado, type FichaLead } from './lead-actions';
+import { enviarMensaje, agregarNota, cambiarEstado, sugerirRespuestaIA, type FichaLead } from './lead-actions';
 import { iniciales, tiempoRelativo } from '@/lib/format';
 
 const PLATAFORMA_LABEL: Record<string, string> = { meta: 'Meta Ads', google: 'Google Ads', whatsapp: 'WhatsApp' };
@@ -32,6 +32,8 @@ export function LeadChatPanel({
 }) {
   const [mensaje, setMensaje] = useState('');
   const [modo, setModo] = useState<'mensaje' | 'nota'>('mensaje');
+  const [sugiriendo, setSugiriendo] = useState(false);
+  const [errorIa, setErrorIa] = useState<string | null>(null);
   const mensajes = ficha.actividades.filter((a) => a.tipo === 'mensaje');
   const ultimoMensaje = mensajes[mensajes.length - 1];
   const sinResponder = ultimoMensaje && ultimoMensaje.autorId === null;
@@ -43,6 +45,18 @@ export function LeadChatPanel({
       if (!res.error) setMensaje('');
       return res;
     });
+  }
+
+  async function sugerirConIa() {
+    setSugiriendo(true);
+    setErrorIa(null);
+    const res = await sugerirRespuestaIA(leadId);
+    setSugiriendo(false);
+    if (res.error || !res.texto) {
+      setErrorIa(res.error ?? 'No se pudo generar una sugerencia.');
+      return;
+    }
+    setMensaje(res.texto);
   }
 
   return (
@@ -136,6 +150,14 @@ export function LeadChatPanel({
           </div>
           {modo === 'mensaje' && (
             <div className="flex gap-1.5 overflow-x-auto">
+              <button
+                type="button"
+                disabled={sugiriendo || mensajes.length === 0}
+                onClick={sugerirConIa}
+                className="shrink-0 rounded-full border border-jab-accent/40 text-jab-accent px-2.5 py-1 text-[11px] font-medium hover:bg-jab-accent/10 whitespace-nowrap disabled:opacity-50"
+              >
+                {sugiriendo ? 'Pensando…' : '✨ Sugerir con IA'}
+              </button>
               {RESPUESTAS_RAPIDAS.map((texto) => (
                 <button
                   key={texto}
@@ -149,6 +171,8 @@ export function LeadChatPanel({
             </div>
           )}
         </div>
+
+        {errorIa && <p className="text-[11px] text-jab-amber mt-1">{errorIa}</p>}
 
         <div className="flex items-end gap-2 py-3">
           <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-jab-accent/20 text-[10px] font-semibold text-jab-accent">

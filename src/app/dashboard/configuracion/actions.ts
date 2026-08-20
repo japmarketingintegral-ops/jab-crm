@@ -21,6 +21,27 @@ export async function actualizarAutoAsignacion(activo: boolean) {
   return { ok: true };
 }
 
+export async function actualizarConfigIA(habilitada: boolean, nombreAsistente: string, personalidad: string) {
+  const perfil = await requerirPerfil();
+  if (perfil.role !== 'client_admin' && perfil.role !== 'super_admin') {
+    return { error: 'Solo un admin puede cambiar esto.' };
+  }
+  const tenantId = await requerirTenantActivo(perfil);
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from('tenants')
+    .update({
+      ia_habilitada: habilitada,
+      ia_nombre_asistente: nombreAsistente.trim() || null,
+      ia_personalidad: personalidad.trim() || null,
+    })
+    .eq('id', tenantId);
+  if (error) return { error: 'No se pudo guardar el cambio.' };
+
+  return { ok: true };
+}
+
 export async function actualizarPipelineConfig(config: PipelineConfig) {
   const perfil = await requerirPerfil();
   if (perfil.role !== 'client_admin' && perfil.role !== 'super_admin') {

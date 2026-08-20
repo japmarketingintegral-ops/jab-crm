@@ -1200,3 +1200,10 @@ create table if not exists public.whatsapp_credenciales (
 );
 
 alter table public.whatsapp_credenciales enable row level security;
+
+-- Asistente de IA de Bandeja, personalizable por cliente. Solo redacta
+-- borradores para que el vendedor los revise y mande — nunca escribe ni
+-- envía nada por su cuenta (ver src/lib/ai.ts).
+alter table public.tenants add column if not exists ia_habilitada boolean not null default false;
+alter table public.tenants add column if not exists ia_personalidad text;
+alter table public.tenants add column if not exists ia_nombre_asistente text;

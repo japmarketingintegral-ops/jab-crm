@@ -30,6 +30,9 @@ export interface Database {
           auto_asignacion: boolean;
           round_robin_ultimo_id: string | null;
           pipeline_config: PipelineConfig | null;
+          ia_habilitada: boolean;
+          ia_personalidad: string | null;
+          ia_nombre_asistente: string | null;
         };
         Insert: {
           id?: string;
@@ -39,6 +42,9 @@ export interface Database {
           auto_asignacion?: boolean;
           round_robin_ultimo_id?: string | null;
           pipeline_config?: PipelineConfig | null;
+          ia_habilitada?: boolean;
+          ia_personalidad?: string | null;
+          ia_nombre_asistente?: string | null;
         };
         Relationships: [
           {

@@ -4,6 +4,7 @@ import { requerirPerfil, requerirTenantActivo } from '@/lib/auth';
 import { createClient } from '@/lib/supabase/server';
 import { Sidebar } from '@/components/sidebar';
 import { AutoAsignacionToggle } from './auto-asignacion-toggle';
+import { IaConfigForm } from './ia-config-form';
 import { PipelineConfigEditor } from './pipeline-config-editor';
 import { DesconectarMetaButton } from './desconectar-meta-button';
 import { DesconectarWhatsappButton } from './desconectar-whatsapp-button';
@@ -40,7 +41,11 @@ export default async function ConfiguracionPage({
   const supabase = await createClient();
 
   const [{ data: tenant }, { data: fuentes }, { data: whatsapp }] = await Promise.all([
-    supabase.from('tenants').select('name, slug, auto_asignacion, pipeline_config').eq('id', tenantId).single(),
+    supabase
+      .from('tenants')
+      .select('name, slug, auto_asignacion, pipeline_config, ia_habilitada, ia_personalidad, ia_nombre_asistente')
+      .eq('id', tenantId)
+      .single(),
     supabase
       .from('lead_sources')
       .select('platform, display_name, connected_at, access_token')
@@ -101,6 +106,22 @@ export default async function ConfiguracionPage({
             <AutoAsignacionToggle activoInicial={tenant?.auto_asignacion ?? false} />
           </div>
         </section>
+
+        {(perfil.role === 'client_admin' || perfil.role === 'super_admin') && (
+          <section>
+            <h2 className="text-sm font-semibold mb-1">Asistente de IA</h2>
+            <p className="text-sm text-jab-muted mb-3">
+              Personalizá cómo responde la IA por este cliente — cada cuenta tiene su propio tono e
+              instrucciones.
+            </p>
+            <IaConfigForm
+              habilitadaInicial={tenant?.ia_habilitada ?? false}
+              nombreInicial={tenant?.ia_nombre_asistente ?? ''}
+              personalidadInicial={tenant?.ia_personalidad ?? ''}
+              iaConfigurada={Boolean(process.env.ANTHROPIC_API_KEY)}
+            />
+          </section>
+        )}
 
         <section>
           <h2 className="text-sm font-semibold mb-1">Integraciones</h2>

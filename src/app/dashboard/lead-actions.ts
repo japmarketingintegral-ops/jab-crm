@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/server';
 import { createServiceClient } from '@/lib/supabase/service';
 import { enviarEmail } from '@/lib/email';
 import { enviarWhatsapp } from '@/lib/whatsapp';
+import { sugerirRespuestaWhatsapp, type MensajeHistorial } from '@/lib/ai';
 import type { LeadPlatform, LeadStatus } from '@/lib/supabase/types';
 
 /** Tenant dueño de un lead — para loguear actividad sin depender del tenant
@@ -293,6 +294,44 @@ export async function enviarMensaje(leadId: string, texto: string) {
 
   if (!resultado.ok) return { error: resultado.error ?? 'No se pudo enviar el mensaje por WhatsApp.' };
   return { ok: true };
+}
+
+/** Redacta un borrador de respuesta con la IA del cliente (si la tiene
+ * activada) para que el vendedor lo revise antes de mandarlo — nunca
+ * escribe ni envía nada por su cuenta. */
+export async function sugerirRespuestaIA(leadId: string) {
+  await requerirPerfil();
+  const supabase = await createClient();
+
+  const tenantId = await tenantDelLead(supabase, leadId);
+  if (!tenantId) return { error: 'No se encontró el lead.' };
+
+  const { data: tenant } = await supabase
+    .from('tenants')
+    .select('ia_habilitada, ia_personalidad, ia_nombre_asistente')
+    .eq('id', tenantId)
+    .single();
+  if (!tenant?.ia_habilitada) return { error: 'La IA no está activada para este cliente.' };
+
+  const { data: mensajes } = await supabase
+    .from('lead_activities')
+    .select('autor_id, contenido, created_at')
+    .eq('lead_id', leadId)
+    .eq('tipo', 'mensaje')
+    .order('created_at', { ascending: true })
+    .limit(20);
+
+  const historial: MensajeHistorial[] = (mensajes ?? [])
+    .filter((m): m is typeof m & { contenido: string } => Boolean(m.contenido))
+    .map((m) => ({ autor: m.autor_id === null ? ('cliente' as const) : ('nosotros' as const), texto: m.contenido }));
+
+  const resultado = await sugerirRespuestaWhatsapp({
+    personalidad: tenant.ia_personalidad,
+    nombreAsistente: tenant.ia_nombre_asistente,
+    historial,
+  });
+  if (!resultado.ok) return { error: resultado.error };
+  return { ok: true, texto: resultado.texto };
 }
 
 export async function programarSeguimiento(leadId: string, fechaISO: string | null) {
