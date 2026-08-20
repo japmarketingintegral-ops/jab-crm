@@ -4,7 +4,28 @@ import { Sidebar } from '@/components/sidebar';
 import { esImagen } from '@/lib/format';
 import { CrearPedidoForm } from './crear-pedido-form';
 import { PedidosView } from './pedidos-view';
+import { KpiCard } from '../reportes/kpi-card';
+import { GraficoPedidosPorCategoria } from './pedidos-charts';
 import type { PedidoTarjeta } from './pedidos-kanban';
+import type { PedidoCategoria } from '@/lib/supabase/types';
+
+const CATEGORIA_LABEL: Record<PedidoCategoria, string> = {
+  redes: 'Redes',
+  contenido: 'Contenido',
+  comunicado: 'Comunicado',
+  video: 'Video',
+  pauta: 'Pauta',
+  otro: 'Otro',
+};
+
+const CATEGORIA_HEX: Record<PedidoCategoria, string> = {
+  redes: '#3b6fe0',
+  contenido: '#5b9dff',
+  comunicado: '#f5b942',
+  video: '#ea4335',
+  pauta: '#cdfa3f',
+  otro: '#8891b8',
+};
 
 const ROL_LABEL: Record<string, string> = {
   super_admin: 'JAB',
@@ -43,6 +64,22 @@ export default async function PedidosPage() {
       primeraImagenPorPedido.set(a.pedido_id, a.ruta_storage);
     }
   }
+
+  const inicioMes = new Date();
+  inicioMes.setDate(1);
+  inicioMes.setHours(0, 0, 0, 0);
+  const pedidosList = pedidosRaw ?? [];
+  const pendientes = pedidosList.filter((p) => p.estado !== 'aprobado').length;
+  const aprobadosEsteMes = pedidosList.filter(
+    (p) => p.estado === 'aprobado' && new Date(p.updated_at) >= inicioMes,
+  ).length;
+  const porCategoria = (Object.keys(CATEGORIA_LABEL) as PedidoCategoria[])
+    .map((c) => ({
+      etiqueta: CATEGORIA_LABEL[c],
+      cantidad: pedidosList.filter((p) => p.categoria === c).length,
+      color: CATEGORIA_HEX[c],
+    }))
+    .filter((c) => c.cantidad > 0);
 
   const pedidos: PedidoTarjeta[] = (pedidosRaw ?? []).map((p) => ({
     id: p.id,
@@ -89,10 +126,18 @@ export default async function PedidosPage() {
             </p>
           </div>
         ) : (
-          <PedidosView
-            pedidos={pedidos}
-            esEquipoJab={perfil.role === 'super_admin' || perfil.role === 'jab_staff'}
-          />
+          <>
+            <div className="grid lg:grid-cols-[1fr_1fr_1fr_1.6fr] gap-3 mb-4 shrink-0">
+              <KpiCard etiqueta="Pedidos totales" valor={String(pedidosList.length)} />
+              <KpiCard etiqueta="Pendientes" valor={String(pendientes)} />
+              <KpiCard etiqueta="Aprobados este mes" valor={String(aprobadosEsteMes)} />
+              {porCategoria.length > 0 && <GraficoPedidosPorCategoria datos={porCategoria} />}
+            </div>
+            <PedidosView
+              pedidos={pedidos}
+              esEquipoJab={perfil.role === 'super_admin' || perfil.role === 'jab_staff'}
+            />
+          </>
         )}
       </main>
     </div>
