@@ -14,7 +14,7 @@ export function EliminarTenantButton({ tenantId, nombre }: { tenantId: string; n
       <button
         type="button"
         onClick={() => setAbierto(true)}
-        className="shrink-0 rounded-full border border-jab-border px-3 py-1.5 text-xs font-medium text-jab-muted hover:text-jab-red hover:border-jab-red whitespace-nowrap"
+        className="shrink-0 rounded-full border border-jab-red bg-jab-red/10 px-3 py-1.5 text-xs font-bold text-jab-red hover:bg-jab-red hover:text-white whitespace-nowrap"
       >
         Eliminar
       </button>

@@ -4,8 +4,7 @@ import { createClient } from '@/lib/supabase/server';
 import { CerrarSesionButton } from '@/components/cerrar-sesion-button';
 import { KpiCard } from '../dashboard/reportes/kpi-card';
 import { GraficoLeadsPorCliente } from './admin-charts';
-import { entrarComoCliente } from './actions';
-import { EliminarTenantButton } from './eliminar-tenant-button';
+import { TenantCard } from './tenant-card';
 
 export default async function AdminPage() {
   await requerirSuperAdmin();
@@ -91,67 +90,20 @@ export default async function AdminPage() {
           </div>
 
           <div className="space-y-2">
-          {tenants.map((tenant) => {
-            const fuentesTenant = sources?.filter((s) => s.tenant_id === tenant.id) ?? [];
-            const enRiesgo =
-              new Date(tenant.created_at) < treintaDiasAtras && (leadsPorTenant.get(tenant.id) ?? 0) === 0;
-            return (
-              <div
-                key={tenant.id}
-                className="rounded-md border border-jab-border bg-jab-panel-2 px-4 py-3"
-              >
-                <div className="flex items-start justify-between gap-4">
-                  <div>
-                    <div className="flex items-center gap-2 mb-0.5">
-                      <p className="text-sm font-medium">{tenant.name}</p>
-                      {enRiesgo && (
-                        <span className="rounded px-1.5 py-0.5 text-[10px] font-bold uppercase bg-jab-red text-white">
-                          En riesgo
-                        </span>
-                      )}
-                    </div>
-                    <p className="text-xs text-jab-muted mb-2">
-                      /{tenant.slug} · {leadsPorTenant.get(tenant.id) ?? 0} leads en 30 días
-                    </p>
-                  </div>
-                  <div className="flex items-start gap-2">
-                    <form action={entrarComoCliente.bind(null, tenant.id)}>
-                      <button
-                        type="submit"
-                        className="shrink-0 rounded-full border border-jab-border px-3 py-1.5 text-xs font-medium text-jab-muted hover:text-jab-text hover:border-jab-accent whitespace-nowrap"
-                      >
-                        Entrar como cliente
-                      </button>
-                    </form>
-                    <EliminarTenantButton tenantId={tenant.id} nombre={tenant.name} />
-                  </div>
-                </div>
-                {fuentesTenant.length === 0 ? (
-                  <p className="text-xs text-jab-amber">
-                    Sin integraciones conectadas todavía.
-                  </p>
-                ) : (
-                  <ul className="text-xs text-jab-muted space-y-0.5">
-                    {fuentesTenant.map((f) => {
-                      // Meta: "conectado" solo si hay un access_token real (login hecho de
-                      // verdad desde Configuración). connected_at solo no alcanza — los
-                      // tenants de ejemplo lo tienen seteado para simular el dato sin haber
-                      // pasado nunca por el login real.
-                      const conectado = f.platform === 'meta' ? Boolean(f.access_token) : Boolean(f.connected_at);
-                      const etiquetaPlataforma =
-                        f.platform === 'meta' ? 'Meta' : f.platform === 'google' ? 'Google' : 'WhatsApp';
-                      return (
-                        <li key={f.id}>
-                          {etiquetaPlataforma} · {f.display_name} ·{' '}
-                          {conectado ? 'conectado' : 'pendiente de conectar'}
-                        </li>
-                      );
-                    })}
-                  </ul>
-                )}
-              </div>
-            );
-          })}
+            {tenants.map((tenant) => {
+              const fuentesTenant = sources?.filter((s) => s.tenant_id === tenant.id) ?? [];
+              const enRiesgo =
+                new Date(tenant.created_at) < treintaDiasAtras && (leadsPorTenant.get(tenant.id) ?? 0) === 0;
+              return (
+                <TenantCard
+                  key={tenant.id}
+                  tenant={tenant}
+                  enRiesgo={enRiesgo}
+                  leadsCount={leadsPorTenant.get(tenant.id) ?? 0}
+                  fuentesTenant={fuentesTenant}
+                />
+              );
+            })}
           </div>
         </>
       )}
