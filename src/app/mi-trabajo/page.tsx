@@ -2,7 +2,7 @@ import { redirect } from 'next/navigation';
 import { requerirPerfil, requerirTenantActivo } from '@/lib/auth';
 import { createClient } from '@/lib/supabase/server';
 import { Sidebar } from '@/components/sidebar';
-import { TableroKanban, type TarjetaTablero } from '../dashboard/tablero/tablero-kanban';
+import { MiTrabajoKanban, type TarjetaMiTrabajo } from './mi-trabajo-kanban';
 
 const ROL_LABEL: Record<string, string> = {
   super_admin: 'JAB',
@@ -35,7 +35,20 @@ export default async function MiTrabajoPage() {
       .eq('asignado_a', perfil.id),
   ]);
 
-  const tarjetas: TarjetaTablero[] = [
+  const tenantIds = Array.from(
+    new Set([...(tareasRaw ?? []).map((t) => t.tenant_id), ...(pedidosRaw ?? []).map((p) => p.tenant_id)]),
+  );
+  const [{ data: tenantsRaw }, { data: etiquetasRaw }] = await Promise.all([
+    tenantIds.length > 0
+      ? supabase.from('tenants').select('id, name').in('id', tenantIds)
+      : Promise.resolve({ data: [] as { id: string; name: string }[] }),
+    tenantIds.length > 0
+      ? supabase.from('tablero_etiquetas').select('id, nombre, color').in('tenant_id', tenantIds)
+      : Promise.resolve({ data: [] }),
+  ]);
+  const nombrePorTenant = new Map((tenantsRaw ?? []).map((t) => [t.id, t.name]));
+
+  const tarjetas: TarjetaMiTrabajo[] = [
     ...(tareasRaw ?? []).map((t) => ({
       id: t.id,
       origen: 'tarea' as const,
@@ -43,9 +56,9 @@ export default async function MiTrabajoPage() {
       estado: t.estado,
       etiquetaCategoria: null,
       etiquetas: t.etiquetas,
-      asignadoA: t.asignado_a,
-      asignadoNombre: perfil.full_name ?? perfil.email,
       fechaProgramada: t.fecha_programada,
+      clienteId: t.tenant_id,
+      clienteNombre: nombrePorTenant.get(t.tenant_id) ?? '—',
     })),
     ...(pedidosRaw ?? []).map((p) => ({
       id: p.id,
@@ -54,17 +67,11 @@ export default async function MiTrabajoPage() {
       estado: p.estado,
       etiquetaCategoria: p.categoria,
       etiquetas: [],
-      asignadoA: p.asignado_a,
-      asignadoNombre: perfil.full_name ?? perfil.email,
       fechaProgramada: p.fecha_programada,
+      clienteId: p.tenant_id,
+      clienteNombre: nombrePorTenant.get(p.tenant_id) ?? '—',
     })),
   ];
-
-  const tenantIds = Array.from(new Set([...(tareasRaw ?? []).map((t) => t.tenant_id), ...(pedidosRaw ?? []).map((p) => p.tenant_id)]));
-  const { data: etiquetasRaw } =
-    tenantIds.length > 0
-      ? await supabase.from('tablero_etiquetas').select('id, nombre, color').in('tenant_id', tenantIds)
-      : { data: [] };
 
   return (
     <div className="flex flex-1 min-h-0">
@@ -87,7 +94,7 @@ export default async function MiTrabajoPage() {
           </div>
         </div>
 
-        <TableroKanban tarjetas={tarjetas} equipo={[]} etiquetasDisponibles={etiquetasRaw ?? []} />
+        <MiTrabajoKanban tarjetas={tarjetas} etiquetasDisponibles={etiquetasRaw ?? []} />
       </main>
     </div>
   );
