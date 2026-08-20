@@ -194,11 +194,14 @@ export async function agregarComentarioTarea(tareaId: string, texto: string) {
 
 export type EtiquetaTablero = { id: string; nombre: string; color: string };
 
-export async function crearEtiquetaTablero(nombre: string, color: string) {
+/** tenantId viene explícito (no de la cookie de tenant activo) porque
+ * "Mi trabajo" abre esta misma ficha para tareas de cualquier cliente sin
+ * cambiar de contexto — ahí puede no haber ningún tenant activo, o ser el
+ * de otro cliente distinto al de la tarea que se está editando. */
+export async function crearEtiquetaTablero(tenantId: string, nombre: string, color: string) {
   const perfil = await requerirPerfil();
   if (!esEquipoJab(perfil.role)) return { error: 'Esto es solo para el equipo de JAB.' };
   if (!nombre.trim()) return { error: 'Falta el nombre de la etiqueta.' };
-  const tenantId = await requerirTenantActivo(perfil);
   const supabase = await createClient();
   const { data, error } = await supabase
     .from('tablero_etiquetas')
@@ -240,6 +243,7 @@ export async function toggleEtiquetaTarea(tareaId: string, nombreEtiqueta: strin
 
 export type DetalleTarea = {
   id: string;
+  tenantId: string;
   titulo: string;
   descripcion: string | null;
   estado: TareaInternaEstado;
@@ -347,6 +351,7 @@ export async function obtenerDetalleTarea(
   return {
     ficha: {
       id: tarea.id,
+      tenantId: tarea.tenant_id,
       titulo: tarea.titulo,
       descripcion: tarea.descripcion,
       estado: tarea.estado,

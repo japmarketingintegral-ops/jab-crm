@@ -251,7 +251,7 @@ export function TareaDetailPanel({
                     disabled={pending || !nombreEtiqueta.trim()}
                     onClick={() =>
                       conRecarga(async () => {
-                        const res = await crearEtiquetaTablero(nombreEtiqueta, colorEtiqueta);
+                        const res = await crearEtiquetaTablero(detalle.tenantId, nombreEtiqueta, colorEtiqueta);
                         if ('error' in res) return res;
                         const activar = await toggleEtiquetaTarea(tareaId, res.etiqueta.nombre, true);
                         setNombreEtiqueta('');
