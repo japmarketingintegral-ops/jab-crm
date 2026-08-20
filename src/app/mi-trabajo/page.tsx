@@ -1,30 +1,41 @@
 import { redirect } from 'next/navigation';
-import { requerirPerfil } from '@/lib/auth';
+import { requerirPerfil, requerirTenantActivo } from '@/lib/auth';
 import { createClient } from '@/lib/supabase/server';
-import { CerrarSesionButton } from '@/components/cerrar-sesion-button';
-import { MiTrabajoKanban, type TarjetaMiTrabajo } from './mi-trabajo-kanban';
+import { Sidebar } from '@/components/sidebar';
+import { TableroKanban, type TarjetaTablero } from '../dashboard/tablero/tablero-kanban';
+
+const ROL_LABEL: Record<string, string> = {
+  super_admin: 'JAB',
+  jab_staff: 'Equipo JAB',
+  client_admin: 'Administradora',
+  supervisor: 'Supervisor',
+  salesperson: 'Vendedor',
+};
 
 export default async function MiTrabajoPage() {
   const perfil = await requerirPerfil();
   if (perfil.role !== 'super_admin' && perfil.role !== 'jab_staff') redirect('/dashboard');
+  const tenantId = await requerirTenantActivo(perfil);
 
   const supabase = await createClient();
 
-  // Sin .eq('tenant_id', ...) a propósito: RLS ya deja ver a super_admin
-  // todo y a jab_staff solo los tenants con acceso — filtrar por
-  // asignado_a alcanza para armar "lo mío" cruzando todos los clientes.
-  const [{ data: tareasRaw }, { data: pedidosRaw }] = await Promise.all([
+  // Sin .eq('tenant_id', ...) en tareas/pedidos a propósito: RLS ya deja
+  // ver a super_admin todo y a jab_staff solo los tenants con acceso —
+  // filtrar por asignado_a alcanza para armar "lo mío" cruzando todos los
+  // clientes, no solo el que está activo ahora en el sidebar.
+  const [{ data: tenant }, { data: tareasRaw }, { data: pedidosRaw }] = await Promise.all([
+    supabase.from('tenants').select('name').eq('id', tenantId).single(),
     supabase
       .from('tareas_internas')
-      .select('id, titulo, estado, etiquetas, fecha_programada, tenant_id, tenants(name)')
+      .select('id, titulo, estado, etiquetas, fecha_programada, asignado_a, tenant_id')
       .eq('asignado_a', perfil.id),
     supabase
       .from('pedidos')
-      .select('id, titulo, estado, categoria, fecha_programada, tenant_id, tenants(name)')
+      .select('id, titulo, estado, categoria, fecha_programada, asignado_a, tenant_id')
       .eq('asignado_a', perfil.id),
   ]);
 
-  const tarjetas: TarjetaMiTrabajo[] = [
+  const tarjetas: TarjetaTablero[] = [
     ...(tareasRaw ?? []).map((t) => ({
       id: t.id,
       origen: 'tarea' as const,
@@ -32,9 +43,9 @@ export default async function MiTrabajoPage() {
       estado: t.estado,
       etiquetaCategoria: null,
       etiquetas: t.etiquetas,
+      asignadoA: t.asignado_a,
+      asignadoNombre: perfil.full_name ?? perfil.email,
       fechaProgramada: t.fecha_programada,
-      clienteId: t.tenant_id,
-      clienteNombre: t.tenants?.name ?? '—',
     })),
     ...(pedidosRaw ?? []).map((p) => ({
       id: p.id,
@@ -43,31 +54,41 @@ export default async function MiTrabajoPage() {
       estado: p.estado,
       etiquetaCategoria: p.categoria,
       etiquetas: [],
+      asignadoA: p.asignado_a,
+      asignadoNombre: perfil.full_name ?? perfil.email,
       fechaProgramada: p.fecha_programada,
-      clienteId: p.tenant_id,
-      clienteNombre: p.tenants?.name ?? '—',
     })),
-  ].filter((t) => t.estado !== 'aprobado');
+  ];
 
-  const tenantIds = Array.from(new Set(tarjetas.map((t) => t.clienteId)));
+  const tenantIds = Array.from(new Set([...(tareasRaw ?? []).map((t) => t.tenant_id), ...(pedidosRaw ?? []).map((p) => p.tenant_id)]));
   const { data: etiquetasRaw } =
     tenantIds.length > 0
       ? await supabase.from('tablero_etiquetas').select('id, nombre, color').in('tenant_id', tenantIds)
       : { data: [] };
 
   return (
-    <main className="min-h-screen bg-jab-bg-deep px-6 py-8 flex flex-col">
-      <div className="flex items-center justify-between mb-6 shrink-0">
-        <div>
-          <h1 className="text-base font-bold text-jab-text">Mi trabajo</h1>
-          <p className="text-xs text-jab-muted">
-            {perfil.full_name ?? perfil.email} · todo lo que tenés asignado, agrupado por cliente
-          </p>
+    <div className="flex flex-1 min-h-0">
+      <Sidebar
+        tenantNombre={tenant?.name ?? '—'}
+        nombreUsuario={perfil.full_name ?? perfil.email}
+        rolLabel={ROL_LABEL[perfil.role] ?? perfil.role}
+        seccion="mi-trabajo"
+        esVendedor={false}
+        viendoComoJab={perfil.role === 'super_admin'}
+        mostrarTablero
+      />
+      <main className="flex-1 p-6 flex flex-col min-w-0">
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <h1 className="text-xl font-bold">Mi trabajo</h1>
+            <p className="text-sm text-jab-muted">
+              Tus tareas y pedidos asignados, en todos los clientes.
+            </p>
+          </div>
         </div>
-        <CerrarSesionButton />
-      </div>
 
-      <MiTrabajoKanban tarjetas={tarjetas} etiquetasDisponibles={etiquetasRaw ?? []} />
-    </main>
+        <TableroKanban tarjetas={tarjetas} equipo={[]} etiquetasDisponibles={etiquetasRaw ?? []} />
+      </main>
+    </div>
   );
 }

@@ -14,7 +14,8 @@ type Seccion =
   | 'redes'
   | 'pedidos'
   | 'materiales'
-  | 'tablero';
+  | 'tablero'
+  | 'mi-trabajo';
 
 const NAV_TRABAJO: { vista: Vista; etiqueta: string }[] = [
   { vista: 'inicio', etiqueta: 'Inicio' },
@@ -155,7 +156,11 @@ export function Sidebar({
               <li>
                 <Link
                   href="/mi-trabajo"
-                  className="block rounded-md px-2 py-1.5 text-sm text-jab-muted hover:text-jab-text"
+                  className={`block rounded-md px-2 py-1.5 text-sm ${
+                    seccion === 'mi-trabajo'
+                      ? 'bg-jab-amber/15 text-jab-amber'
+                      : 'text-jab-muted hover:text-jab-text'
+                  }`}
                 >
                   Mi trabajo
                 </Link>
