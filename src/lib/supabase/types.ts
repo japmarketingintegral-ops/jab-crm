@@ -696,8 +696,11 @@ export interface Database {
           empresa_descripcion: string | null;
           cliente_ideal: string | null;
           que_vende: string | null;
+          competencia_diferencial: string | null;
           objetivos: string | null;
           notas: string | null;
+          reporte_ia: string | null;
+          reporte_generado_en: string | null;
           actualizado_por: string | null;
           updated_at: string;
         };
@@ -706,8 +709,11 @@ export interface Database {
           empresa_descripcion?: string | null;
           cliente_ideal?: string | null;
           que_vende?: string | null;
+          competencia_diferencial?: string | null;
           objetivos?: string | null;
           notas?: string | null;
+          reporte_ia?: string | null;
+          reporte_generado_en?: string | null;
           actualizado_por?: string | null;
           updated_at?: string;
         };

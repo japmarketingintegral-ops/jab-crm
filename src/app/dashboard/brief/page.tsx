@@ -1,7 +1,7 @@
 import { esRolCompleto, puedeAdministrar, requerirPerfil, requerirTenantActivo } from '@/lib/auth';
 import { createClient } from '@/lib/supabase/server';
 import { Sidebar } from '@/components/sidebar';
-import { BriefForm } from './brief-form';
+import { BriefWizard } from './brief-wizard';
 import { AccesosSection } from './accesos';
 
 const ROL_LABEL: Record<string, string> = {
@@ -47,13 +47,13 @@ export default async function BriefPage() {
         <div>
           <h1 className="text-xl font-bold">Brief del cliente</h1>
           <p className="text-sm text-jab-muted">
-            El contexto de negocio que necesita el equipo para trabajar bien la cuenta — se completa
-            una vez al arrancar y se actualiza cuando algo cambia.
+            Contanos de tu negocio en 6 pasos cortos — el equipo lo usa para trabajar bien la cuenta,
+            y al final te armamos un reporte automático con lo más importante.
           </p>
         </div>
 
         <section>
-          <BriefForm brief={brief} soloLectura={!veTodo} />
+          <BriefWizard brief={brief} soloLectura={!veTodo} iaConfigurada={Boolean(process.env.ANTHROPIC_API_KEY)} />
         </section>
 
         {esAdmin && (

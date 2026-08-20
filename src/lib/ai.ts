@@ -78,3 +78,63 @@ export async function sugerirRespuestaWhatsapp({
     return { ok: false, error: err instanceof Error ? err.message : 'Error desconocido consultando la IA' };
   }
 }
+
+export type RespuestasBrief = {
+  empresaDescripcion: string | null;
+  queVende: string | null;
+  clienteIdeal: string | null;
+  competenciaDiferencial: string | null;
+  objetivos: string | null;
+  notas: string | null;
+};
+
+/**
+ * Convierte las respuestas sueltas del brief de onboarding en un reporte
+ * corto y accionable para que el equipo de JAB no tenga que releer las 6
+ * respuestas cada vez que arranca a trabajar la cuenta.
+ */
+export async function generarReporteBrief(
+  respuestas: RespuestasBrief,
+): Promise<{ ok: true; texto: string } | { ok: false; error: string }> {
+  const anthropic = obtenerCliente();
+  if (!anthropic) {
+    return { ok: false, error: 'La IA no está configurada todavía (falta la clave de Anthropic).' };
+  }
+  if (Object.values(respuestas).every((v) => !v?.trim())) {
+    return { ok: false, error: 'Todavía no hay respuestas cargadas en el brief.' };
+  }
+
+  const systemPrompt = [
+    'Sos un estratega de marketing senior de una agencia. Te paso las respuestas que un cliente cargó en un formulario de onboarding y tenés que devolver un reporte breve para el equipo que va a trabajar su cuenta.',
+    'Estructura EXACTA a devolver (respetá los títulos, en mayúsculas, sin markdown ni asteriscos):',
+    'SITUACIÓN ACTUAL\n(2-3 líneas: qué es la empresa, qué vende, en qué etapa está)',
+    '\nPÚBLICO OBJETIVO\n(1-2 líneas sobre a quién le tiene que hablar la marca)',
+    '\nDIFERENCIAL\n(1-2 líneas: por qué elegirla a ella y no a la competencia)',
+    '\nA DÓNDE APUNTA\n(1-2 líneas: qué objetivo declaró y qué significa en la práctica)',
+    '\nFOCO SUGERIDO PARA JAB\n(2-3 líneas con una recomendación concreta de por dónde arrancar — no repitas "generar más leads" sin más: pensá en marca, contenido, retención u otra palanca según lo que cargó el cliente)',
+    'Español rioplatense, directo, sin relleno. Si una respuesta vino vacía o muy pobre, decilo en esa sección en vez de inventar información.',
+  ].join('\n');
+
+  const mensajeUsuario = [
+    `La empresa: ${respuestas.empresaDescripcion || '(sin responder)'}`,
+    `Qué vende: ${respuestas.queVende || '(sin responder)'}`,
+    `Cliente ideal: ${respuestas.clienteIdeal || '(sin responder)'}`,
+    `Competencia y diferencial: ${respuestas.competenciaDiferencial || '(sin responder)'}`,
+    `Objetivos con JAB: ${respuestas.objetivos || '(sin responder)'}`,
+    `Notas adicionales: ${respuestas.notas || '(sin responder)'}`,
+  ].join('\n');
+
+  try {
+    const respuesta = await anthropic.messages.create({
+      model: 'claude-3-5-haiku-latest',
+      max_tokens: 600,
+      system: systemPrompt,
+      messages: [{ role: 'user', content: mensajeUsuario }],
+    });
+    const bloque = respuesta.content.find((b) => b.type === 'text');
+    if (!bloque || bloque.type !== 'text') return { ok: false, error: 'La IA no devolvió texto.' };
+    return { ok: true, texto: bloque.text.trim() };
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : 'Error desconocido consultando la IA' };
+  }
+}

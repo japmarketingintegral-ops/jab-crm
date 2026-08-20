@@ -2,6 +2,7 @@
 
 import { esRolCompleto, puedeAdministrar, requerirPerfil, requerirTenantActivo } from '@/lib/auth';
 import { createClient } from '@/lib/supabase/server';
+import { generarReporteBrief } from '@/lib/ai';
 
 export async function guardarBrief(_prevState: string | undefined, formData: FormData) {
   const perfil = await requerirPerfil();
@@ -14,6 +15,7 @@ export async function guardarBrief(_prevState: string | undefined, formData: For
     empresa_descripcion: (formData.get('empresa_descripcion') as string) || null,
     cliente_ideal: (formData.get('cliente_ideal') as string) || null,
     que_vende: (formData.get('que_vende') as string) || null,
+    competencia_diferencial: (formData.get('competencia_diferencial') as string) || null,
     objetivos: (formData.get('objetivos') as string) || null,
     notas: (formData.get('notas') as string) || null,
     actualizado_por: perfil.id,
@@ -22,6 +24,36 @@ export async function guardarBrief(_prevState: string | undefined, formData: For
 
   if (error) return 'No se pudo guardar el brief.';
   return undefined;
+}
+
+export async function generarReporte(): Promise<{ ok: true; texto: string } | { ok: false; error: string }> {
+  const perfil = await requerirPerfil();
+  if (!esRolCompleto(perfil.role)) return { ok: false, error: 'Solo un admin o supervisor puede generar el reporte.' };
+  const tenantId = await requerirTenantActivo(perfil);
+
+  const supabase = await createClient();
+  const { data: brief } = await supabase
+    .from('onboarding_briefs')
+    .select('*')
+    .eq('tenant_id', tenantId)
+    .maybeSingle();
+
+  const resultado = await generarReporteBrief({
+    empresaDescripcion: brief?.empresa_descripcion ?? null,
+    queVende: brief?.que_vende ?? null,
+    clienteIdeal: brief?.cliente_ideal ?? null,
+    competenciaDiferencial: brief?.competencia_diferencial ?? null,
+    objetivos: brief?.objetivos ?? null,
+    notas: brief?.notas ?? null,
+  });
+  if (!resultado.ok) return resultado;
+
+  await supabase
+    .from('onboarding_briefs')
+    .update({ reporte_ia: resultado.texto, reporte_generado_en: new Date().toISOString() })
+    .eq('tenant_id', tenantId);
+
+  return resultado;
 }
 
 export async function agregarAcceso(_prevState: string | undefined, formData: FormData) {

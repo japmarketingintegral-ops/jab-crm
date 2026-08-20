@@ -1235,3 +1235,12 @@ create policy "tarea_tiempo_registros_write" on public.tarea_tiempo_registros fo
     public.is_super_admin()
     or (public.es_staff() and public.staff_tiene_acceso(tenant_id))
   );
+
+-- Brief como wizard de onboarding: una pregunta más (competencia y
+-- diferencial) y un reporte de negocio generado por IA a partir de las
+-- respuestas, para que el equipo de JAB tenga un resumen accionable sin
+-- tener que releer las 6 respuestas sueltas cada vez (ver
+-- generarReporteBrief en src/lib/ai.ts).
+alter table public.onboarding_briefs add column if not exists competencia_diferencial text;
+alter table public.onboarding_briefs add column if not exists reporte_ia text;
+alter table public.onboarding_briefs add column if not exists reporte_generado_en timestamptz;
