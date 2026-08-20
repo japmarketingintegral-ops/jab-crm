@@ -20,29 +20,36 @@ export default async function TableroPage() {
 
   const supabase = await createClient();
 
-  const [{ data: tenant }, { data: tareasRaw }, { data: pedidosRaw }, { data: superAdmins }, { data: staffAccesos }] =
-    await Promise.all([
-      supabase.from('tenants').select('name').eq('id', tenantId).single(),
-      supabase
-        .from('tareas_internas')
-        .select(
-          'id, titulo, estado, etiquetas, fecha_programada, asignado_a, asignado:profiles!tareas_internas_asignado_a_fkey(full_name)',
-        )
-        .eq('tenant_id', tenantId)
-        .order('created_at', { ascending: false }),
-      supabase
-        .from('pedidos')
-        .select(
-          'id, titulo, estado, categoria, fecha_programada, asignado_a, asignado:profiles!pedidos_asignado_a_fkey(full_name)',
-        )
-        .eq('tenant_id', tenantId)
-        .order('created_at', { ascending: false }),
-      supabase.from('profiles').select('id, full_name, email').eq('role', 'super_admin'),
-      supabase
-        .from('staff_acceso_clientes')
-        .select('usuario:profiles!staff_acceso_clientes_usuario_id_fkey(id, full_name, email)')
-        .eq('tenant_id', tenantId),
-    ]);
+  const [
+    { data: tenant },
+    { data: tareasRaw },
+    { data: pedidosRaw },
+    { data: superAdmins },
+    { data: staffAccesos },
+    { data: etiquetasRaw },
+  ] = await Promise.all([
+    supabase.from('tenants').select('name').eq('id', tenantId).single(),
+    supabase
+      .from('tareas_internas')
+      .select(
+        'id, titulo, estado, etiquetas, fecha_programada, asignado_a, asignado:profiles!tareas_internas_asignado_a_fkey(full_name)',
+      )
+      .eq('tenant_id', tenantId)
+      .order('created_at', { ascending: false }),
+    supabase
+      .from('pedidos')
+      .select(
+        'id, titulo, estado, categoria, fecha_programada, asignado_a, asignado:profiles!pedidos_asignado_a_fkey(full_name)',
+      )
+      .eq('tenant_id', tenantId)
+      .order('created_at', { ascending: false }),
+    supabase.from('profiles').select('id, full_name, email').eq('role', 'super_admin'),
+    supabase
+      .from('staff_acceso_clientes')
+      .select('usuario:profiles!staff_acceso_clientes_usuario_id_fkey(id, full_name, email)')
+      .eq('tenant_id', tenantId),
+    supabase.from('tablero_etiquetas').select('id, nombre, color').eq('tenant_id', tenantId).order('nombre'),
+  ]);
 
   const tarjetas: TarjetaTablero[] = [
     ...(tareasRaw ?? []).map((t) => ({
@@ -97,7 +104,11 @@ export default async function TableroPage() {
           <CrearTareaForm />
         </div>
 
-        <TableroKanban tarjetas={tarjetas} equipo={Array.from(equipoMap.values())} />
+        <TableroKanban
+          tarjetas={tarjetas}
+          equipo={Array.from(equipoMap.values())}
+          etiquetasDisponibles={etiquetasRaw ?? []}
+        />
       </main>
     </div>
   );

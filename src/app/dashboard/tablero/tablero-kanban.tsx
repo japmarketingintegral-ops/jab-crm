@@ -7,7 +7,10 @@ import { cambiarEstadoPedido } from '../pedidos/actions';
 import { PedidoDetailPanel, CATEGORIA_LABEL, CATEGORIA_COLOR } from '../pedidos/pedido-detail-panel';
 import { TareaDetailPanel } from './tarea-detail-panel';
 import { iniciales, fechaCortaSinHora, nivelVencimiento } from '@/lib/format';
+import type { EtiquetaTablero } from './actions';
 import type { TareaInternaEstado, PedidoEstado, PedidoCategoria } from '@/lib/supabase/types';
+
+const ETIQUETA_COLOR_DEFAULT = '#5a6088';
 
 export type MiembroEquipo = { id: string; nombre: string };
 
@@ -57,7 +60,15 @@ const VENCIMIENTO_LABEL: Record<string, string> = {
   proxima: '',
 };
 
-export function TableroKanban({ tarjetas, equipo }: { tarjetas: TarjetaTablero[]; equipo: MiembroEquipo[] }) {
+export function TableroKanban({
+  tarjetas,
+  equipo,
+  etiquetasDisponibles,
+}: {
+  tarjetas: TarjetaTablero[];
+  equipo: MiembroEquipo[];
+  etiquetasDisponibles: EtiquetaTablero[];
+}) {
   const router = useRouter();
   const [, startTransition] = useTransition();
   const [arrastrando, setArrastrando] = useState<TarjetaTablero | null>(null);
@@ -68,7 +79,13 @@ export function TableroKanban({ tarjetas, equipo }: { tarjetas: TarjetaTablero[]
   const [soloVencidas, setSoloVencidas] = useState(false);
   const [soloPedidos, setSoloPedidos] = useState(false);
 
-  const etiquetasDisponibles = useMemo(() => {
+  const colorPorEtiqueta = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const e of etiquetasDisponibles) map.set(e.nombre, e.color);
+    return map;
+  }, [etiquetasDisponibles]);
+
+  const nombresEtiquetasEnUso = useMemo(() => {
     const set = new Set<string>();
     for (const t of tarjetas) for (const e of t.etiquetas) set.add(e);
     return Array.from(set).sort();
@@ -160,14 +177,14 @@ export function TableroKanban({ tarjetas, equipo }: { tarjetas: TarjetaTablero[]
             ))}
           </select>
         )}
-        {etiquetasDisponibles.length > 0 && (
+        {nombresEtiquetasEnUso.length > 0 && (
           <select
             value={etiquetaFiltro}
             onChange={(e) => setEtiquetaFiltro(e.target.value)}
             className="rounded-lg bg-jab-panel-2 border border-jab-border px-3 py-2 text-sm outline-none focus:border-jab-accent"
           >
             <option value="todas">Todas las etiquetas</option>
-            {etiquetasDisponibles.map((et) => (
+            {nombresEtiquetasEnUso.map((et) => (
               <option key={et} value={et}>
                 {et}
               </option>
@@ -263,7 +280,8 @@ export function TableroKanban({ tarjetas, equipo }: { tarjetas: TarjetaTablero[]
                           {t.etiquetas.map((e) => (
                             <span
                               key={e}
-                              className="rounded px-1.5 py-0.5 text-[9px] font-mono bg-jab-panel-2 text-jab-muted border border-jab-border"
+                              style={{ background: colorPorEtiqueta.get(e) ?? ETIQUETA_COLOR_DEFAULT }}
+                              className="rounded px-1.5 py-0.5 text-[9px] font-bold text-white"
                             >
                               {e}
                             </span>
@@ -304,7 +322,12 @@ export function TableroKanban({ tarjetas, equipo }: { tarjetas: TarjetaTablero[]
             onClose={() => setSeleccion(null)}
           />
         ) : (
-          <TareaDetailPanel key={seleccion.id} tareaId={seleccion.id} onClose={() => setSeleccion(null)} />
+          <TareaDetailPanel
+            key={seleccion.id}
+            tareaId={seleccion.id}
+            etiquetasDisponibles={etiquetasDisponibles}
+            onClose={() => setSeleccion(null)}
+          />
         ))}
     </>
   );

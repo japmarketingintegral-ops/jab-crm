@@ -192,16 +192,49 @@ export async function agregarComentarioTarea(tareaId: string, texto: string) {
   return { ok: true };
 }
 
-export async function actualizarEtiquetasTarea(tareaId: string, etiquetasRaw: string) {
+export type EtiquetaTablero = { id: string; nombre: string; color: string };
+
+export async function crearEtiquetaTablero(nombre: string, color: string) {
   const perfil = await requerirPerfil();
   if (!esEquipoJab(perfil.role)) return { error: 'Esto es solo para el equipo de JAB.' };
-  const etiquetas = etiquetasRaw
-    .split(',')
-    .map((e) => e.trim())
-    .filter(Boolean);
+  if (!nombre.trim()) return { error: 'Falta el nombre de la etiqueta.' };
+  const tenantId = await requerirTenantActivo(perfil);
   const supabase = await createClient();
-  const { error } = await supabase.from('tareas_internas').update({ etiquetas }).eq('id', tareaId);
-  if (error) return { error: 'No se pudieron guardar las etiquetas.' };
+  const { data, error } = await supabase
+    .from('tablero_etiquetas')
+    .insert({ tenant_id: tenantId, nombre: nombre.trim(), color })
+    .select('id, nombre, color')
+    .single();
+  if (error || !data) return { error: 'No se pudo crear la etiqueta.' };
+  return { ok: true as const, etiqueta: data as EtiquetaTablero };
+}
+
+export async function eliminarEtiquetaTablero(etiquetaId: string) {
+  const perfil = await requerirPerfil();
+  if (!esEquipoJab(perfil.role)) return { error: 'Esto es solo para el equipo de JAB.' };
+  const supabase = await createClient();
+  const { error } = await supabase.from('tablero_etiquetas').delete().eq('id', etiquetaId);
+  if (error) return { error: 'No se pudo eliminar la etiqueta.' };
+  return { ok: true };
+}
+
+/** Prende/apaga una etiqueta puntual en una tarea, sin pisar el resto —
+ * a diferencia del viejo campo de texto libre separado por comas, esto
+ * deja elegir de la paleta del tablero como en Trello. */
+export async function toggleEtiquetaTarea(tareaId: string, nombreEtiqueta: string, activar: boolean) {
+  const perfil = await requerirPerfil();
+  if (!esEquipoJab(perfil.role)) return { error: 'Esto es solo para el equipo de JAB.' };
+  const supabase = await createClient();
+  const { data: tarea } = await supabase.from('tareas_internas').select('etiquetas').eq('id', tareaId).single();
+  if (!tarea) return { error: 'No se encontró la tarea.' };
+  const actuales = tarea.etiquetas ?? [];
+  const nuevas = activar
+    ? actuales.includes(nombreEtiqueta)
+      ? actuales
+      : [...actuales, nombreEtiqueta]
+    : actuales.filter((e) => e !== nombreEtiqueta);
+  const { error } = await supabase.from('tareas_internas').update({ etiquetas: nuevas }).eq('id', tareaId);
+  if (error) return { error: 'No se pudo actualizar la etiqueta.' };
   return { ok: true };
 }
 

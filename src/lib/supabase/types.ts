@@ -514,6 +514,24 @@ export interface Database {
         ];
         Update: Partial<Database['public']['Tables']['tarea_checklist_items']['Insert']>;
       };
+      tablero_etiquetas: {
+        Row: {
+          id: string;
+          created_at: string;
+          tenant_id: string;
+          nombre: string;
+          color: string;
+        };
+        Insert: {
+          id?: string;
+          created_at?: string;
+          tenant_id: string;
+          nombre: string;
+          color: string;
+        };
+        Relationships: [];
+        Update: Partial<Database['public']['Tables']['tablero_etiquetas']['Insert']>;
+      };
       materiales: {
         Row: {
           id: string;

@@ -879,6 +879,30 @@ create policy "tarea_checklist_items_write" on public.tarea_checklist_items for 
     or (public.es_staff() and public.staff_tiene_acceso(tenant_id))
   );
 
+-- Paleta de etiquetas del Tablero (colores reutilizables, estilo Trello) —
+-- tareas_internas.etiquetas sigue guardando solo los nombres (text[]); esta
+-- tabla es el catálogo de nombre+color por tenant que un nombre resuelve.
+create table if not exists public.tablero_etiquetas (
+  id uuid primary key default gen_random_uuid(),
+  tenant_id uuid not null,
+  nombre text not null,
+  color text not null,
+  created_at timestamptz not null default now()
+);
+
+alter table public.tablero_etiquetas enable row level security;
+
+drop policy if exists "tablero_etiquetas_write" on public.tablero_etiquetas;
+create policy "tablero_etiquetas_write" on public.tablero_etiquetas for all
+  using (
+    public.is_super_admin()
+    or (public.es_staff() and public.staff_tiene_acceso(tenant_id))
+  )
+  with check (
+    public.is_super_admin()
+    or (public.es_staff() and public.staff_tiene_acceso(tenant_id))
+  );
+
 -- Conexión real con Meta (Facebook/Instagram): guarda el token de la Página
 -- que se obtiene al conectar por OAuth (Facebook Login for Business), para
 -- poder traer leads completos por la Graph API y sincronizar métricas de

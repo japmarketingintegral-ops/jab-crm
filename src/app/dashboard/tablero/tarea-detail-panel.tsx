@@ -7,7 +7,8 @@ import {
   cambiarEstadoTarea,
   asignarTarea,
   programarFechaTarea,
-  actualizarEtiquetasTarea,
+  toggleEtiquetaTarea,
+  crearEtiquetaTablero,
   agregarItemChecklistTarea,
   toggleItemChecklistTarea,
   eliminarItemChecklistTarea,
@@ -15,6 +16,7 @@ import {
   eliminarTareaInterna,
   type DetalleTarea,
   type MiembroEquipoTablero,
+  type EtiquetaTablero,
 } from './actions';
 import type { TareaInternaEstado } from '@/lib/supabase/types';
 
@@ -27,17 +29,39 @@ const ESTADOS: { valor: TareaInternaEstado; etiqueta: string }[] = [
   { valor: 'aprobado', etiqueta: 'Aprobado' },
 ];
 
+const COLORES_PRESET = [
+  '#61bd4f',
+  '#f2d600',
+  '#ff9f1a',
+  '#eb5a46',
+  '#c377e0',
+  '#0079bf',
+  '#00c2e0',
+  '#ff78cb',
+  '#4d4d4d',
+];
+
 function fechaCorta(iso: string) {
   return new Date(iso).toLocaleString('es-AR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
 }
 
-export function TareaDetailPanel({ tareaId, onClose }: { tareaId: string; onClose: () => void }) {
+export function TareaDetailPanel({
+  tareaId,
+  etiquetasDisponibles,
+  onClose,
+}: {
+  tareaId: string;
+  etiquetasDisponibles: EtiquetaTablero[];
+  onClose: () => void;
+}) {
   const router = useRouter();
   const [detalle, setDetalle] = useState<DetalleTarea | null>(null);
   const [equipo, setEquipo] = useState<MiembroEquipoTablero[]>([]);
-  const [etiquetasInput, setEtiquetasInput] = useState('');
   const [nuevoItem, setNuevoItem] = useState('');
   const [comentario, setComentario] = useState('');
+  const [creandoEtiqueta, setCreandoEtiqueta] = useState(false);
+  const [nombreEtiqueta, setNombreEtiqueta] = useState('');
+  const [colorEtiqueta, setColorEtiqueta] = useState(COLORES_PRESET[0]);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
@@ -49,7 +73,6 @@ export function TareaDetailPanel({ tareaId, onClose }: { tareaId: string; onClos
     }
     setDetalle(res.ficha);
     setEquipo(res.equipo);
-    setEtiquetasInput(res.ficha.etiquetas.join(', '));
     setError(null);
   }
 
@@ -163,21 +186,74 @@ export function TareaDetailPanel({ tareaId, onClose }: { tareaId: string; onClos
 
             <div>
               <p className="text-[11px] font-semibold tracking-widest text-jab-muted uppercase mb-2">Etiquetas</p>
-              <div className="flex gap-2">
-                <input
-                  value={etiquetasInput}
-                  onChange={(e) => setEtiquetasInput(e.target.value)}
-                  placeholder="urgente, briefing"
-                  className="flex-1 rounded-lg bg-jab-panel-2 border border-jab-border px-3 py-2 text-sm outline-none placeholder:text-jab-muted focus:border-jab-accent"
-                />
+              <div className="flex flex-wrap gap-1.5">
+                {etiquetasDisponibles.map((et) => {
+                  const activa = detalle.etiquetas.includes(et.nombre);
+                  return (
+                    <button
+                      key={et.id}
+                      type="button"
+                      disabled={pending}
+                      onClick={() => conRecarga(() => toggleEtiquetaTarea(tareaId, et.nombre, !activa))}
+                      style={{
+                        background: activa ? et.color : 'transparent',
+                        borderColor: et.color,
+                        color: activa ? '#fff' : et.color,
+                      }}
+                      className="rounded px-2 py-1 text-[11px] font-bold border-2 disabled:opacity-50"
+                    >
+                      {et.nombre}
+                    </button>
+                  );
+                })}
                 <button
-                  disabled={pending}
-                  onClick={() => conRecarga(() => actualizarEtiquetasTarea(tareaId, etiquetasInput))}
-                  className="rounded-full border border-jab-border px-3 py-1.5 text-xs font-medium disabled:opacity-50"
+                  type="button"
+                  onClick={() => setCreandoEtiqueta((v) => !v)}
+                  className="rounded px-2 py-1 text-[11px] font-medium border-2 border-dashed border-jab-border text-jab-muted hover:text-jab-text"
                 >
-                  Guardar
+                  + Nueva
                 </button>
               </div>
+
+              {creandoEtiqueta && (
+                <div className="mt-2 flex flex-wrap items-center gap-2 rounded-lg bg-jab-panel-2 border border-jab-border p-2.5">
+                  <input
+                    value={nombreEtiqueta}
+                    onChange={(e) => setNombreEtiqueta(e.target.value)}
+                    placeholder="Nombre de la etiqueta"
+                    className="flex-1 min-w-[120px] rounded-lg bg-jab-bg-deep border border-jab-border px-2.5 py-1.5 text-sm outline-none placeholder:text-jab-muted focus:border-jab-accent"
+                  />
+                  <div className="flex items-center gap-1">
+                    {COLORES_PRESET.map((c) => (
+                      <button
+                        key={c}
+                        type="button"
+                        onClick={() => setColorEtiqueta(c)}
+                        style={{ background: c }}
+                        className={`h-5 w-5 rounded-full ${colorEtiqueta === c ? 'ring-2 ring-offset-2 ring-offset-jab-panel-2 ring-jab-text' : ''}`}
+                        aria-label={c}
+                      />
+                    ))}
+                  </div>
+                  <button
+                    type="button"
+                    disabled={pending || !nombreEtiqueta.trim()}
+                    onClick={() =>
+                      conRecarga(async () => {
+                        const res = await crearEtiquetaTablero(nombreEtiqueta, colorEtiqueta);
+                        if ('error' in res) return res;
+                        const activar = await toggleEtiquetaTarea(tareaId, res.etiqueta.nombre, true);
+                        setNombreEtiqueta('');
+                        setCreandoEtiqueta(false);
+                        return activar;
+                      })
+                    }
+                    className="rounded-full bg-jab-lime text-jab-lime-ink px-3 py-1.5 text-xs font-bold uppercase tracking-wide disabled:opacity-50"
+                  >
+                    Crear
+                  </button>
+                </div>
+              )}
             </div>
 
             <div>
