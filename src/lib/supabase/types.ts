@@ -522,6 +522,7 @@ export interface Database {
           asignado_a: string | null;
           fecha_programada: string | null;
           creado_por: string | null;
+          pedido_id: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -535,6 +536,7 @@ export interface Database {
           asignado_a?: string | null;
           fecha_programada?: string | null;
           creado_por?: string | null;
+          pedido_id?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -551,6 +553,13 @@ export interface Database {
             columns: ['creado_por'];
             isOneToOne: false;
             referencedRelation: 'profiles';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'tareas_internas_pedido_id_fkey';
+            columns: ['pedido_id'];
+            isOneToOne: false;
+            referencedRelation: 'pedidos';
             referencedColumns: ['id'];
           },
           {

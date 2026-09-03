@@ -24,6 +24,8 @@ export type TarjetaTablero = {
   asignadoA: string | null;
   asignadoNombre: string | null;
   fechaProgramada: string | null;
+  /** Si esta tarea nació de un pedido del cliente, el título de ese pedido. */
+  pedidoOrigenTitulo?: string | null;
 };
 
 const COLUMNAS: {
@@ -267,6 +269,10 @@ export function TableroKanban({
                     >
                       {t.origen === 'pedido' ? (
                         <p className="text-[9px] font-mono text-jab-accent mb-1">↳ pedido del cliente</p>
+                      ) : t.pedidoOrigenTitulo ? (
+                        <p className="text-[9px] font-mono text-jab-accent mb-1 truncate">
+                          ↳ de pedido: {t.pedidoOrigenTitulo}
+                        </p>
                       ) : null}
                       {t.etiquetaCategoria && (
                         <span

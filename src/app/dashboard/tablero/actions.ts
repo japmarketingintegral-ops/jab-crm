@@ -46,6 +46,7 @@ export async function crearTareaInterna(_prevState: string | undefined, formData
     .split(',')
     .map((e) => e.trim())
     .filter(Boolean);
+  const pedidoId = (formData.get('pedido_id') as string)?.trim() || null;
 
   const supabase = await createClient();
   const { error } = await supabase.from('tareas_internas').insert({
@@ -54,6 +55,7 @@ export async function crearTareaInterna(_prevState: string | undefined, formData
     descripcion,
     etiquetas,
     creado_por: perfil.id,
+    pedido_id: pedidoId,
   });
   if (error) return 'No se pudo crear la tarea.';
   return undefined;

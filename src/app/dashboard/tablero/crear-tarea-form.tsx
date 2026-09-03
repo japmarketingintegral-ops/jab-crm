@@ -4,7 +4,7 @@ import { useActionState, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { crearTareaInterna } from './actions';
 
-export function CrearTareaForm() {
+export function CrearTareaForm({ pedidos }: { pedidos: { id: string; titulo: string }[] }) {
   const [abierto, setAbierto] = useState(false);
   const router = useRouter();
   const [error, formAction, pending] = useActionState(async (_prev: string | undefined, fd: FormData) => {
@@ -72,6 +72,27 @@ export function CrearTareaForm() {
             className="w-full rounded-lg bg-jab-panel-2 border border-jab-border px-3 py-2 text-sm outline-none placeholder:text-jab-muted focus:border-jab-accent"
           />
         </div>
+
+        {pedidos.length > 0 && (
+          <div className="space-y-1">
+            <label htmlFor="pedido_id" className="text-xs font-semibold tracking-widest text-jab-muted uppercase">
+              Pedido relacionado (opcional)
+            </label>
+            <select
+              id="pedido_id"
+              name="pedido_id"
+              defaultValue=""
+              className="w-full rounded-lg bg-jab-panel-2 border border-jab-border px-3 py-2 text-sm outline-none focus:border-jab-accent"
+            >
+              <option value="">Ninguno — tarea interna suelta</option>
+              {pedidos.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.titulo}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
 
         {error && <p className="text-sm text-jab-red">{error}</p>}
 

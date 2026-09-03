@@ -31,7 +31,7 @@ export default async function TableroPage() {
     supabase
       .from('tareas_internas')
       .select(
-        'id, titulo, estado, etiquetas, fecha_programada, asignado_a, asignado:profiles!tareas_internas_asignado_a_fkey(full_name)',
+        'id, titulo, estado, etiquetas, fecha_programada, asignado_a, pedido_id, asignado:profiles!tareas_internas_asignado_a_fkey(full_name), pedido:pedidos(titulo)',
       )
       .eq('tenant_id', tenantId)
       .order('created_at', { ascending: false }),
@@ -61,6 +61,7 @@ export default async function TableroPage() {
       asignadoA: t.asignado_a,
       asignadoNombre: t.asignado?.full_name ?? null,
       fechaProgramada: t.fecha_programada,
+      pedidoOrigenTitulo: t.pedido?.titulo ?? null,
     })),
     ...(pedidosRaw ?? []).map((p) => ({
       id: p.id,
@@ -99,7 +100,11 @@ export default async function TableroPage() {
               Tus tareas propias + los pedidos de este cliente. Solo lo ve el equipo de JAB.
             </p>
           </div>
-          <CrearTareaForm />
+          <CrearTareaForm
+            pedidos={(pedidosRaw ?? [])
+              .filter((p) => p.estado !== 'aprobado')
+              .map((p) => ({ id: p.id, titulo: p.titulo }))}
+          />
         </div>
 
         <TableroKanban
