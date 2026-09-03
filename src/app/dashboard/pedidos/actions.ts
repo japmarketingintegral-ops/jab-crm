@@ -113,6 +113,51 @@ async function registrarActividadPedido(
     .insert({ pedido_id: pedidoId, tenant_id: tenantId, autor_id: autorId, texto, tipo: 'sistema' });
 }
 
+/**
+ * Avisa por mail a quien pidió el trabajo y a quien lo tiene asignado — a
+ * quien sea distinto del que disparó la acción, para no mandarse un mail a
+ * uno mismo. Sin destinatarios válidos, o sin RESEND_API_KEY configurada,
+ * enviarEmail() no rompe el flujo (mismo comportamiento que el resto del
+ * sistema).
+ */
+async function notificarPedido(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  pedidoId: string,
+  actorId: string,
+  asunto: string,
+  cuerpo: string,
+) {
+  const { data: pedido } = await supabase
+    .from('pedidos')
+    .select('titulo, creado_por, asignado_a')
+    .eq('id', pedidoId)
+    .single();
+  if (!pedido) return;
+
+  const destinatarioIds = new Set(
+    [pedido.creado_por, pedido.asignado_a].filter((id): id is string => Boolean(id) && id !== actorId),
+  );
+  if (destinatarioIds.size === 0) return;
+
+  const { data: destinatarios } = await supabase
+    .from('profiles')
+    .select('email')
+    .in('id', Array.from(destinatarioIds));
+
+  for (const d of destinatarios ?? []) {
+    if (!d.email) continue;
+    await enviarEmail({
+      to: d.email,
+      subject: `${asunto}: ${pedido.titulo}`,
+      html: `
+        <p>${cuerpo}</p>
+        <p><strong>${pedido.titulo}</strong></p>
+        <p><a href="https://clientes.jabmarketing.site/dashboard/pedidos" style="color:#3b6fe0;">Ver pedido →</a></p>
+      `,
+    });
+  }
+}
+
 export async function cambiarEstadoPedido(pedidoId: string, estado: PedidoEstado) {
   const perfil = await requerirPerfil();
   const supabase = await createClient();
@@ -124,6 +169,13 @@ export async function cambiarEstadoPedido(pedidoId: string, estado: PedidoEstado
     .single();
   if (error || !pedido) return { error: 'No se pudo cambiar el estado.' };
   await registrarActividadPedido(supabase, pedidoId, pedido.tenant_id, perfil.id, `Pasó a "${ESTADO_LABEL[estado]}"`);
+  await notificarPedido(
+    supabase,
+    pedidoId,
+    perfil.id,
+    `Pedido: pasó a "${ESTADO_LABEL[estado]}"`,
+    `El pedido cambió de estado a <strong>${ESTADO_LABEL[estado]}</strong>.`,
+  );
   return { ok: true };
 }
 
@@ -335,5 +387,14 @@ export async function agregarComentario(pedidoId: string, texto: string) {
     texto: texto.trim(),
   });
   if (error) return { error: 'No se pudo guardar el comentario.' };
+
+  await notificarPedido(
+    supabase,
+    pedidoId,
+    perfil.id,
+    'Pedido: comentario nuevo',
+    `${perfil.full_name ?? perfil.email} comentó: "${texto.trim().slice(0, 200)}"`,
+  );
+
   return { ok: true };
 }
