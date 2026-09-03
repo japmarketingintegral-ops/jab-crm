@@ -111,7 +111,8 @@ export function PedidosCalendar({
           </button>
         </div>
 
-        <div className="grid grid-cols-7 gap-px bg-jab-border rounded-lg overflow-hidden border border-jab-border flex-1 min-h-0">
+        <div className="flex-1 min-h-0 overflow-x-auto">
+        <div className="grid grid-cols-7 gap-px bg-jab-border rounded-lg overflow-hidden border border-jab-border min-w-[640px] h-full">
           {DIAS_SEMANA.map((d) => (
             <div key={d} className="bg-jab-panel-2 text-center text-[10px] font-semibold text-jab-muted uppercase py-1.5">
               {d}
@@ -163,6 +164,7 @@ export function PedidosCalendar({
               </div>
             );
           })}
+        </div>
         </div>
       </div>
 

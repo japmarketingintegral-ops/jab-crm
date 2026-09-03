@@ -110,7 +110,7 @@ export function TareaDetailPanel({
   );
 
   return (
-    <div className="fixed inset-0 z-40 flex items-start justify-center overflow-y-auto p-6">
+    <div className="fixed inset-0 z-40 flex items-start justify-center overflow-y-auto p-3 sm:p-6">
       <button aria-label="Cerrar" onClick={onClose} className="fixed inset-0 bg-black/60" />
       <div className="relative z-10 w-full max-w-2xl bg-jab-panel border border-jab-border rounded-lg my-8">
         <div className="flex items-center justify-between px-6 py-4 border-b border-jab-border">
@@ -163,7 +163,7 @@ export function TareaDetailPanel({
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {equipo.length > 0 && (
                 <div>
                   <p className="text-[11px] font-semibold tracking-widest text-jab-muted uppercase mb-2">
