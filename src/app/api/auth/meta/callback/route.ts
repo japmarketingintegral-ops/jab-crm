@@ -67,7 +67,11 @@ export async function GET(request: NextRequest) {
     const service = createServiceClient();
     const { data: pendiente, error: pendienteError } = await service
       .from('meta_conexiones_pendientes')
-      .insert({ tenant_id: tenantId, paginas: paginas satisfies PaginaMeta[] })
+      .insert({
+        tenant_id: tenantId,
+        paginas: paginas satisfies PaginaMeta[],
+        user_access_token: tokenLarga,
+      })
       .select('id')
       .single();
 

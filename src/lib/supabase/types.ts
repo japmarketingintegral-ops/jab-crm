@@ -91,12 +91,14 @@ export interface Database {
           id: string;
           tenant_id: string;
           paginas: unknown;
+          user_access_token: string | null;
           created_at: string;
         };
         Insert: {
           id?: string;
           tenant_id: string;
           paginas: unknown;
+          user_access_token?: string | null;
           created_at?: string;
         };
         Relationships: [];

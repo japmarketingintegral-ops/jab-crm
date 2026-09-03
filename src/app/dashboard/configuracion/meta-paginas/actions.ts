@@ -19,16 +19,18 @@ export async function elegirPaginaMeta(pageId: string): Promise<void> {
     : null;
 
   let pagina: PaginaMeta | undefined;
+  let tokenUsuario: string | null = null;
   if (datosToken && datosToken.tenantId === tenantId) {
     const service = createServiceClient();
     const { data: pendiente } = await service
       .from('meta_conexiones_pendientes')
-      .select('paginas')
+      .select('paginas, user_access_token')
       .eq('id', datosToken.conexionId)
       .eq('tenant_id', tenantId)
       .maybeSingle();
     const paginas = (pendiente?.paginas as PaginaMeta[] | undefined) ?? [];
     pagina = paginas.find((p) => p.id === pageId);
+    tokenUsuario = pendiente?.user_access_token ?? null;
 
     // Ya se usó (o se abandonó) esta conexión pendiente — se borra apenas se
     // lee, así el access_token de las páginas no elegidas no queda dando
@@ -42,7 +44,7 @@ export async function elegirPaginaMeta(pageId: string): Promise<void> {
 
   const supabase = await createClient();
   try {
-    await conectarPaginaMeta(supabase, tenantId, pagina);
+    await conectarPaginaMeta(supabase, tenantId, pagina, tokenUsuario ?? undefined);
   } catch (err) {
     console.error('Error conectando página de Meta:', err);
     redirect('/dashboard/configuracion/meta-paginas?error=fallo');
