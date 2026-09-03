@@ -80,6 +80,11 @@ export default async function PedidosPage() {
     }))
     .filter((c) => c.cantidad > 0);
 
+  // Quién tiene asignado el pedido es información interna de gestión — el
+  // cliente nunca la ve, ni siquiera en el payload (no alcanza con que la
+  // UI la oculte).
+  const esEquipoJab = perfil.role === 'super_admin' || perfil.role === 'jab_staff';
+
   const pedidos: PedidoTarjeta[] = (pedidosRaw ?? []).map((p) => ({
     id: p.id,
     titulo: p.titulo,
@@ -88,7 +93,7 @@ export default async function PedidosPage() {
     categoria: p.categoria,
     cantidadArchivos: archivosPorPedido.get(p.id) ?? 0,
     creadorNombre: p.creador?.full_name ?? null,
-    asignadoNombre: p.asignado?.full_name ?? null,
+    asignadoNombre: esEquipoJab ? (p.asignado?.full_name ?? null) : null,
     fechaProgramada: p.fecha_programada,
     primeraImagenId: primeraImagenPorPedido.get(p.id) ?? null,
     creadoEn: p.created_at,
@@ -133,7 +138,7 @@ export default async function PedidosPage() {
             </div>
             <PedidosView
               pedidos={pedidos}
-              esEquipoJab={perfil.role === 'super_admin' || perfil.role === 'jab_staff'}
+              esEquipoJab={esEquipoJab}
             />
           </>
         )}

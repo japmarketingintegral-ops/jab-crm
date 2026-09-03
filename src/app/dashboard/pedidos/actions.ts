@@ -350,6 +350,12 @@ export async function obtenerDetallePedido(
     for (const p of perfiles ?? []) equipo.push({ id: p.id, nombre: p.full_name ?? p.email });
   }
 
+  // Quién tiene asignado el pedido es información interna de gestión — el
+  // cliente nunca la ve, ni siquiera en el payload de la respuesta (no
+  // alcanza con que la UI la oculte: si viaja igual, se ve inspeccionando
+  // la network tab).
+  const esEquipoJab = perfil.role === 'super_admin' || perfil.role === 'jab_staff';
+
   return {
     ficha: {
       id: pedido.id,
@@ -359,8 +365,8 @@ export async function obtenerDetallePedido(
       categoria: pedido.categoria,
       creadorNombre: pedido.creador?.full_name ?? pedido.creador?.email ?? null,
       creadoEn: pedido.created_at,
-      asignadoA: pedido.asignado_a,
-      asignadoNombre: pedido.asignado?.full_name ?? pedido.asignado?.email ?? null,
+      asignadoA: esEquipoJab ? pedido.asignado_a : null,
+      asignadoNombre: esEquipoJab ? (pedido.asignado?.full_name ?? pedido.asignado?.email ?? null) : null,
       fechaProgramada: pedido.fecha_programada,
       archivos: (archivos ?? []).map((a) => ({
         id: a.id,
