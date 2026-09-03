@@ -7,7 +7,7 @@ import type { UserRole } from '@/lib/supabase/types';
 
 const OPCIONES: { value: UserRole; label: string }[] = [
   { value: 'client_admin', label: 'Administrador' },
-  { value: 'supervisor', label: 'Supervisor' },
+  { value: 'client_viewer', label: 'Solo lectura' },
 ];
 
 export function RolSelect({ userId, rolActual }: { userId: string; rolActual: string }) {

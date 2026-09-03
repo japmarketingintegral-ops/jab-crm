@@ -1,6 +1,6 @@
 'use server';
 
-import { esRolCompleto, requerirPerfil, requerirTenantActivo } from '@/lib/auth';
+import { puedeGestionarCuenta, requerirPerfil, requerirTenantActivo } from '@/lib/auth';
 import { createClient } from '@/lib/supabase/server';
 import { createServiceClient } from '@/lib/supabase/service';
 import { enviarEmail } from '@/lib/email';
@@ -195,8 +195,8 @@ export async function cambiarEstadoPedido(pedidoId: string, estado: PedidoEstado
 
 export async function asignarPedido(pedidoId: string, userId: string | null) {
   const perfil = await requerirPerfil();
-  if (!esRolCompleto(perfil.role)) {
-    return { error: 'Solo un admin o supervisor puede asignar.' };
+  if (!puedeGestionarCuenta(perfil.role)) {
+    return { error: 'Solo un admin puede asignar.' };
   }
   const supabase = await createClient();
   const { data: pedido, error } = await supabase
@@ -341,12 +341,12 @@ export async function obtenerDetallePedido(
   ]);
 
   const equipo: MiembroEquipo[] = [];
-  if (esRolCompleto(perfil.role)) {
+  if (puedeGestionarCuenta(perfil.role)) {
     const { data: perfiles } = await supabase
       .from('profiles')
       .select('id, full_name, email')
       .eq('tenant_id', pedido.tenant_id)
-      .in('role', ['client_admin', 'supervisor']);
+      .in('role', ['client_admin', 'client_viewer']);
     for (const p of perfiles ?? []) equipo.push({ id: p.id, nombre: p.full_name ?? p.email });
   }
 

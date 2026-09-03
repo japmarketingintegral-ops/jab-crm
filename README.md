@@ -27,7 +27,7 @@ indexarse (ver "Indexación" abajo).
 | `super_admin` (JAB) | Todo, de cualquier cliente, sin restricción. Da de alta clientes nuevos desde `/admin`, gestiona el equipo de JAB desde `/admin/equipo`, y puede **entrar como cualquier cliente**. |
 | `jab_staff` (equipo de JAB) | Nadie hasta que `super_admin` le da acceso a un cliente puntual. Con acceso: Redes/Pauta/Pedidos/Materiales/Tablero de ese cliente. Cada persona ve solo los clientes que le asignaron, nunca todos. |
 | `client_admin` | Todo lo de su propia empresa: reportes, pedidos, materiales, equipo y configuración/integraciones. |
-| `supervisor` | Igual que `client_admin` en cuanto a reportes y pedidos, pero sin acceso a Configuración. |
+| `client_viewer` | Ve reportes, pedidos y materiales de su empresa, y puede comentar pedidos. No administra equipo, configuración ni integraciones (no sincroniza, no sube/elimina materiales, no asigna pedidos). |
 
 El aislamiento entre clientes está en `supabase/schema.sql` (políticas de
 Row Level Security), no en el código de las páginas: aunque una consulta
@@ -84,7 +84,7 @@ lienzo de adentro cambia según la sección:
 **Pauta** (`/dashboard/pauta`)
 - Reporte de Meta Ads de los últimos 30 días: inversión, impresiones,
   clics, CPC promedio, conversiones y desglose por campaña.
-- Botón "Sincronizar con Meta Ads" (admin/supervisor) trae los datos más
+- Botón "Sincronizar con Meta Ads" (admin de cliente o equipo JAB) trae los datos más
   recientes de la cuenta publicitaria conectada — el ID de esa cuenta se
   carga en Configuración una vez que Meta está conectado. Requiere el
   permiso `ads_read` de Meta (en revisión de la app al momento de este

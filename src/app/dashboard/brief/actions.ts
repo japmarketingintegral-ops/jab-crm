@@ -1,12 +1,12 @@
 'use server';
 
-import { esRolCompleto, puedeAdministrar, requerirPerfil, requerirTenantActivo } from '@/lib/auth';
+import { puedeGestionarCuenta, puedeAdministrar, requerirPerfil, requerirTenantActivo } from '@/lib/auth';
 import { createClient } from '@/lib/supabase/server';
 import { generarReporteBrief } from '@/lib/ai';
 
 export async function guardarBrief(_prevState: string | undefined, formData: FormData) {
   const perfil = await requerirPerfil();
-  if (!esRolCompleto(perfil.role)) return 'Solo un admin o supervisor puede editar el brief.';
+  if (!puedeGestionarCuenta(perfil.role)) return 'Solo un admin puede editar el brief.';
   const tenantId = await requerirTenantActivo(perfil);
 
   const supabase = await createClient();
@@ -28,7 +28,7 @@ export async function guardarBrief(_prevState: string | undefined, formData: For
 
 export async function generarReporte(): Promise<{ ok: true; texto: string } | { ok: false; error: string }> {
   const perfil = await requerirPerfil();
-  if (!esRolCompleto(perfil.role)) return { ok: false, error: 'Solo un admin o supervisor puede generar el reporte.' };
+  if (!puedeGestionarCuenta(perfil.role)) return { ok: false, error: 'Solo un admin puede generar el reporte.' };
   const tenantId = await requerirTenantActivo(perfil);
 
   const supabase = await createClient();

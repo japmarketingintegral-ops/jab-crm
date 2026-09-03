@@ -8,7 +8,7 @@ import { CuentaPublicitariaForm } from './cuenta-publicitaria-form';
 const ROL_LABEL: Record<string, string> = {
   super_admin: 'JAB',
   client_admin: 'Administradora',
-  supervisor: 'Supervisor',
+  client_viewer: 'Solo lectura',
 };
 
 const META_MENSAJE: Record<string, { texto: string; ok: boolean }> = {
@@ -28,7 +28,7 @@ export default async function ConfiguracionPage({
   searchParams: Promise<{ meta?: string }>;
 }) {
   const perfil = await requerirPerfil();
-  if (perfil.role === 'supervisor') redirect('/dashboard');
+  if (perfil.role === 'client_viewer') redirect('/dashboard');
   const tenantId = await requerirTenantActivo(perfil);
   const params = await searchParams;
   const mensajeMeta = params.meta ? META_MENSAJE[params.meta] : null;

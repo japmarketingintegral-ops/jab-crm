@@ -30,7 +30,7 @@ const CATEGORIA_HEX: Record<PedidoCategoria, string> = {
 const ROL_LABEL: Record<string, string> = {
   super_admin: 'JAB',
   client_admin: 'Administradora',
-  supervisor: 'Supervisor',
+  client_viewer: 'Solo lectura',
 };
 
 export default async function PedidosPage() {

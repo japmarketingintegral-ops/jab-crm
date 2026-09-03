@@ -6,7 +6,7 @@ import { InicioContent, type MaterialResumen, type PedidoResumen, type PostResum
 const ROL_LABEL: Record<string, string> = {
   super_admin: 'JAB',
   client_admin: 'Administradora',
-  supervisor: 'Supervisor',
+  client_viewer: 'Solo lectura',
 };
 
 export default async function DashboardPage() {

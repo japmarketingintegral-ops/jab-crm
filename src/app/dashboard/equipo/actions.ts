@@ -5,7 +5,7 @@ import { createClient } from '@/lib/supabase/server';
 import { createServiceClient } from '@/lib/supabase/service';
 import type { UserRole } from '@/lib/supabase/types';
 
-const ROLES_INVITABLES: UserRole[] = ['client_admin', 'supervisor'];
+const ROLES_INVITABLES: UserRole[] = ['client_admin', 'client_viewer'];
 
 export async function invitarVendedor(_prevState: string | undefined, formData: FormData) {
   const perfil = await requerirPerfil();
@@ -20,7 +20,7 @@ export async function invitarVendedor(_prevState: string | undefined, formData: 
   if (!email) return 'Falta el email.';
   const role = ROLES_INVITABLES.includes(rolSolicitado as UserRole)
     ? (rolSolicitado as UserRole)
-    : 'supervisor';
+    : 'client_viewer';
 
   // service_role: invitar un usuario nuevo es una operación admin que no
   // puede hacer el cliente anon, sin importar el rol de quien la pide acá

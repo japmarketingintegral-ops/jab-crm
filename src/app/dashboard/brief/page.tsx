@@ -1,4 +1,4 @@
-import { esRolCompleto, puedeAdministrar, requerirPerfil, requerirTenantActivo } from '@/lib/auth';
+import { puedeGestionarCuenta, puedeAdministrar, requerirPerfil, requerirTenantActivo } from '@/lib/auth';
 import { createClient } from '@/lib/supabase/server';
 import { Sidebar } from '@/components/sidebar';
 import { BriefWizard } from './brief-wizard';
@@ -7,13 +7,13 @@ import { AccesosSection } from './accesos';
 const ROL_LABEL: Record<string, string> = {
   super_admin: 'JAB',
   client_admin: 'Administradora',
-  supervisor: 'Supervisor',
+  client_viewer: 'Solo lectura',
 };
 
 export default async function BriefPage() {
   const perfil = await requerirPerfil();
   const tenantId = await requerirTenantActivo(perfil);
-  const veTodo = esRolCompleto(perfil.role);
+  const veTodo = puedeGestionarCuenta(perfil.role);
   const esAdmin = puedeAdministrar(perfil.role);
 
   const supabase = await createClient();

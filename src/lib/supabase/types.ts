@@ -5,7 +5,7 @@
 //
 // y borrar este comentario.
 
-export type UserRole = 'super_admin' | 'client_admin' | 'supervisor' | 'jab_staff';
+export type UserRole = 'super_admin' | 'client_admin' | 'client_viewer' | 'jab_staff';
 export type LeadPlatform = 'meta';
 export type SocialPlatform = 'instagram' | 'facebook' | 'tiktok' | 'linkedin' | 'otra';
 export type PedidoEstado = 'pedido' | 'en_proceso' | 'revision' | 'aprobado';

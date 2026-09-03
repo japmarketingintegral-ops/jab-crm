@@ -1,14 +1,14 @@
 'use server';
 
-import { esRolCompleto, requerirPerfil, requerirTenantActivo } from '@/lib/auth';
+import { puedeGestionarCuenta, requerirPerfil, requerirTenantActivo } from '@/lib/auth';
 import { createClient } from '@/lib/supabase/server';
 import { sincronizarPublicacionesMeta } from '@/lib/meta';
 
 /** Trae las últimas publicaciones de Facebook/Instagram de la página conectada y las guarda. También corre solo, todos los días, vía /api/cron/sincronizar-redes — este botón es para pedir un refresh inmediato sin esperar al cron. */
 export async function sincronizarMetricasMeta(): Promise<{ ok?: boolean; error?: string }> {
   const perfil = await requerirPerfil();
-  if (!esRolCompleto(perfil.role)) {
-    return { error: 'Solo un admin o supervisor puede sincronizar métricas.' };
+  if (!puedeGestionarCuenta(perfil.role)) {
+    return { error: 'Solo un admin puede sincronizar métricas.' };
   }
   const tenantId = await requerirTenantActivo(perfil);
 
@@ -30,8 +30,8 @@ export async function sincronizarMetricasMeta(): Promise<{ ok?: boolean; error?:
 
 export async function eliminarPost(postId: string) {
   const perfil = await requerirPerfil();
-  if (!esRolCompleto(perfil.role)) {
-    return { error: 'Solo un admin o supervisor puede borrar publicaciones.' };
+  if (!puedeGestionarCuenta(perfil.role)) {
+    return { error: 'Solo un admin puede borrar publicaciones.' };
   }
 
   const supabase = await createClient();

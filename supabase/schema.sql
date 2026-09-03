@@ -1361,3 +1361,12 @@ create policy "ad_metrics_write" on public.ad_metrics for all
 -- reconectarse desde cero si se reintroduce esta función más adelante).
 drop table if exists public.whatsapp_conexiones cascade;
 drop table if exists public.whatsapp_credenciales cascade;
+
+-- Matriz de permisos: 'supervisor' pasa a llamarse 'client_viewer' y deja
+-- de compartir capacidades con client_admin (sincronizar integraciones,
+-- subir/eliminar materiales, editar el brief, asignar pedidos) — ahora
+-- solo mira reportes/pedidos/materiales y puede comentar pedidos. Un
+-- rename de enum es transparente para todo lo que ya lo usa (políticas
+-- RLS, funciones): Postgres guarda el valor por OID, no por texto, así
+-- que ninguna policy de las de arriba necesita tocarse aparte.
+alter type public.user_role rename value 'supervisor' to 'client_viewer';

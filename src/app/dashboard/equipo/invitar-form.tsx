@@ -74,11 +74,11 @@ export function InvitarVendedorForm() {
           <select
             id="role"
             name="role"
-            defaultValue="supervisor"
+            defaultValue="client_viewer"
             className="w-full rounded-lg bg-jab-panel-2 border border-jab-border px-3 py-2 text-sm outline-none focus:border-jab-accent"
           >
             <option value="client_admin">Administrador — acceso total, gestiona equipo y cuenta</option>
-            <option value="supervisor">Supervisor — ve y opera todo, no gestiona equipo ni cuenta</option>
+            <option value="client_viewer">Solo lectura — ve reportes, pedidos y materiales, no gestiona nada</option>
           </select>
         </div>
 

@@ -68,15 +68,17 @@ export async function requerirTenantActivo(perfil: Profile): Promise<string> {
 }
 
 /** ¿Este rol administra el negocio del cliente (equipo, integraciones,
- * configuración)? Solo el dueño (client_admin) y JAB — supervisor tiene
- * visibilidad y operación completas pero no gestiona accesos ni la cuenta. */
+ * configuración)? Solo el dueño (client_admin) y JAB — client_viewer solo
+ * ve reportes/pedidos/materiales, nunca gestiona accesos ni la cuenta. */
 export function puedeAdministrar(role: UserRole): boolean {
   return role === 'client_admin' || role === 'super_admin';
 }
 
-/** Antes distinguía "ve todo" (client_admin/supervisor/JAB) de "ve solo lo
- * propio" (salesperson, ya sacado del sistema) — se mantiene como no-op
- * para no tocar cada call site que la usa como gate de admin/supervisor. */
-export function esRolCompleto(role: UserRole): boolean {
-  return role === 'client_admin' || role === 'supervisor' || role === 'super_admin' || role === 'jab_staff';
+/** Matriz de permisos: ¿este rol puede operar la cuenta del cliente
+ * (sincronizar integraciones, subir/eliminar materiales, editar el brief,
+ * asignar pedidos)? Sí para quien administra el cliente (client_admin) y
+ * para todo el equipo de JAB (super_admin/jab_staff) — no para
+ * client_viewer, que solo mira. */
+export function puedeGestionarCuenta(role: UserRole): boolean {
+  return role === 'client_admin' || role === 'super_admin' || role === 'jab_staff';
 }

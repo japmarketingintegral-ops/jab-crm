@@ -1,13 +1,13 @@
 'use server';
 
-import { esRolCompleto, requerirPerfil, requerirTenantActivo } from '@/lib/auth';
+import { puedeGestionarCuenta, requerirPerfil, requerirTenantActivo } from '@/lib/auth';
 import { createClient } from '@/lib/supabase/server';
 import { sincronizarMetricasAds } from '@/lib/meta';
 
 export async function sincronizarAds() {
   const perfil = await requerirPerfil();
-  if (!esRolCompleto(perfil.role)) {
-    return { error: 'Solo un admin o supervisor puede sincronizar.' };
+  if (!puedeGestionarCuenta(perfil.role)) {
+    return { error: 'Solo un admin puede sincronizar.' };
   }
   const tenantId = await requerirTenantActivo(perfil);
   const supabase = await createClient();
