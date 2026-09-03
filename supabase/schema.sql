@@ -1352,3 +1352,12 @@ create policy "ad_metrics_write" on public.ad_metrics for all
     public.is_super_admin()
     or (public.current_role() in ('client_admin', 'supervisor') and tenant_id = public.current_tenant_id())
   );
+
+-- Se saca WhatsApp (Baileys/QR) del todo: no es parte del portal de
+-- reportes que quedó definido en el pivot — el cliente no necesita
+-- vincular su propio WhatsApp acá, y el whatsapp-service (proceso Node
+-- aparte) se borra del repo entero. IRREVERSIBLE: si algún tenant tenía
+-- un número realmente conectado, esa conexión se pierde (tendría que
+-- reconectarse desde cero si se reintroduce esta función más adelante).
+drop table if exists public.whatsapp_conexiones cascade;
+drop table if exists public.whatsapp_credenciales cascade;

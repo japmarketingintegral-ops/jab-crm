@@ -4,7 +4,7 @@ import { useTransition } from 'react';
 import { entrarComoCliente } from './actions';
 import { EliminarTenantButton } from './eliminar-tenant-button';
 
-const PLATAFORMA_LABEL: Record<string, string> = { meta: 'Meta', google: 'Google', whatsapp: 'WhatsApp' };
+const PLATAFORMA_LABEL: Record<string, string> = { meta: 'Meta' };
 
 export function TenantCard({
   tenant,

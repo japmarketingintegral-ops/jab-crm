@@ -1,10 +1,8 @@
 import { redirect } from 'next/navigation';
-import Link from 'next/link';
 import { requerirPerfil, requerirTenantActivo } from '@/lib/auth';
 import { createClient } from '@/lib/supabase/server';
 import { Sidebar } from '@/components/sidebar';
 import { DesconectarMetaButton } from './desconectar-meta-button';
-import { DesconectarWhatsappButton } from './desconectar-whatsapp-button';
 import { CuentaPublicitariaForm } from './cuenta-publicitaria-form';
 
 const ROL_LABEL: Record<string, string> = {
@@ -37,7 +35,7 @@ export default async function ConfiguracionPage({
 
   const supabase = await createClient();
 
-  const [{ data: tenant }, { data: fuenteMeta }, { data: whatsapp }] = await Promise.all([
+  const [{ data: tenant }, { data: fuenteMeta }] = await Promise.all([
     supabase.from('tenants').select('name, slug').eq('id', tenantId).single(),
     // access_token nunca se selecciona en una página que puede pedir un
     // client_admin — el filtro not-null alcanza para saber si está
@@ -50,15 +48,9 @@ export default async function ConfiguracionPage({
       .eq('platform', 'meta')
       .not('access_token', 'is', null)
       .maybeSingle(),
-    supabase
-      .from('whatsapp_conexiones')
-      .select('estado, numero_whatsapp')
-      .eq('tenant_id', tenantId)
-      .maybeSingle(),
   ]);
 
   const metaConectado = Boolean(fuenteMeta);
-  const whatsappConectado = whatsapp?.estado === 'conectado';
 
   return (
     <div className="flex flex-1 min-h-0">
@@ -79,7 +71,7 @@ export default async function ConfiguracionPage({
         <section>
           <h2 className="text-sm font-semibold mb-1">Integraciones</h2>
           <p className="text-sm text-jab-muted mb-3">
-            Conectá la cuenta de Meta del cliente para que sus métricas de redes entren acá
+            Conectá la cuenta de Meta del cliente para que sus métricas de redes y pauta entren acá
             automáticamente.
           </p>
 
@@ -95,71 +87,38 @@ export default async function ConfiguracionPage({
             </p>
           )}
 
-          <div className="space-y-2">
-            <div className="flex items-center justify-between rounded-lg bg-jab-panel-2 border border-jab-border px-4 py-3">
-              <div>
-                <p className="text-sm font-medium">Meta (Facebook / Instagram)</p>
-                <p className="text-xs text-jab-muted">
-                  {metaConectado
-                    ? `Página conectada: ${fuenteMeta?.display_name}`
-                    : 'Conectá la página de Facebook del cliente para traer sus métricas'}
-                </p>
-              </div>
-              {metaConectado ? (
-                <div className="flex items-center gap-2">
-                  <span className="rounded-full px-3 py-1 text-xs font-medium bg-jab-lime text-jab-lime-ink">
-                    Conectado
-                  </span>
-                  {(perfil.role === 'client_admin' || perfil.role === 'super_admin') && (
-                    <DesconectarMetaButton />
-                  )}
-                </div>
-              ) : (
-                (perfil.role === 'super_admin' || perfil.role === 'jab_staff') && (
-                  <a
-                    href="/api/auth/meta"
-                    className="rounded-full bg-jab-accent text-jab-bg-deep px-4 py-1.5 text-xs font-bold uppercase tracking-wide"
-                  >
-                    Conectar
-                  </a>
-                )
-              )}
+          <div className="flex items-center justify-between rounded-lg bg-jab-panel-2 border border-jab-border px-4 py-3">
+            <div>
+              <p className="text-sm font-medium">Meta (Facebook / Instagram)</p>
+              <p className="text-xs text-jab-muted">
+                {metaConectado
+                  ? `Página conectada: ${fuenteMeta?.display_name}`
+                  : 'Conectá la página de Facebook del cliente para traer sus métricas'}
+              </p>
             </div>
-
-            <div className="flex items-center justify-between rounded-lg bg-jab-panel-2 border border-jab-border px-4 py-3">
-              <div>
-                <p className="text-sm font-medium">WhatsApp</p>
-                <p className="text-xs text-jab-muted">
-                  {whatsappConectado
-                    ? `Conectado: ${whatsapp?.numero_whatsapp}`
-                    : 'Vinculá el WhatsApp del cliente escaneando un código QR'}
-                </p>
+            {metaConectado ? (
+              <div className="flex items-center gap-2">
+                <span className="rounded-full px-3 py-1 text-xs font-medium bg-jab-lime text-jab-lime-ink">
+                  Conectado
+                </span>
+                {(perfil.role === 'client_admin' || perfil.role === 'super_admin') && (
+                  <DesconectarMetaButton />
+                )}
               </div>
-              {whatsappConectado ? (
-                <div className="flex items-center gap-2">
-                  <span className="rounded-full px-3 py-1 text-xs font-medium bg-jab-lime text-jab-lime-ink">
-                    Conectado
-                  </span>
-                  {(perfil.role === 'client_admin' || perfil.role === 'super_admin') && (
-                    <DesconectarWhatsappButton />
-                  )}
-                </div>
-              ) : (
-                (perfil.role === 'super_admin' || perfil.role === 'jab_staff') && (
-                  <Link
-                    href="/dashboard/configuracion/whatsapp"
-                    className="rounded-full bg-jab-accent text-jab-bg-deep px-4 py-1.5 text-xs font-bold uppercase tracking-wide"
-                  >
-                    Conectar
-                  </Link>
-                )
-              )}
-            </div>
+            ) : (
+              (perfil.role === 'super_admin' || perfil.role === 'jab_staff') && (
+                <a
+                  href="/api/auth/meta"
+                  className="rounded-full bg-jab-accent text-jab-bg-deep px-4 py-1.5 text-xs font-bold uppercase tracking-wide"
+                >
+                  Conectar
+                </a>
+              )
+            )}
           </div>
 
           <p className="text-xs text-jab-muted mt-3">
-            Meta se conecta con un login (JAB elige la página del cliente y listo). WhatsApp se
-            vincula escaneando un código QR, como un dispositivo más.
+            Meta se conecta con un login (JAB elige la página del cliente y listo).
           </p>
         </section>
 

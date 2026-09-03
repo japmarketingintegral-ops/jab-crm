@@ -82,7 +82,9 @@ export function PedidoDetailPanel({
   }
 
   useEffect(() => {
-    recargar();
+    (async () => {
+      await recargar();
+    })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pedidoId]);
 

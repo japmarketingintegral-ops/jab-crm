@@ -7,9 +7,6 @@
 
 export type UserRole = 'super_admin' | 'client_admin' | 'supervisor' | 'jab_staff';
 export type LeadPlatform = 'meta';
-/** No es un enum de Postgres — es una columna `text` (ver schema.sql, sección
- * WhatsApp), los valores válidos se validan en el código, no en la base. */
-export type WhatsappEstado = 'desconectado' | 'esperando_qr' | 'conectado' | 'error';
 export type SocialPlatform = 'instagram' | 'facebook' | 'tiktok' | 'linkedin' | 'otra';
 export type PedidoEstado = 'pedido' | 'en_proceso' | 'revision' | 'aprobado';
 export type PedidoCategoria = 'redes' | 'contenido' | 'comunicado' | 'video' | 'pauta' | 'otro';
@@ -663,64 +660,6 @@ export interface Database {
         };
         Relationships: [];
         Update: Partial<Database['public']['Tables']['onboarding_accesos']['Insert']>;
-      };
-      whatsapp_conexiones: {
-        Row: {
-          id: string;
-          created_at: string;
-          tenant_id: string;
-          estado: WhatsappEstado;
-          numero_whatsapp: string | null;
-          qr: string | null;
-          qr_generado_en: string | null;
-          conectado_en: string | null;
-          ultimo_error: string | null;
-          updated_at: string;
-        };
-        Insert: {
-          id?: string;
-          created_at?: string;
-          tenant_id: string;
-          estado?: WhatsappEstado;
-          numero_whatsapp?: string | null;
-          qr?: string | null;
-          qr_generado_en?: string | null;
-          conectado_en?: string | null;
-          ultimo_error?: string | null;
-          updated_at?: string;
-        };
-        Relationships: [
-          {
-            foreignKeyName: 'whatsapp_conexiones_tenant_id_fkey';
-            columns: ['tenant_id'];
-            isOneToOne: true;
-            referencedRelation: 'tenants';
-            referencedColumns: ['id'];
-          },
-        ];
-        Update: Partial<Database['public']['Tables']['whatsapp_conexiones']['Insert']>;
-      };
-      whatsapp_credenciales: {
-        Row: {
-          tenant_id: string;
-          auth_state: Record<string, unknown>;
-          updated_at: string;
-        };
-        Insert: {
-          tenant_id: string;
-          auth_state?: Record<string, unknown>;
-          updated_at?: string;
-        };
-        Relationships: [
-          {
-            foreignKeyName: 'whatsapp_credenciales_tenant_id_fkey';
-            columns: ['tenant_id'];
-            isOneToOne: true;
-            referencedRelation: 'tenants';
-            referencedColumns: ['id'];
-          },
-        ];
-        Update: Partial<Database['public']['Tables']['whatsapp_credenciales']['Insert']>;
       };
     };
     Views: Record<string, never>;

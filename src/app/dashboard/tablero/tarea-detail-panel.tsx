@@ -84,7 +84,9 @@ export function TareaDetailPanel({
   }
 
   useEffect(() => {
-    recargar();
+    (async () => {
+      await recargar();
+    })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tareaId]);
 
