@@ -1,0 +1,44 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# Variables de entorno de placeholder - el build no las usa realmente
+# (casi todas las rutas son dinamicas, ninguna toca Supabase en tiempo de
+# build), pero evitan que un process.env.X inesperado tire la build por
+# faltar la variable en este entorno. Nunca son las claves reales.
+env:
+  NEXT_PUBLIC_SUPABASE_URL: https://placeholder.supabase.co
+  NEXT_PUBLIC_SUPABASE_ANON_KEY: placeholder-anon-key
+  SUPABASE_SERVICE_ROLE_KEY: placeholder-service-role-key
+  NEXT_PUBLIC_META_APP_ID: placeholder-app-id
+  META_APP_SECRET: placeholder-app-secret
+  CRON_SECRET: placeholder-cron-secret
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Tipos
+        run: npx tsc --noEmit
+
+      - name: Tests
+        run: npm test
+
+      - name: Build
+        run: npm run build
