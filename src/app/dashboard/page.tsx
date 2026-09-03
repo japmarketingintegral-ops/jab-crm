@@ -1,7 +1,7 @@
 import { requerirPerfil, requerirTenantActivo } from '@/lib/auth';
 import { createClient } from '@/lib/supabase/server';
 import { Sidebar } from '@/components/sidebar';
-import { InicioContent, type PedidoResumen, type PostResumen } from './inicio-content';
+import { InicioContent, type MaterialResumen, type PedidoResumen, type PostResumen } from './inicio-content';
 
 const ROL_LABEL: Record<string, string> = {
   super_admin: 'JAB',
@@ -9,29 +9,49 @@ const ROL_LABEL: Record<string, string> = {
   supervisor: 'Supervisor',
 };
 
-type Fuente = 'todos' | 'meta';
-
-export default async function DashboardPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ fuente?: string }>;
-}) {
+export default async function DashboardPage() {
   const perfil = await requerirPerfil();
   const tenantId = await requerirTenantActivo(perfil);
 
-  const params = await searchParams;
-  const fuente: Fuente = params.fuente === 'meta' ? params.fuente : 'todos';
-
   const supabase = await createClient();
 
-  const [{ data: tenant }, { data: pedidosRaw }, { data: postsRaw }] = await Promise.all([
+  const treintaDiasAtras = new Date();
+  treintaDiasAtras.setDate(treintaDiasAtras.getDate() - 30);
+  const desde = treintaDiasAtras.toISOString().slice(0, 10);
+
+  const [
+    { data: tenant },
+    { data: pedidosRaw },
+    { data: postsRaw },
+    { data: metricasAdsRaw },
+    { data: fuenteMeta },
+    { data: materialesRaw },
+  ] = await Promise.all([
     supabase.from('tenants').select('name').eq('id', tenantId).single(),
     supabase
       .from('pedidos')
       .select('id, titulo, estado, categoria, updated_at')
       .eq('tenant_id', tenantId)
       .order('updated_at', { ascending: false }),
-    supabase.from('social_posts').select('*').eq('tenant_id', tenantId),
+    supabase
+      .from('social_posts')
+      .select('*')
+      .eq('tenant_id', tenantId)
+      .gte('publicado_en', desde),
+    supabase.from('ad_metrics').select('gasto, impresiones, clics, conversiones').eq('tenant_id', tenantId).gte('fecha', desde),
+    supabase
+      .from('lead_sources')
+      .select('ad_account_id')
+      .eq('tenant_id', tenantId)
+      .eq('platform', 'meta')
+      .not('access_token', 'is', null)
+      .maybeSingle(),
+    supabase
+      .from('materiales')
+      .select('id, nombre_archivo, ruta_storage, created_at')
+      .eq('tenant_id', tenantId)
+      .order('created_at', { ascending: false })
+      .limit(4),
   ]);
 
   const pedidosList = pedidosRaw ?? [];
@@ -46,6 +66,7 @@ export default async function DashboardPage({
 
   const postsList = postsRaw ?? [];
   const totalPublicaciones = postsList.length;
+  const alcanceTotal = postsList.reduce((acc, p) => acc + p.alcance, 0);
   const interacciones = (p: { me_gusta: number; comentarios: number; compartidos: number }) =>
     p.me_gusta + p.comentarios + p.compartidos;
   const mejor = postsList.length
@@ -65,6 +86,24 @@ export default async function DashboardPage({
       }
     : null;
 
+  const metricasAds = metricasAdsRaw ?? [];
+  const pautaConectada = Boolean(fuenteMeta?.ad_account_id);
+  const pautaResumen = pautaConectada
+    ? {
+        gasto: metricasAds.reduce((acc, m) => acc + m.gasto, 0),
+        impresiones: metricasAds.reduce((acc, m) => acc + m.impresiones, 0),
+        clics: metricasAds.reduce((acc, m) => acc + m.clics, 0),
+        conversiones: metricasAds.reduce((acc, m) => acc + m.conversiones, 0),
+      }
+    : null;
+
+  const materiales: MaterialResumen[] = (materialesRaw ?? []).map((m) => ({
+    id: m.id,
+    nombre: m.nombre_archivo,
+    ruta: m.ruta_storage,
+    creadoEn: m.created_at,
+  }));
+
   return (
     <div className="flex flex-1 min-h-0">
       <Sidebar
@@ -80,8 +119,10 @@ export default async function DashboardPage({
         pedidosPendientes={pedidosPendientes}
         pedidosRecientes={pedidosRecientes}
         totalPublicaciones={totalPublicaciones}
+        alcanceTotal={alcanceTotal}
         mejorPost={mejorPost}
-        fuente={fuente}
+        pautaResumen={pautaResumen}
+        materiales={materiales}
       />
     </div>
   );

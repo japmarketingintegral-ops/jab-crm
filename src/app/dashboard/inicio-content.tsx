@@ -2,7 +2,8 @@ import Link from 'next/link';
 import { KpiCard } from './reportes/kpi-card';
 import { CATEGORIA_LABEL, CATEGORIA_COLOR } from './pedidos/pedido-detail-panel';
 import { PLATAFORMA_LABEL, PLATAFORMA_COLOR, interaccionesPost } from '@/lib/social';
-import { fechaCortaSinHora } from '@/lib/format';
+import { fechaCortaSinHora, esImagen } from '@/lib/format';
+import { MaterialDescargaButton } from './material-descarga-button';
 import type { PedidoEstado, PedidoCategoria, SocialPlatform } from '@/lib/supabase/types';
 
 export type PedidoResumen = {
@@ -25,6 +26,20 @@ export type PostResumen = {
   publicadoEn: string;
 };
 
+export type PautaResumen = {
+  gasto: number;
+  impresiones: number;
+  clics: number;
+  conversiones: number;
+};
+
+export type MaterialResumen = {
+  id: string;
+  nombre: string;
+  ruta: string;
+  creadoEn: string;
+};
+
 const ESTADO_PEDIDO_LABEL: Record<PedidoEstado, string> = {
   pedido: 'Pedido',
   en_proceso: 'En proceso',
@@ -32,46 +47,40 @@ const ESTADO_PEDIDO_LABEL: Record<PedidoEstado, string> = {
   aprobado: 'Aprobado',
 };
 
-type Fuente = 'todos' | 'meta';
-
 export function InicioContent({
   pedidosPendientes,
   pedidosRecientes,
   totalPublicaciones,
+  alcanceTotal,
   mejorPost,
-  fuente,
+  pautaResumen,
+  materiales,
 }: {
   pedidosPendientes: number;
   pedidosRecientes: PedidoResumen[];
   totalPublicaciones: number;
+  alcanceTotal: number;
   mejorPost: PostResumen | null;
-  fuente: Fuente;
+  pautaResumen: PautaResumen | null;
+  materiales: MaterialResumen[];
 }) {
   return (
     <main className="jab-canvas-light flex-1 p-6 overflow-y-auto">
-      <div className="flex items-center justify-between mb-1 flex-wrap gap-3">
-        <h1 className="text-xl font-bold">Inicio</h1>
-        <div className="flex gap-1.5">
-          {(['todos', 'meta'] as const).map((f) => (
-            <Link
-              key={f}
-              href={`/dashboard${f === 'todos' ? '' : `?fuente=${f}`}`}
-              className={`rounded-full px-3 py-1.5 text-xs font-medium ${
-                fuente === f
-                  ? 'bg-jab-accent text-jab-bg-deep'
-                  : 'bg-jab-panel-2 text-jab-muted hover:text-jab-text'
-              }`}
-            >
-              {f === 'todos' ? 'Todas las fuentes' : 'Meta Ads'}
-            </Link>
-          ))}
-        </div>
-      </div>
-      <p className="text-sm text-jab-muted mb-6">Lo que está pasando con tu marketing, de un vistazo.</p>
+      <h1 className="text-xl font-bold mb-1">Inicio</h1>
+      <p className="text-sm text-jab-muted mb-6">
+        Lo que está pasando con tu marketing en los últimos 30 días, de un vistazo.
+      </p>
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-8">
         <KpiCard etiqueta="Pedidos pendientes" valor={String(pedidosPendientes)} />
         <KpiCard etiqueta="Publicaciones" valor={String(totalPublicaciones)} />
+        <KpiCard etiqueta="Alcance orgánico" valor={alcanceTotal.toLocaleString('es-AR')} />
+        {pautaResumen && (
+          <KpiCard
+            etiqueta="Inversión en Ads"
+            valor={`$${pautaResumen.gasto.toLocaleString('es-AR', { maximumFractionDigits: 0 })}`}
+          />
+        )}
       </div>
 
       <div className="grid lg:grid-cols-2 gap-8 mb-8">
@@ -110,7 +119,7 @@ export function InicioContent({
         <div>
           <p className="text-sm font-semibold mb-3">Publicación destacada</p>
           {!mejorPost ? (
-            <p className="text-sm text-jab-muted">Todavía no hay publicaciones cargadas.</p>
+            <p className="text-sm text-jab-muted">Todavía no hay publicaciones en el período.</p>
           ) : (
             <div className="rounded-lg bg-jab-panel-2 border border-jab-accent/40 p-4 flex gap-4">
               {mejorPost.imagenUrl && (
@@ -146,6 +155,76 @@ export function InicioContent({
                   </a>
                 )}
               </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      <div className="grid lg:grid-cols-2 gap-8">
+        <div>
+          <div className="flex items-center justify-between mb-3">
+            <p className="text-sm font-semibold">Pauta</p>
+            {pautaResumen && (
+              <Link href="/dashboard/pauta" className="text-xs text-jab-accent hover:underline">
+                Ver reporte completo
+              </Link>
+            )}
+          </div>
+          {!pautaResumen ? (
+            <div className="rounded-lg bg-jab-panel-2 border border-jab-border p-4">
+              <p className="text-sm text-jab-muted">
+                Todavía no hay una cuenta publicitaria conectada.{' '}
+                <Link href="/dashboard/pauta" className="text-jab-accent hover:underline">
+                  Ir a Pauta
+                </Link>
+              </p>
+            </div>
+          ) : (
+            <div className="rounded-lg bg-jab-panel-2 border border-jab-border p-4 grid grid-cols-2 gap-3">
+              <div>
+                <p className="text-[11px] font-semibold tracking-widest text-jab-muted uppercase">Inversión</p>
+                <p className="text-lg font-bold">
+                  ${pautaResumen.gasto.toLocaleString('es-AR', { maximumFractionDigits: 0 })}
+                </p>
+              </div>
+              <div>
+                <p className="text-[11px] font-semibold tracking-widest text-jab-muted uppercase">Clics</p>
+                <p className="text-lg font-bold">{pautaResumen.clics.toLocaleString('es-AR')}</p>
+              </div>
+              <div>
+                <p className="text-[11px] font-semibold tracking-widest text-jab-muted uppercase">Impresiones</p>
+                <p className="text-lg font-bold">{pautaResumen.impresiones.toLocaleString('es-AR')}</p>
+              </div>
+              <div>
+                <p className="text-[11px] font-semibold tracking-widest text-jab-muted uppercase">Conversiones</p>
+                <p className="text-lg font-bold">{pautaResumen.conversiones.toLocaleString('es-AR')}</p>
+              </div>
+            </div>
+          )}
+        </div>
+
+        <div>
+          <div className="flex items-center justify-between mb-3">
+            <p className="text-sm font-semibold">Materiales</p>
+            <Link href="/dashboard/materiales" className="text-xs text-jab-accent hover:underline">
+              Ver todos
+            </Link>
+          </div>
+          {materiales.length === 0 ? (
+            <p className="text-sm text-jab-muted">Todavía no hay materiales.</p>
+          ) : (
+            <div className="space-y-2">
+              {materiales.map((m) => (
+                <MaterialDescargaButton key={m.id} ruta={m.ruta}>
+                  <div className="flex items-center justify-between rounded-lg bg-jab-panel-2 border border-jab-border px-4 py-2.5 hover:border-jab-accent w-full cursor-pointer">
+                    <div className="min-w-0 flex items-center gap-2">
+                      <span className="shrink-0">{esImagen(m.nombre) ? '🖼️' : '📄'}</span>
+                      <p className="text-sm font-medium truncate">{m.nombre}</p>
+                    </div>
+                    <p className="text-xs text-jab-muted shrink-0">{fechaCortaSinHora(m.creadoEn.slice(0, 10))}</p>
+                  </div>
+                </MaterialDescargaButton>
+              ))}
             </div>
           )}
         </div>
