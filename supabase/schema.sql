@@ -1267,3 +1267,88 @@ alter table public.tenants add column if not exists whatsapp_cloud_access_token 
 -- del contacto, seteado = saliente de alguien de profiles). El agente no
 -- tiene una fila en profiles, así que va con autor_id null + este flag.
 alter table public.lead_activities add column if not exists es_automatico boolean not null default false;
+
+-- Pivot: jab-crm deja de ser un CRM de ventas (Pipeline, Bandeja, reparto
+-- automático de leads) para ser un portal de reportes de marketing para
+-- clientes de la agencia (redes + pauta + pedidos + materiales). Se saca
+-- por completo el modelo de datos de leads. lead_sources NO se borra:
+-- guarda la conexión de Meta que usan Redes y (más abajo) Pauta.
+-- IRREVERSIBLE. Recomendado: exportar leads/lead_activities a CSV antes
+-- si hay algo de valor ahí (Table Editor → Export).
+drop table if exists public.lead_activities cascade;
+drop table if exists public.leads cascade;
+
+alter table public.tenants drop column if exists pipeline_config;
+alter table public.tenants drop column if exists auto_asignacion;
+alter table public.tenants drop column if exists round_robin_ultimo_id;
+-- Remanentes ya huérfanos de la Bandeja/IA de WhatsApp (Cloud API), sacada
+-- en el mismo pivot.
+alter table public.tenants drop column if exists ia_habilitada;
+alter table public.tenants drop column if exists ia_personalidad;
+alter table public.tenants drop column if exists ia_nombre_asistente;
+alter table public.tenants drop column if exists ia_auto_responder;
+alter table public.tenants drop column if exists whatsapp_cloud_phone_number_id;
+alter table public.tenants drop column if exists whatsapp_cloud_access_token;
+
+alter table public.staff_acceso_clientes drop column if exists puede_ver_crm;
+
+delete from public.lead_sources where platform = 'google';
+
+-- El rol salesperson (vendedor) sale del código de la app en este mismo
+-- pivot (era exclusivo del CRM de leads: veía solo sus propios leads) —
+-- pero el valor 'salesperson' se deja en el enum public.user_role sin usar
+-- en vez de renombrarlo/recrearlo, porque Postgres no permite sacar un
+-- valor de un enum sin recrear el tipo entero (y todo lo que depende de
+-- él). No hace daño quedarse ahí sin asignarse a nadie.
+
+-- external_account_id se había sacado por error en una limpieza anterior
+-- de este pivot: lo sigue usando Redes para guardar el Page ID de
+-- Facebook que sincroniza las publicaciones.
+alter table public.lead_sources add column if not exists external_account_id text;
+
+-- Meta Ads (gasto/impresiones/clics/conversiones): el token de la Página
+-- no alcanza para leer datos de la cuenta publicitaria (ads_read es un
+-- permiso de nivel usuario) — se guarda aparte, junto con el ID de la
+-- cuenta publicitaria elegida en Configuración. Se reusa la misma fila de
+-- lead_sources (platform='meta') en vez de una tabla nueva de conexiones.
+alter table public.lead_sources add column if not exists user_access_token text;
+alter table public.lead_sources add column if not exists ad_account_id text;
+
+-- El flujo de conexión "elegir página" (cuando la cuenta de Facebook
+-- administra varias) también necesita el token de usuario disponible
+-- mientras el usuario elige, así llega completo a lead_sources.
+alter table public.meta_conexiones_pendientes add column if not exists user_access_token text;
+
+create table if not exists public.ad_metrics (
+  id uuid primary key default gen_random_uuid(),
+  tenant_id uuid not null references public.tenants (id) on delete cascade,
+  plataforma text not null default 'meta',
+  campana_id text not null,
+  campana_nombre text,
+  fecha date not null,
+  gasto numeric not null default 0,
+  impresiones integer not null default 0,
+  clics integer not null default 0,
+  conversiones integer not null default 0,
+  created_at timestamptz not null default now()
+);
+
+create unique index if not exists ad_metrics_tenant_campana_fecha_idx
+  on public.ad_metrics (tenant_id, plataforma, campana_id, fecha);
+
+create index if not exists ad_metrics_tenant_id_idx on public.ad_metrics (tenant_id);
+
+alter table public.ad_metrics enable row level security;
+
+create policy "ad_metrics_select" on public.ad_metrics for select
+  using (public.is_super_admin() or tenant_id = public.current_tenant_id());
+
+create policy "ad_metrics_write" on public.ad_metrics for all
+  using (
+    public.is_super_admin()
+    or (public.current_role() in ('client_admin', 'supervisor') and tenant_id = public.current_tenant_id())
+  )
+  with check (
+    public.is_super_admin()
+    or (public.current_role() in ('client_admin', 'supervisor') and tenant_id = public.current_tenant_id())
+  );
