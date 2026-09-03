@@ -111,6 +111,7 @@ export async function conectarPaginaMeta(
   supabase: SupabaseClient<Database>,
   tenantId: string,
   pagina: PaginaMeta,
+  tokenUsuarioLarga?: string,
 ): Promise<void> {
   const ahora = new Date().toISOString();
   const { error } = await supabase.from('lead_sources').upsert(
@@ -123,11 +124,102 @@ export async function conectarPaginaMeta(
       access_token: pagina.access_token,
       instagram_business_account_id: pagina.instagram_business_account?.id ?? null,
       token_actualizado_en: ahora,
+      // El token de página no alcanza para leer datos de Ads (ads_read es un
+      // permiso de nivel usuario) — se guarda el token largo del usuario que
+      // conectó, aparte, solo para eso.
+      ...(tokenUsuarioLarga ? { user_access_token: tokenUsuarioLarga } : {}),
     },
     { onConflict: 'platform,external_account_id' },
   );
   if (error) throw new Error(`No se pudo guardar la conexión: ${error.message}`);
   await suscribirPaginaAWebhook(pagina.id, pagina.access_token);
+}
+
+export type MetricaAdsDia = {
+  campana_id: string;
+  campana_nombre: string | null;
+  fecha: string;
+  gasto: number;
+  impresiones: number;
+  clics: number;
+  conversiones: number;
+};
+
+/** Trae el desglose diario por campaña de los últimos `dias` días de la
+ * cuenta publicitaria, vía el Graph API (permiso ads_read). */
+export async function traerMetricasAds(
+  adAccountId: string,
+  accessToken: string,
+  dias = 30,
+): Promise<MetricaAdsDia[]> {
+  const cuenta = adAccountId.startsWith('act_') ? adAccountId : `act_${adAccountId}`;
+  const url = new URL(`${META_GRAPH_URL}/${cuenta}/insights`);
+  url.searchParams.set('level', 'campaign');
+  url.searchParams.set('time_increment', '1');
+  url.searchParams.set('date_preset', dias <= 7 ? 'last_7d' : dias <= 30 ? 'last_30d' : 'last_90d');
+  url.searchParams.set('fields', 'campaign_id,campaign_name,spend,impressions,clicks,actions,date_start');
+  url.searchParams.set('access_token', accessToken);
+
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`No se pudieron traer las métricas de Ads: ${await res.text()}`);
+  const data = (await res.json()) as {
+    data: {
+      campaign_id: string;
+      campaign_name: string;
+      spend?: string;
+      impressions?: string;
+      clicks?: string;
+      actions?: { action_type: string; value: string }[];
+      date_start: string;
+    }[];
+  };
+
+  return (data.data ?? []).map((row) => ({
+    campana_id: row.campaign_id,
+    campana_nombre: row.campaign_name ?? null,
+    fecha: row.date_start,
+    gasto: Number(row.spend ?? 0),
+    impresiones: Number(row.impressions ?? 0),
+    clics: Number(row.clicks ?? 0),
+    // "Conversiones" = suma de acciones que no son solo el clic/link (leads,
+    // compras, registros, etc.) — Meta no da un total único, hay que sumarlo.
+    conversiones: (row.actions ?? [])
+      .filter((a) => !['link_click', 'post_engagement', 'page_engagement'].includes(a.action_type))
+      .reduce((acc, a) => acc + Number(a.value ?? 0), 0),
+  }));
+}
+
+/** Trae y guarda las métricas de Ads de un tenant (upsert por día+campaña). */
+export async function sincronizarMetricasAds(
+  supabase: SupabaseClient<Database>,
+  tenantId: string,
+  adAccountId: string,
+  accessToken: string,
+): Promise<{ ok?: boolean; error?: string; filas?: number }> {
+  try {
+    const metricas = await traerMetricasAds(adAccountId, accessToken);
+    if (metricas.length === 0) return { ok: true, filas: 0 };
+
+    const filas = metricas.map((m) => ({
+      tenant_id: tenantId,
+      plataforma: 'meta' as const,
+      campana_id: m.campana_id,
+      campana_nombre: m.campana_nombre,
+      fecha: m.fecha,
+      gasto: m.gasto,
+      impresiones: m.impresiones,
+      clics: m.clics,
+      conversiones: m.conversiones,
+    }));
+
+    const { error } = await supabase
+      .from('ad_metrics')
+      .upsert(filas, { onConflict: 'tenant_id,plataforma,campana_id,fecha' });
+    if (error) return { error: 'No se pudo guardar lo sincronizado.' };
+    return { ok: true, filas: filas.length };
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : 'Falló la sincronización con Meta Ads.' };
+  }
 }
 
 export type PublicacionMeta = {

@@ -57,7 +57,7 @@ export async function GET(request: NextRequest) {
 
     if (paginas.length === 1) {
       const supabase = await createClient();
-      await conectarPaginaMeta(supabase, tenantId, paginas[0]);
+      await conectarPaginaMeta(supabase, tenantId, paginas[0], tokenLarga);
       return redirectConfiguracion(request, 'conectado');
     }
 

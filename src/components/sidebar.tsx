@@ -10,6 +10,7 @@ type Seccion =
   | 'equipo'
   | 'configuracion'
   | 'redes'
+  | 'pauta'
   | 'pedidos'
   | 'materiales'
   | 'tablero'
@@ -19,6 +20,7 @@ const NAV_CUENTA: { seccion: Seccion; etiqueta: string; href: string }[] = [
   { seccion: 'trabajo', etiqueta: 'Inicio', href: '/dashboard' },
   { seccion: 'brief', etiqueta: 'Brief', href: '/dashboard/brief' },
   { seccion: 'redes', etiqueta: 'Redes', href: '/dashboard/redes' },
+  { seccion: 'pauta', etiqueta: 'Pauta', href: '/dashboard/pauta' },
   { seccion: 'pedidos', etiqueta: 'Pedidos', href: '/dashboard/pedidos' },
   { seccion: 'materiales', etiqueta: 'Materiales', href: '/dashboard/materiales' },
   { seccion: 'equipo', etiqueta: 'Equipo', href: '/dashboard/equipo' },

@@ -20,3 +20,30 @@ export async function desconectarMeta() {
 
   return { ok: true };
 }
+
+export async function guardarCuentaPublicitaria(adAccountId: string) {
+  const perfil = await requerirPerfil();
+  if (perfil.role !== 'client_admin' && perfil.role !== 'super_admin') {
+    return { error: 'Solo un admin puede cambiar esto.' };
+  }
+  const tenantId = await requerirTenantActivo(perfil);
+  const limpio = adAccountId.trim();
+  if (!limpio) return { error: 'Ingresá el ID de la cuenta publicitaria.' };
+
+  const supabase = await createClient();
+  const { data: fuente } = await supabase
+    .from('lead_sources')
+    .select('id')
+    .eq('tenant_id', tenantId)
+    .eq('platform', 'meta')
+    .maybeSingle();
+  if (!fuente) return { error: 'Conectá Meta primero, arriba.' };
+
+  const { error } = await supabase
+    .from('lead_sources')
+    .update({ ad_account_id: limpio })
+    .eq('id', fuente.id);
+  if (error) return { error: 'No se pudo guardar.' };
+
+  return { ok: true };
+}

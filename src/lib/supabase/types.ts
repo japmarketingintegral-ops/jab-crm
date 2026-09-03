@@ -66,6 +66,8 @@ export interface Database {
           access_token: string | null;
           instagram_business_account_id: string | null;
           token_actualizado_en: string | null;
+          user_access_token: string | null;
+          ad_account_id: string | null;
         };
         Insert: {
           id?: string;
@@ -77,6 +79,8 @@ export interface Database {
           created_at?: string;
           access_token?: string | null;
           instagram_business_account_id?: string | null;
+          user_access_token?: string | null;
+          ad_account_id?: string | null;
           token_actualizado_en?: string | null;
         };
         Relationships: [];
@@ -141,6 +145,36 @@ export interface Database {
           },
         ];
         Update: Partial<Database['public']['Tables']['social_posts']['Insert']>;
+      };
+      ad_metrics: {
+        Row: {
+          id: string;
+          tenant_id: string;
+          plataforma: string;
+          campana_id: string;
+          campana_nombre: string | null;
+          fecha: string;
+          gasto: number;
+          impresiones: number;
+          clics: number;
+          conversiones: number;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          tenant_id: string;
+          plataforma?: string;
+          campana_id: string;
+          campana_nombre?: string | null;
+          fecha: string;
+          gasto?: number;
+          impresiones?: number;
+          clics?: number;
+          conversiones?: number;
+          created_at?: string;
+        };
+        Relationships: [];
+        Update: Partial<Database['public']['Tables']['ad_metrics']['Insert']>;
       };
       pedidos: {
         Row: {

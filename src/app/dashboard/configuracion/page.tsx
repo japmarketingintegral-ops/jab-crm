@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/server';
 import { Sidebar } from '@/components/sidebar';
 import { DesconectarMetaButton } from './desconectar-meta-button';
 import { DesconectarWhatsappButton } from './desconectar-whatsapp-button';
+import { CuentaPublicitariaForm } from './cuenta-publicitaria-form';
 
 const ROL_LABEL: Record<string, string> = {
   super_admin: 'JAB',
@@ -40,7 +41,7 @@ export default async function ConfiguracionPage({
     supabase.from('tenants').select('name, slug').eq('id', tenantId).single(),
     supabase
       .from('lead_sources')
-      .select('platform, display_name, connected_at, access_token')
+      .select('platform, display_name, connected_at, access_token, ad_account_id')
       .eq('tenant_id', tenantId),
     supabase
       .from('whatsapp_conexiones')
@@ -158,6 +159,17 @@ export default async function ConfiguracionPage({
             vincula escaneando un código QR, como un dispositivo más.
           </p>
         </section>
+
+        {metaConectado && (perfil.role === 'super_admin' || perfil.role === 'jab_staff') && (
+          <section>
+            <h2 className="text-sm font-semibold mb-1">Meta Ads</h2>
+            <p className="text-sm text-jab-muted mb-3">
+              El ID de la cuenta publicitaria (no la página) que usa el reporte de Pauta para traer
+              gasto y resultados.
+            </p>
+            <CuentaPublicitariaForm valorActual={fuenteMeta?.ad_account_id ?? null} />
+          </section>
+        )}
       </main>
     </div>
   );
