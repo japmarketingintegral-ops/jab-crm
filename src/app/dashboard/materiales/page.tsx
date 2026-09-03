@@ -20,7 +20,7 @@ export default async function MaterialesPage() {
     supabase.from('tenants').select('name').eq('id', tenantId).single(),
     supabase
       .from('materiales')
-      .select('id, nombre_archivo, ruta_storage, created_at, subido:profiles(full_name)')
+      .select('id, nombre_archivo, created_at, subido:profiles(full_name)')
       .eq('tenant_id', tenantId)
       .order('created_at', { ascending: false }),
   ]);
@@ -28,7 +28,6 @@ export default async function MaterialesPage() {
   const materiales: Material[] = (materialesRaw ?? []).map((m) => ({
     id: m.id,
     nombre: m.nombre_archivo,
-    ruta: m.ruta_storage,
     subidoPorNombre: m.subido?.full_name ?? null,
     creadoEn: m.created_at,
   }));

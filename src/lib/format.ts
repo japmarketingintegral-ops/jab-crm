@@ -1,3 +1,18 @@
+const ESCAPES_HTML: Record<string, string> = {
+  '&': '&amp;',
+  '<': '&lt;',
+  '>': '&gt;',
+  '"': '&quot;',
+  "'": '&#39;',
+};
+
+/** Escapa texto de usuario antes de interpolarlo en un email HTML — sin
+ * esto, un título de pedido o un comentario con `<script>`/`<img onerror>`
+ * se renderiza tal cual en el cliente de mail del destinatario. */
+export function escapeHtml(texto: string): string {
+  return texto.replace(/[&<>"']/g, (c) => ESCAPES_HTML[c]);
+}
+
 /** Tiempo transcurrido en formato compacto: "31 h", "9 h", "30 min". */
 export function tiempoRelativo(fecha: string): string {
   const minutos = Math.max(0, Math.floor((Date.now() - new Date(fecha).getTime()) / 60000));

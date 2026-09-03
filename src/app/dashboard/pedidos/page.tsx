@@ -50,7 +50,7 @@ export default async function PedidosPage() {
       .order('created_at', { ascending: false }),
     supabase
       .from('pedido_archivos')
-      .select('pedido_id, nombre_archivo, ruta_storage, created_at')
+      .select('id, pedido_id, nombre_archivo, created_at')
       .eq('tenant_id', tenantId)
       .order('created_at', { ascending: true }),
   ]);
@@ -60,7 +60,7 @@ export default async function PedidosPage() {
   for (const a of archivosRaw ?? []) {
     archivosPorPedido.set(a.pedido_id, (archivosPorPedido.get(a.pedido_id) ?? 0) + 1);
     if (!primeraImagenPorPedido.has(a.pedido_id) && esImagen(a.nombre_archivo)) {
-      primeraImagenPorPedido.set(a.pedido_id, a.ruta_storage);
+      primeraImagenPorPedido.set(a.pedido_id, a.id);
     }
   }
 
@@ -90,7 +90,7 @@ export default async function PedidosPage() {
     creadorNombre: p.creador?.full_name ?? null,
     asignadoNombre: p.asignado?.full_name ?? null,
     fechaProgramada: p.fecha_programada,
-    primeraImagenRuta: primeraImagenPorPedido.get(p.id) ?? null,
+    primeraImagenId: primeraImagenPorPedido.get(p.id) ?? null,
     creadoEn: p.created_at,
     actualizadoEn: p.updated_at,
   }));

@@ -4,6 +4,7 @@ import { esRolCompleto, requerirPerfil, requerirTenantActivo } from '@/lib/auth'
 import { createClient } from '@/lib/supabase/server';
 import { createServiceClient } from '@/lib/supabase/service';
 import { enviarEmail } from '@/lib/email';
+import { escapeHtml } from '@/lib/format';
 import type { PedidoEstado, PedidoCategoria } from '@/lib/supabase/types';
 
 const CATEGORIAS: PedidoCategoria[] = ['redes', 'contenido', 'comunicado', 'video', 'pauta', 'otro'];
@@ -82,11 +83,24 @@ export async function agregarArchivos(pedidoId: string, formData: FormData) {
   return { ok: true };
 }
 
-export async function obtenerUrlArchivo(
-  rutaStorage: string,
-): Promise<{ url: string } | { error: string }> {
+/**
+ * Recibe el ID del archivo, nunca la ruta de Storage directamente: la ruta
+ * se busca acá con el cliente de sesión (RLS exige mismo tenant), así
+ * nadie puede firmar la ruta de un archivo ajeno pasándola a mano.
+ */
+export async function obtenerUrlArchivo(archivoId: string): Promise<{ url: string } | { error: string }> {
+  await requerirPerfil();
+
+  const supabase = await createClient();
+  const { data: archivo } = await supabase
+    .from('pedido_archivos')
+    .select('ruta_storage')
+    .eq('id', archivoId)
+    .single();
+  if (!archivo) return { error: 'No se encontró el archivo.' };
+
   const service = createServiceClient();
-  const { data, error } = await service.storage.from(BUCKET).createSignedUrl(rutaStorage, 60 * 5);
+  const { data, error } = await service.storage.from(BUCKET).createSignedUrl(archivo.ruta_storage, 60 * 5);
   if (error || !data) return { error: 'No se pudo generar el link de descarga.' };
   return { url: data.signedUrl };
 }
@@ -151,7 +165,7 @@ async function notificarPedido(
       subject: `${asunto}: ${pedido.titulo}`,
       html: `
         <p>${cuerpo}</p>
-        <p><strong>${pedido.titulo}</strong></p>
+        <p><strong>${escapeHtml(pedido.titulo)}</strong></p>
         <p><a href="https://clientes.jabmarketing.site/dashboard/pedidos" style="color:#3b6fe0;">Ver pedido →</a></p>
       `,
     });
@@ -208,7 +222,7 @@ export async function asignarPedido(pedidoId: string, userId: string | null) {
         subject: `Te asignaron un pedido: ${pedido.titulo ?? 'sin título'}`,
         html: `
           <p>Te asignaron un pedido en Jab CRM.</p>
-          <p><strong>${pedido.titulo ?? 'Sin título'}</strong></p>
+          <p><strong>${escapeHtml(pedido.titulo ?? 'Sin título')}</strong></p>
           <p><a href="https://clientes.jabmarketing.site/dashboard/pedidos" style="color:#3b6fe0;">Ver en Pedidos →</a></p>
         `,
       });
@@ -286,7 +300,7 @@ export type DetallePedido = {
   asignadoA: string | null;
   asignadoNombre: string | null;
   fechaProgramada: string | null;
-  archivos: { id: string; nombre: string; ruta: string; subidoEn: string }[];
+  archivos: { id: string; nombre: string; subidoEn: string }[];
   comentarios: { id: string; texto: string; tipo: string; autorNombre: string | null; creadoEn: string }[];
   checklist: ItemChecklist[];
 };
@@ -311,7 +325,7 @@ export async function obtenerDetallePedido(
   const [{ data: archivos }, { data: comentarios }, { data: checklist }] = await Promise.all([
     supabase
       .from('pedido_archivos')
-      .select('id, nombre_archivo, ruta_storage, created_at')
+      .select('id, nombre_archivo, created_at')
       .eq('pedido_id', pedidoId)
       .order('created_at', { ascending: true }),
     supabase
@@ -351,7 +365,6 @@ export async function obtenerDetallePedido(
       archivos: (archivos ?? []).map((a) => ({
         id: a.id,
         nombre: a.nombre_archivo,
-        ruta: a.ruta_storage,
         subidoEn: a.created_at,
       })),
       comentarios: (comentarios ?? []).map((c) => ({
@@ -393,7 +406,7 @@ export async function agregarComentario(pedidoId: string, texto: string) {
     pedidoId,
     perfil.id,
     'Pedido: comentario nuevo',
-    `${perfil.full_name ?? perfil.email} comentó: "${texto.trim().slice(0, 200)}"`,
+    `${escapeHtml(perfil.full_name ?? perfil.email)} comentó: "${escapeHtml(texto.trim().slice(0, 200))}"`,
   );
 
   return { ok: true };

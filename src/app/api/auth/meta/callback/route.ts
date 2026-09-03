@@ -15,6 +15,11 @@ import {
 
 export const COOKIE_CONEXION_PENDIENTE = 'meta_conexion_pendiente';
 
+// El state del diálogo de Meta queda utilizable para siempre si no se
+// chequea su antigüedad — 10 minutos alcanza de sobra para completar el
+// login real y corta cualquier reintento con un state viejo.
+const ESTADO_MAX_EDAD_MS = 10 * 60 * 1000;
+
 function redirectConfiguracion(request: NextRequest, meta: string) {
   const url = new URL('/dashboard/configuracion', request.url);
   url.searchParams.set('meta', meta);
@@ -32,7 +37,9 @@ export async function GET(request: NextRequest) {
   }
 
   const datosState = verificarPayload<{ tenantId: string; ts: number }>(state);
-  if (!datosState) return redirectConfiguracion(request, 'estado_invalido');
+  if (!datosState || Date.now() - datosState.ts > ESTADO_MAX_EDAD_MS) {
+    return redirectConfiguracion(request, 'estado_invalido');
+  }
 
   const perfil = await requerirPerfil();
   const tenantId = await requerirTenantActivo(perfil);

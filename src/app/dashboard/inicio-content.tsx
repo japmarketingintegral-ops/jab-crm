@@ -36,7 +36,6 @@ export type PautaResumen = {
 export type MaterialResumen = {
   id: string;
   nombre: string;
-  ruta: string;
   creadoEn: string;
 };
 
@@ -215,7 +214,7 @@ export function InicioContent({
           ) : (
             <div className="space-y-2">
               {materiales.map((m) => (
-                <MaterialDescargaButton key={m.id} ruta={m.ruta}>
+                <MaterialDescargaButton key={m.id} materialId={m.id}>
                   <div className="flex items-center justify-between rounded-lg bg-jab-panel-2 border border-jab-border px-4 py-2.5 hover:border-jab-accent w-full cursor-pointer">
                     <div className="min-w-0 flex items-center gap-2">
                       <span className="shrink-0">{esImagen(m.nombre) ? '🖼️' : '📄'}</span>

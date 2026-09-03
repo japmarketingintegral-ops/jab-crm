@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServiceClient } from '@/lib/supabase/service';
 import { enviarEmail } from '@/lib/email';
+import { escapeHtml } from '@/lib/format';
 
 /**
  * Corre una vez por día (Vercel Cron, ver vercel.json): a cada persona de
@@ -46,7 +47,7 @@ export async function GET(request: NextRequest) {
 
     const filas = lista
       .slice(0, 15)
-      .map((i) => `<li>[${i.tipo === 'tarea' ? 'Tarea' : 'Pedido'}] ${i.titulo}</li>`)
+      .map((i) => `<li>[${i.tipo === 'tarea' ? 'Tarea' : 'Pedido'}] ${escapeHtml(i.titulo)}</li>`)
       .join('');
 
     const res = await enviarEmail({

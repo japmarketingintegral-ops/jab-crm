@@ -48,7 +48,7 @@ export default async function DashboardPage() {
       .maybeSingle(),
     supabase
       .from('materiales')
-      .select('id, nombre_archivo, ruta_storage, created_at')
+      .select('id, nombre_archivo, created_at')
       .eq('tenant_id', tenantId)
       .order('created_at', { ascending: false })
       .limit(4),
@@ -100,7 +100,6 @@ export default async function DashboardPage() {
   const materiales: MaterialResumen[] = (materialesRaw ?? []).map((m) => ({
     id: m.id,
     nombre: m.nombre_archivo,
-    ruta: m.ruta_storage,
     creadoEn: m.created_at,
   }));
 

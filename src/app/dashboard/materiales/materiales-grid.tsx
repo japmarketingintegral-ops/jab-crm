@@ -8,7 +8,6 @@ import { esImagen, fechaCortaSinHora } from '@/lib/format';
 export type Material = {
   id: string;
   nombre: string;
-  ruta: string;
   subidoPorNombre: string | null;
   creadoEn: string;
 };
@@ -22,16 +21,16 @@ function MaterialCard({ material, esAdmin }: { material: Material; esAdmin: bool
   useEffect(() => {
     if (!esImg) return;
     let cancelado = false;
-    obtenerUrlMaterial(material.ruta).then((res) => {
+    obtenerUrlMaterial(material.id).then((res) => {
       if (!cancelado && 'url' in res) setImagenUrl(res.url);
     });
     return () => {
       cancelado = true;
     };
-  }, [esImg, material.ruta]);
+  }, [esImg, material.id]);
 
   async function descargar() {
-    const res = await obtenerUrlMaterial(material.ruta);
+    const res = await obtenerUrlMaterial(material.id);
     if ('url' in res) window.open(res.url, '_blank', 'noopener');
   }
 

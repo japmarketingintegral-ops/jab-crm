@@ -44,7 +44,12 @@ export function verificarPayload<T>(token: string): T | null {
   const [json, firma] = token.split('.');
   if (!json || !firma) return null;
   const esperada = crypto.createHmac('sha256', metaAppSecret()).update(json).digest('base64url');
-  if (!crypto.timingSafeEqual(Buffer.from(firma), Buffer.from(esperada))) return null;
+  const firmaBuf = Buffer.from(firma);
+  const esperadaBuf = Buffer.from(esperada);
+  // timingSafeEqual explota (RangeError, sin capturar) si los buffers no
+  // tienen el mismo largo — un state con firma de otro largo no debe
+  // tirar un 500, sino tratarse como inválido igual que cualquier otro.
+  if (firmaBuf.length !== esperadaBuf.length || !crypto.timingSafeEqual(firmaBuf, esperadaBuf)) return null;
   try {
     return JSON.parse(Buffer.from(json, 'base64url').toString('utf8')) as T;
   } catch {

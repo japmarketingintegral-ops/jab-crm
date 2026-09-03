@@ -98,8 +98,8 @@ export function PedidoDetailPanel({
     });
   }
 
-  async function verArchivo(ruta: string) {
-    const res = await obtenerUrlArchivo(ruta);
+  async function verArchivo(archivoId: string) {
+    const res = await obtenerUrlArchivo(archivoId);
     if ('error' in res) {
       setError(res.error);
       return;
@@ -291,7 +291,7 @@ export function PedidoDetailPanel({
                   {detalle.archivos.map((a) => (
                     <li key={a.id}>
                       <button
-                        onClick={() => verArchivo(a.ruta)}
+                        onClick={() => verArchivo(a.id)}
                         className="text-sm text-jab-accent hover:underline truncate max-w-full text-left"
                       >
                         📎 {a.nombre}

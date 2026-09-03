@@ -17,7 +17,7 @@ export type PedidoTarjeta = {
   creadorNombre: string | null;
   asignadoNombre: string | null;
   fechaProgramada: string | null;
-  primeraImagenRuta: string | null;
+  primeraImagenId: string | null;
   creadoEn: string;
   actualizadoEn: string;
 };

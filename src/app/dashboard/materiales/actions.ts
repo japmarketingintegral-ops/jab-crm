@@ -56,11 +56,25 @@ export async function eliminarMaterial(materialId: string) {
   return { ok: true };
 }
 
-export async function obtenerUrlMaterial(
-  rutaStorage: string,
-): Promise<{ url: string } | { error: string }> {
+/**
+ * Recibe el ID del material, nunca la ruta de Storage directamente: la
+ * ruta se busca acá con el cliente de sesión (RLS de materiales_select
+ * exige mismo tenant), así nadie puede firmar la ruta de un archivo ajeno
+ * pasándola a mano.
+ */
+export async function obtenerUrlMaterial(materialId: string): Promise<{ url: string } | { error: string }> {
+  await requerirPerfil();
+
+  const supabase = await createClient();
+  const { data: material } = await supabase
+    .from('materiales')
+    .select('ruta_storage')
+    .eq('id', materialId)
+    .single();
+  if (!material) return { error: 'No se encontró el material.' };
+
   const service = createServiceClient();
-  const { data, error } = await service.storage.from(BUCKET).createSignedUrl(rutaStorage, 60 * 5);
+  const { data, error } = await service.storage.from(BUCKET).createSignedUrl(material.ruta_storage, 60 * 5);
   if (error || !data) return { error: 'No se pudo generar el link de descarga.' };
   return { url: data.signedUrl };
 }

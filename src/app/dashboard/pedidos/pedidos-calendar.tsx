@@ -58,7 +58,7 @@ export function PedidosCalendar({
     const pendientes = pedidos.filter(
       (p) =>
         p.fechaProgramada &&
-        p.primeraImagenRuta &&
+        p.primeraImagenId &&
         p.fechaProgramada.startsWith(`${mes.getFullYear()}-${String(mes.getMonth() + 1).padStart(2, '0')}`) &&
         !(p.id in imagenes),
     );
@@ -66,7 +66,7 @@ export function PedidosCalendar({
     let cancelado = false;
     Promise.all(
       pendientes.map(async (p) => {
-        const res = await obtenerUrlArchivo(p.primeraImagenRuta!);
+        const res = await obtenerUrlArchivo(p.primeraImagenId!);
         return 'url' in res ? ([p.id, res.url] as const) : null;
       }),
     ).then((resultados) => {

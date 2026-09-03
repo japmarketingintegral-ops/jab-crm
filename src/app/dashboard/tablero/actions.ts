@@ -3,6 +3,7 @@
 import { requerirPerfil, requerirTenantActivo } from '@/lib/auth';
 import { createClient } from '@/lib/supabase/server';
 import { enviarEmail } from '@/lib/email';
+import { escapeHtml } from '@/lib/format';
 import type { TareaInternaEstado } from '@/lib/supabase/types';
 
 function esEquipoJab(role: string) {
@@ -103,7 +104,7 @@ export async function asignarTarea(tareaId: string, userId: string | null) {
         subject: `Te asignaron una tarea: ${tarea.titulo ?? 'sin título'}`,
         html: `
           <p>Te asignaron una tarea interna en Jab CRM.</p>
-          <p><strong>${tarea.titulo ?? 'Sin título'}</strong></p>
+          <p><strong>${escapeHtml(tarea.titulo ?? 'Sin título')}</strong></p>
           <p><a href="https://clientes.jabmarketing.site/dashboard/tablero" style="color:#3b6fe0;">Ver en el Tablero →</a></p>
         `,
       });

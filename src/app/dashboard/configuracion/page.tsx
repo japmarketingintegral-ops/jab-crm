@@ -37,12 +37,19 @@ export default async function ConfiguracionPage({
 
   const supabase = await createClient();
 
-  const [{ data: tenant }, { data: fuentes }, { data: whatsapp }] = await Promise.all([
+  const [{ data: tenant }, { data: fuenteMeta }, { data: whatsapp }] = await Promise.all([
     supabase.from('tenants').select('name, slug').eq('id', tenantId).single(),
+    // access_token nunca se selecciona en una página que puede pedir un
+    // client_admin — el filtro not-null alcanza para saber si está
+    // conectado, sin traer el valor del token. Filtra también los tenants
+    // de ejemplo, que tienen connected_at seteado pero ningún login real.
     supabase
       .from('lead_sources')
-      .select('platform, display_name, connected_at, access_token, ad_account_id')
-      .eq('tenant_id', tenantId),
+      .select('display_name, connected_at, ad_account_id')
+      .eq('tenant_id', tenantId)
+      .eq('platform', 'meta')
+      .not('access_token', 'is', null)
+      .maybeSingle(),
     supabase
       .from('whatsapp_conexiones')
       .select('estado, numero_whatsapp')
@@ -50,10 +57,6 @@ export default async function ConfiguracionPage({
       .maybeSingle(),
   ]);
 
-  // "Conectado" para Meta significa que hay un access_token real (login hecho de
-  // verdad) — connected_at solo no alcanza, los tenants de ejemplo lo tienen
-  // seteado para simular el dato sin haber pasado nunca por el login real.
-  const fuenteMeta = (fuentes ?? []).find((f) => f.platform === 'meta' && f.access_token);
   const metaConectado = Boolean(fuenteMeta);
   const whatsappConectado = whatsapp?.estado === 'conectado';
 
