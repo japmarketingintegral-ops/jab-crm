@@ -17,6 +17,7 @@ export async function sincronizarAds() {
     .select('ad_account_id, user_access_token')
     .eq('tenant_id', tenantId)
     .eq('platform', 'meta')
+    .not('access_token', 'is', null)
     .maybeSingle();
 
   if (!fuente?.ad_account_id) {

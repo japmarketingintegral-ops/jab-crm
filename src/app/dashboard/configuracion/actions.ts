@@ -36,6 +36,7 @@ export async function guardarCuentaPublicitaria(adAccountId: string) {
     .select('id')
     .eq('tenant_id', tenantId)
     .eq('platform', 'meta')
+    .not('access_token', 'is', null)
     .maybeSingle();
   if (!fuente) return { error: 'Conectá Meta primero, arriba.' };
 
