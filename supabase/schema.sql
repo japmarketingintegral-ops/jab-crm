@@ -1244,3 +1244,26 @@ create policy "tarea_tiempo_registros_write" on public.tarea_tiempo_registros fo
 alter table public.onboarding_briefs add column if not exists competencia_diferencial text;
 alter table public.onboarding_briefs add column if not exists reporte_ia text;
 alter table public.onboarding_briefs add column if not exists reporte_generado_en timestamptz;
+
+-- WhatsApp con API oficial de Meta (Cloud API) + agente de IA ("Berta").
+-- Reemplaza al transporte no oficial (Baileys, whatsapp-service/) que
+-- quedaba sin desplegar — ese código se deja en el repo sin usarse, no se
+-- borra. Cada tenant conecta su propio número de WhatsApp Business, mismo
+-- criterio que ya usan Meta/Google Ads en Configuración.
+alter table public.leads add column if not exists temperatura text
+  check (temperatura is null or temperatura in ('hot', 'warm', 'cold'));
+alter table public.leads add column if not exists temperatura_motivo text;
+alter table public.leads add column if not exists temperatura_calificado_en timestamptz;
+
+-- Apagado por default: cada cliente prende la autonomía del agente cuando
+-- confía en su propio prompt (tenants.ia_personalidad), en vez de que
+-- todos los tenants pasen de "solo sugiere" a "responde sola" de golpe.
+alter table public.tenants add column if not exists ia_auto_responder boolean not null default false;
+alter table public.tenants add column if not exists whatsapp_cloud_phone_number_id text;
+alter table public.tenants add column if not exists whatsapp_cloud_access_token text;
+
+-- Distingue "lo mandó el agente de IA solo" de "lo mandó un humano del
+-- equipo", sin romper la convención existente de autor_id (null = entrante
+-- del contacto, seteado = saliente de alguien de profiles). El agente no
+-- tiene una fila en profiles, así que va con autor_id null + este flag.
+alter table public.lead_activities add column if not exists es_automatico boolean not null default false;

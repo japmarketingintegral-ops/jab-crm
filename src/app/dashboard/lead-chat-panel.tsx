@@ -36,7 +36,7 @@ export function LeadChatPanel({
   const [errorIa, setErrorIa] = useState<string | null>(null);
   const mensajes = ficha.actividades.filter((a) => a.tipo === 'mensaje');
   const ultimoMensaje = mensajes[mensajes.length - 1];
-  const sinResponder = ultimoMensaje && ultimoMensaje.autorId === null;
+  const sinResponder = ultimoMensaje && ultimoMensaje.autorId === null && !ultimoMensaje.esAutomatico;
 
   function enviar() {
     if (!mensaje.trim()) return;
@@ -102,7 +102,7 @@ export function LeadChatPanel({
           <p className="text-sm text-jab-muted">Todavía no hay mensajes con este contacto.</p>
         ) : (
           mensajes.map((m) => {
-            const saliente = m.autorId !== null;
+            const saliente = m.autorId !== null || m.esAutomatico;
             return (
               <div key={m.id} className={`flex ${saliente ? 'justify-end' : 'justify-start'}`}>
                 <div
@@ -114,8 +114,12 @@ export function LeadChatPanel({
                 >
                   <p className="text-sm whitespace-pre-wrap">{m.contenido}</p>
                   <p className={`text-[10px] mt-1 ${saliente ? 'text-jab-bg-deep/70' : 'text-jab-muted'}`}>
-                    {saliente ? (m.autorNombre ?? 'Nosotros') : (ficha.nombre ?? 'Contacto')} ·{' '}
-                    {fechaCorta(m.creadoEn)}
+                    {saliente
+                      ? m.esAutomatico
+                        ? '🤖 Agente IA'
+                        : (m.autorNombre ?? 'Nosotros')
+                      : (ficha.nombre ?? 'Contacto')}{' '}
+                    · {fechaCorta(m.creadoEn)}
                     {saliente && m.waStatus === 'fallido' && (
                       <span className="text-jab-red font-medium"> · No se pudo enviar</span>
                     )}

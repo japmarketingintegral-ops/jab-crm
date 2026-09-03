@@ -4,7 +4,7 @@ import { esRolCompleto, requerirPerfil } from '@/lib/auth';
 import { createClient } from '@/lib/supabase/server';
 import { createServiceClient } from '@/lib/supabase/service';
 import { enviarEmail } from '@/lib/email';
-import { enviarWhatsapp } from '@/lib/whatsapp';
+import { enviarWhatsappCloud } from '@/lib/whatsapp-cloud';
 import { sugerirRespuestaWhatsapp, type MensajeHistorial } from '@/lib/ai';
 import type { LeadPlatform, LeadStatus } from '@/lib/supabase/types';
 
@@ -39,6 +39,7 @@ export type FichaLead = {
     autorNombre: string | null;
     creadoEn: string;
     waStatus: string | null;
+    esAutomatico: boolean;
   }[];
 };
 
@@ -63,7 +64,7 @@ export async function obtenerFicha(
 
   const { data: actividades } = await supabase
     .from('lead_activities')
-    .select('id, tipo, contenido, created_at, autor_id, wa_status, profiles(full_name)')
+    .select('id, tipo, contenido, created_at, autor_id, wa_status, es_automatico, profiles(full_name)')
     .eq('lead_id', leadId)
     .order('created_at', { ascending: true });
 
@@ -109,6 +110,7 @@ export async function obtenerFicha(
         autorNombre: a.profiles?.full_name ?? null,
         creadoEn: a.created_at,
         waStatus: a.wa_status,
+        esAutomatico: a.es_automatico,
       })),
     },
     equipo,
@@ -279,7 +281,7 @@ export async function enviarMensaje(leadId: string, texto: string) {
     .update({ updated_at: ahora, ultima_actividad_vista_en: ahora })
     .eq('id', leadId);
 
-  const resultado = await enviarWhatsapp(supabase, leadId, contenido);
+  const resultado = await enviarWhatsappCloud(supabase, leadId, contenido);
   // No hay policy de UPDATE en lead_activities para el usuario logueado
   // (a propósito: nadie edita actividad pasada a mano) — este es un update
   // de sistema post-envío, se hace con el cliente de service role.

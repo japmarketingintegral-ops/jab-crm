@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/server';
 import { Sidebar } from '@/components/sidebar';
 import { AutoAsignacionToggle } from './auto-asignacion-toggle';
 import { IaConfigForm } from './ia-config-form';
+import { WhatsappCloudConfigForm } from './whatsapp-cloud-config-form';
 import { PipelineConfigEditor } from './pipeline-config-editor';
 import { DesconectarMetaButton } from './desconectar-meta-button';
 import { DesconectarWhatsappButton } from './desconectar-whatsapp-button';
@@ -43,7 +44,9 @@ export default async function ConfiguracionPage({
   const [{ data: tenant }, { data: fuentes }, { data: whatsapp }] = await Promise.all([
     supabase
       .from('tenants')
-      .select('name, slug, auto_asignacion, pipeline_config, ia_habilitada, ia_personalidad, ia_nombre_asistente')
+      .select(
+        'name, slug, auto_asignacion, pipeline_config, ia_habilitada, ia_personalidad, ia_nombre_asistente, ia_auto_responder, whatsapp_cloud_phone_number_id, whatsapp_cloud_access_token',
+      )
       .eq('id', tenantId)
       .single(),
     supabase
@@ -119,6 +122,18 @@ export default async function ConfiguracionPage({
               nombreInicial={tenant?.ia_nombre_asistente ?? ''}
               personalidadInicial={tenant?.ia_personalidad ?? ''}
               iaConfigurada={Boolean(process.env.ANTHROPIC_API_KEY)}
+            />
+
+            <h2 className="text-sm font-semibold mb-1 mt-6">WhatsApp (API oficial de Meta)</h2>
+            <p className="text-sm text-jab-muted mb-3">
+              Conectá el número de WhatsApp Business de este cliente. Con esto conectado, los
+              mensajes entrantes entran solos a Bandeja y, si activás las respuestas automáticas,
+              el asistente de arriba responde y hace seguimiento sin que nadie apruebe cada mensaje.
+            </p>
+            <WhatsappCloudConfigForm
+              phoneNumberIdInicial={tenant?.whatsapp_cloud_phone_number_id ?? ''}
+              tieneTokenGuardado={Boolean(tenant?.whatsapp_cloud_access_token)}
+              autoResponderInicial={tenant?.ia_auto_responder ?? false}
             />
           </section>
         )}

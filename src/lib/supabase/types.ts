@@ -12,6 +12,7 @@ export type LeadPlatform = 'meta' | 'google' | 'whatsapp';
 export type WhatsappEstado = 'desconectado' | 'esperando_qr' | 'conectado' | 'error';
 export type LeadStatus = 'nuevo' | 'contactado' | 'calificado' | 'ganado' | 'perdido';
 export type LeadActivityType = 'nota' | 'cambio_estado' | 'reasignacion' | 'seguimiento' | 'mensaje';
+export type LeadTemperatura = 'hot' | 'warm' | 'cold';
 export type SocialPlatform = 'instagram' | 'facebook' | 'tiktok' | 'linkedin' | 'otra';
 export type PipelineConfig = Partial<Record<LeadStatus, { label: string; visible: boolean }>>;
 export type PedidoEstado = 'pedido' | 'en_proceso' | 'revision' | 'aprobado';
@@ -33,6 +34,9 @@ export interface Database {
           ia_habilitada: boolean;
           ia_personalidad: string | null;
           ia_nombre_asistente: string | null;
+          ia_auto_responder: boolean;
+          whatsapp_cloud_phone_number_id: string | null;
+          whatsapp_cloud_access_token: string | null;
         };
         Insert: {
           id?: string;
@@ -45,6 +49,9 @@ export interface Database {
           ia_habilitada?: boolean;
           ia_personalidad?: string | null;
           ia_nombre_asistente?: string | null;
+          ia_auto_responder?: boolean;
+          whatsapp_cloud_phone_number_id?: string | null;
+          whatsapp_cloud_access_token?: string | null;
         };
         Relationships: [
           {
@@ -140,6 +147,9 @@ export interface Database {
           valor: number | null;
           cerrado_en: string | null;
           ultima_actividad_vista_en: string | null;
+          temperatura: LeadTemperatura | null;
+          temperatura_motivo: string | null;
+          temperatura_calificado_en: string | null;
         };
         Insert: {
           id?: string;
@@ -159,6 +169,9 @@ export interface Database {
           valor?: number | null;
           cerrado_en?: string | null;
           ultima_actividad_vista_en?: string | null;
+          temperatura?: LeadTemperatura | null;
+          temperatura_motivo?: string | null;
+          temperatura_calificado_en?: string | null;
         };
         Relationships: [
           {
@@ -191,6 +204,7 @@ export interface Database {
           wa_status: string | null;
           wa_media_url: string | null;
           wa_media_type: string | null;
+          es_automatico: boolean;
         };
         Insert: {
           id?: string;
@@ -204,6 +218,7 @@ export interface Database {
           wa_status?: string | null;
           wa_media_url?: string | null;
           wa_media_type?: string | null;
+          es_automatico?: boolean;
         };
         Relationships: [
           {

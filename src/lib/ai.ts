@@ -79,6 +79,59 @@ export async function sugerirRespuestaWhatsapp({
   }
 }
 
+/**
+ * Clasifica una conversación de WhatsApp como hot/warm/cold, para el
+ * webhook de mensajes entrantes (se llama a partir del 3er mensaje del
+ * contacto). "hot" dispara un mail inmediato al vendedor — ver
+ * src/app/api/webhooks/whatsapp/route.ts.
+ */
+export async function calificarLead(
+  historial: MensajeHistorial[],
+): Promise<{ ok: true; temperatura: 'hot' | 'warm' | 'cold'; motivo: string } | { ok: false; error: string }> {
+  const anthropic = obtenerCliente();
+  if (!anthropic) {
+    return { ok: false, error: 'La IA no está configurada todavía (falta la clave de Anthropic).' };
+  }
+  if (historial.length === 0) {
+    return { ok: false, error: 'Todavía no hay mensajes en la conversación.' };
+  }
+
+  const conversacion = historial
+    .map((m) => `${m.autor === 'cliente' ? 'Cliente' : 'Nosotros'}: ${m.texto}`)
+    .join('\n');
+
+  const systemPrompt = [
+    'Sos un calificador de leads de una agencia de marketing. Te paso una conversación de WhatsApp y tenés que clasificarla en una sola palabra: hot, warm o cold.',
+    'hot: interés real en contratar, preguntó por precios o quiere agendar una reunión.',
+    'warm: hay interés pero todavía no llegó a querer agendar nada.',
+    'cold: sin interés real, spam, busca trabajo, o pura curiosidad.',
+    'Respondé EXACTAMENTE en este formato, dos líneas, nada más:\nCLASIFICACION: hot|warm|cold\nMOTIVO: una frase corta explicando por qué',
+  ].join('\n');
+
+  try {
+    const respuesta = await anthropic.messages.create({
+      model: 'claude-3-5-haiku-latest',
+      max_tokens: 150,
+      system: systemPrompt,
+      messages: [{ role: 'user', content: conversacion }],
+    });
+    const bloque = respuesta.content.find((b) => b.type === 'text');
+    if (!bloque || bloque.type !== 'text') return { ok: false, error: 'La IA no devolvió texto.' };
+
+    const match = bloque.text.match(/CLASIFICACION:\s*(hot|warm|cold)/i);
+    const motivoMatch = bloque.text.match(/MOTIVO:\s*(.+)/i);
+    if (!match) return { ok: false, error: 'La IA no devolvió una clasificación válida.' };
+
+    return {
+      ok: true,
+      temperatura: match[1].toLowerCase() as 'hot' | 'warm' | 'cold',
+      motivo: motivoMatch?.[1]?.trim() ?? '',
+    };
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : 'Error desconocido consultando la IA' };
+  }
+}
+
 export type RespuestasBrief = {
   empresaDescripcion: string | null;
   queVende: string | null;
