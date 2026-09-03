@@ -19,6 +19,7 @@ export const META_OAUTH_SCOPES = [
   'business_management',
   'instagram_basic',
   'instagram_manage_insights',
+  'ads_read',
 ].join(',');
 
 function metaAppSecret(): string {
