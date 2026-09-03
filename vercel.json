@@ -2,9 +2,6 @@
   "regions": ["gru1"],
   "crons": [
     { "path": "/api/cron/notificaciones-diarias", "schedule": "0 12 * * *" },
-    { "path": "/api/cron/sincronizar-redes", "schedule": "0 9 * * *" },
-    { "path": "/api/cron/whatsapp-followup", "schedule": "0 13 * * *" },
-    { "path": "/api/cron/whatsapp-followup", "schedule": "0 17 * * *" },
-    { "path": "/api/cron/whatsapp-followup", "schedule": "0 21 * * *" }
+    { "path": "/api/cron/sincronizar-redes", "schedule": "0 9 * * *" }
   ]
 }

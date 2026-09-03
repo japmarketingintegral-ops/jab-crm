@@ -1,12 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServiceClient } from '@/lib/supabase/service';
 import { enviarEmail } from '@/lib/email';
-import { nivelSLA } from '@/lib/format';
 
 /**
- * Corre una vez por día (Vercel Cron, ver vercel.json). Dos cosas:
- *  1) A cada vendedor con leads vencidos (SLA rojo), un resumen de los suyos.
- *  2) A cada persona de JAB con tareas o pedidos vencidos, un recordatorio.
+ * Corre una vez por día (Vercel Cron, ver vercel.json): a cada persona de
+ * JAB con tareas o pedidos vencidos, un recordatorio.
  */
 export async function GET(request: NextRequest) {
   const auth = request.headers.get('authorization');
@@ -16,46 +14,8 @@ export async function GET(request: NextRequest) {
 
   const supabase = createServiceClient();
   const hoyStr = new Date().toISOString().slice(0, 10);
-  let mailsLeads = 0;
   let mailsEquipoJab = 0;
 
-  // 1) Leads vencidos, por vendedor -----------------------------------
-  const { data: leads } = await supabase
-    .from('leads')
-    .select('full_name, phone, updated_at, assigned_to, status')
-    .not('assigned_to', 'is', null);
-
-  const vencidosPorVendedor = new Map<string, { full_name: string | null; phone: string | null }[]>();
-  for (const l of leads ?? []) {
-    if (l.status === 'ganado' || l.status === 'perdido') continue;
-    if (nivelSLA(l.updated_at) !== 'rojo') continue;
-    const lista = vencidosPorVendedor.get(l.assigned_to!) ?? [];
-    lista.push({ full_name: l.full_name, phone: l.phone });
-    vencidosPorVendedor.set(l.assigned_to!, lista);
-  }
-
-  for (const [vendedorId, lista] of vencidosPorVendedor) {
-    const { data: vendedor } = await supabase.from('profiles').select('email').eq('id', vendedorId).single();
-    if (!vendedor?.email) continue;
-
-    const filas = lista
-      .slice(0, 15)
-      .map((l) => `<li>${l.full_name ?? 'Sin nombre'}${l.phone ? ` · ${l.phone}` : ''}</li>`)
-      .join('');
-
-    const res = await enviarEmail({
-      to: vendedor.email,
-      subject: `Tenés ${lista.length} lead${lista.length === 1 ? '' : 's'} sin responder hace más de 24hs`,
-      html: `
-        <p>Estos leads tuyos pasaron las 24hs sin actividad:</p>
-        <ul>${filas}</ul>
-        <p><a href="https://clientes.jabmarketing.site/dashboard?vista=bandeja" style="color:#3b6fe0;">Ir a Bandeja →</a></p>
-      `,
-    });
-    if (res.ok) mailsLeads++;
-  }
-
-  // 2) Tareas + pedidos vencidos, por persona de JAB -------------------
   const [{ data: tareas }, { data: pedidos }, { data: equipoJab }] = await Promise.all([
     supabase.from('tareas_internas').select('titulo, estado, fecha_programada, asignado_a'),
     supabase.from('pedidos').select('titulo, estado, fecha_programada, asignado_a'),
@@ -101,5 +61,5 @@ export async function GET(request: NextRequest) {
     if (res.ok) mailsEquipoJab++;
   }
 
-  return NextResponse.json({ ok: true, mailsLeads, mailsEquipoJab });
+  return NextResponse.json({ ok: true, mailsEquipoJab });
 }

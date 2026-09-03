@@ -67,21 +67,6 @@ export async function requerirTenantActivo(perfil: Profile): Promise<string> {
   return tenantId;
 }
 
-/** ¿Este perfil puede ver el CRM (leads) del tenant activo? Los roles
- * dueños del cliente (client_admin/salesperson) y JAB siempre pueden; un
- * jab_staff necesita que se le haya otorgado ese permiso puntual. */
-export async function puedeVerCrm(perfil: Profile, tenantId: string): Promise<boolean> {
-  if (perfil.role !== 'jab_staff') return true;
-  const supabase = await createClient();
-  const { data } = await supabase
-    .from('staff_acceso_clientes')
-    .select('puede_ver_crm')
-    .eq('usuario_id', perfil.id)
-    .eq('tenant_id', tenantId)
-    .maybeSingle();
-  return data?.puede_ver_crm ?? false;
-}
-
 /** ¿Este rol administra el negocio del cliente (equipo, integraciones,
  * configuración)? Solo el dueño (client_admin) y JAB — supervisor tiene
  * visibilidad y operación completas pero no gestiona accesos ni la cuenta. */
@@ -89,11 +74,9 @@ export function puedeAdministrar(role: UserRole): boolean {
   return role === 'client_admin' || role === 'super_admin';
 }
 
-/** ¿Este rol ve todo el panel comercial del tenant (todos los leads, el
- * dashboard completo de Inicio) en vez de solo lo propio? client_admin y
- * supervisor ven todo; salesperson ve únicamente lo suyo. */
+/** Antes distinguía "ve todo" (client_admin/supervisor/JAB) de "ve solo lo
+ * propio" (salesperson, ya sacado del sistema) — se mantiene como no-op
+ * para no tocar cada call site que la usa como gate de admin/supervisor. */
 export function esRolCompleto(role: UserRole): boolean {
-  return (
-    role === 'client_admin' || role === 'supervisor' || role === 'super_admin' || role === 'jab_staff'
-  );
+  return role === 'client_admin' || role === 'supervisor' || role === 'super_admin' || role === 'jab_staff';
 }

@@ -74,12 +74,11 @@ export function InvitarVendedorForm() {
           <select
             id="role"
             name="role"
-            defaultValue="salesperson"
+            defaultValue="supervisor"
             className="w-full rounded-lg bg-jab-panel-2 border border-jab-border px-3 py-2 text-sm outline-none focus:border-jab-accent"
           >
             <option value="client_admin">Administrador — acceso total, gestiona equipo y cuenta</option>
             <option value="supervisor">Supervisor — ve y opera todo, no gestiona equipo ni cuenta</option>
-            <option value="salesperson">Vendedor — ve y gestiona solo sus propios leads</option>
           </select>
         </div>
 

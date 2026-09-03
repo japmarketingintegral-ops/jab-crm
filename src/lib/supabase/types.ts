@@ -5,16 +5,12 @@
 //
 // y borrar este comentario.
 
-export type UserRole = 'super_admin' | 'client_admin' | 'supervisor' | 'salesperson' | 'jab_staff';
-export type LeadPlatform = 'meta' | 'google' | 'whatsapp';
+export type UserRole = 'super_admin' | 'client_admin' | 'supervisor' | 'jab_staff';
+export type LeadPlatform = 'meta';
 /** No es un enum de Postgres — es una columna `text` (ver schema.sql, sección
  * WhatsApp), los valores válidos se validan en el código, no en la base. */
 export type WhatsappEstado = 'desconectado' | 'esperando_qr' | 'conectado' | 'error';
-export type LeadStatus = 'nuevo' | 'contactado' | 'calificado' | 'ganado' | 'perdido';
-export type LeadActivityType = 'nota' | 'cambio_estado' | 'reasignacion' | 'seguimiento' | 'mensaje';
-export type LeadTemperatura = 'hot' | 'warm' | 'cold';
 export type SocialPlatform = 'instagram' | 'facebook' | 'tiktok' | 'linkedin' | 'otra';
-export type PipelineConfig = Partial<Record<LeadStatus, { label: string; visible: boolean }>>;
 export type PedidoEstado = 'pedido' | 'en_proceso' | 'revision' | 'aprobado';
 export type PedidoCategoria = 'redes' | 'contenido' | 'comunicado' | 'video' | 'pauta' | 'otro';
 export type TareaInternaEstado = 'materiales' | 'en_proceso' | 'revision' | 'ads' | 'on_hold' | 'aprobado';
@@ -28,40 +24,14 @@ export interface Database {
           name: string;
           slug: string;
           created_at: string;
-          auto_asignacion: boolean;
-          round_robin_ultimo_id: string | null;
-          pipeline_config: PipelineConfig | null;
-          ia_habilitada: boolean;
-          ia_personalidad: string | null;
-          ia_nombre_asistente: string | null;
-          ia_auto_responder: boolean;
-          whatsapp_cloud_phone_number_id: string | null;
-          whatsapp_cloud_access_token: string | null;
         };
         Insert: {
           id?: string;
           name: string;
           slug: string;
           created_at?: string;
-          auto_asignacion?: boolean;
-          round_robin_ultimo_id?: string | null;
-          pipeline_config?: PipelineConfig | null;
-          ia_habilitada?: boolean;
-          ia_personalidad?: string | null;
-          ia_nombre_asistente?: string | null;
-          ia_auto_responder?: boolean;
-          whatsapp_cloud_phone_number_id?: string | null;
-          whatsapp_cloud_access_token?: string | null;
         };
-        Relationships: [
-          {
-            foreignKeyName: 'tenants_round_robin_ultimo_id_fkey';
-            columns: ['round_robin_ultimo_id'];
-            isOneToOne: false;
-            referencedRelation: 'profiles';
-            referencedColumns: ['id'];
-          },
-        ];
+        Relationships: [];
         Update: Partial<Database['public']['Tables']['tenants']['Insert']>;
       };
       profiles: {
@@ -127,116 +97,6 @@ export interface Database {
         };
         Relationships: [];
         Update: Partial<Database['public']['Tables']['meta_conexiones_pendientes']['Insert']>;
-      };
-      leads: {
-        Row: {
-          id: string;
-          tenant_id: string;
-          source_id: string | null;
-          assigned_to: string | null;
-          full_name: string | null;
-          email: string | null;
-          phone: string | null;
-          phone_normalized: string | null;
-          status: LeadStatus;
-          raw_payload: Record<string, unknown> | null;
-          created_at: string;
-          updated_at: string;
-          next_followup_at: string | null;
-          tags: string[];
-          valor: number | null;
-          cerrado_en: string | null;
-          ultima_actividad_vista_en: string | null;
-          temperatura: LeadTemperatura | null;
-          temperatura_motivo: string | null;
-          temperatura_calificado_en: string | null;
-        };
-        Insert: {
-          id?: string;
-          tenant_id: string;
-          source_id?: string | null;
-          assigned_to?: string | null;
-          full_name?: string | null;
-          email?: string | null;
-          phone?: string | null;
-          phone_normalized?: string | null;
-          status?: LeadStatus;
-          raw_payload?: Record<string, unknown> | null;
-          created_at?: string;
-          updated_at?: string;
-          next_followup_at?: string | null;
-          tags?: string[];
-          valor?: number | null;
-          cerrado_en?: string | null;
-          ultima_actividad_vista_en?: string | null;
-          temperatura?: LeadTemperatura | null;
-          temperatura_motivo?: string | null;
-          temperatura_calificado_en?: string | null;
-        };
-        Relationships: [
-          {
-            foreignKeyName: 'leads_source_id_fkey';
-            columns: ['source_id'];
-            isOneToOne: false;
-            referencedRelation: 'lead_sources';
-            referencedColumns: ['id'];
-          },
-          {
-            foreignKeyName: 'leads_assigned_to_fkey';
-            columns: ['assigned_to'];
-            isOneToOne: false;
-            referencedRelation: 'profiles';
-            referencedColumns: ['id'];
-          },
-        ];
-        Update: Partial<Database['public']['Tables']['leads']['Insert']>;
-      };
-      lead_activities: {
-        Row: {
-          id: string;
-          lead_id: string;
-          tenant_id: string;
-          autor_id: string | null;
-          tipo: LeadActivityType;
-          contenido: string | null;
-          created_at: string;
-          wa_message_id: string | null;
-          wa_status: string | null;
-          wa_media_url: string | null;
-          wa_media_type: string | null;
-          es_automatico: boolean;
-        };
-        Insert: {
-          id?: string;
-          lead_id: string;
-          tenant_id: string;
-          autor_id?: string | null;
-          tipo: LeadActivityType;
-          contenido?: string | null;
-          created_at?: string;
-          wa_message_id?: string | null;
-          wa_status?: string | null;
-          wa_media_url?: string | null;
-          wa_media_type?: string | null;
-          es_automatico?: boolean;
-        };
-        Relationships: [
-          {
-            foreignKeyName: 'lead_activities_lead_id_fkey';
-            columns: ['lead_id'];
-            isOneToOne: false;
-            referencedRelation: 'leads';
-            referencedColumns: ['id'];
-          },
-          {
-            foreignKeyName: 'lead_activities_autor_id_fkey';
-            columns: ['autor_id'];
-            isOneToOne: false;
-            referencedRelation: 'profiles';
-            referencedColumns: ['id'];
-          },
-        ];
-        Update: Partial<Database['public']['Tables']['lead_activities']['Insert']>;
       };
       social_posts: {
         Row: {
@@ -623,7 +483,6 @@ export interface Database {
           id: string;
           usuario_id: string;
           tenant_id: string;
-          puede_ver_crm: boolean;
           otorgado_por: string | null;
           created_at: string;
         };
@@ -631,7 +490,6 @@ export interface Database {
           id?: string;
           usuario_id: string;
           tenant_id: string;
-          puede_ver_crm?: boolean;
           otorgado_por?: string | null;
           created_at?: string;
         };
@@ -825,8 +683,6 @@ export interface Database {
     Enums: {
       user_role: UserRole;
       lead_platform: LeadPlatform;
-      lead_status: LeadStatus;
-      lead_activity_type: LeadActivityType;
       social_platform: SocialPlatform;
       pedido_estado: PedidoEstado;
       pedido_categoria: PedidoCategoria;

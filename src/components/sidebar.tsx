@@ -2,10 +2,8 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { iniciales } from '@/lib/format';
 import { CerrarSesionButton } from './cerrar-sesion-button';
-import { NotificationBell } from './notification-bell';
 import { salirDeCliente } from '@/app/admin/actions';
 
-type Vista = 'inicio' | 'bandeja' | 'pipeline';
 type Seccion =
   | 'trabajo'
   | 'brief'
@@ -17,13 +15,8 @@ type Seccion =
   | 'tablero'
   | 'mi-trabajo';
 
-const NAV_TRABAJO: { vista: Vista; etiqueta: string }[] = [
-  { vista: 'inicio', etiqueta: 'Inicio' },
-  { vista: 'bandeja', etiqueta: 'Bandeja' },
-  { vista: 'pipeline', etiqueta: 'Pipeline' },
-];
-
 const NAV_CUENTA: { seccion: Seccion; etiqueta: string; href: string }[] = [
+  { seccion: 'trabajo', etiqueta: 'Inicio', href: '/dashboard' },
   { seccion: 'brief', etiqueta: 'Brief', href: '/dashboard/brief' },
   { seccion: 'redes', etiqueta: 'Redes', href: '/dashboard/redes' },
   { seccion: 'pedidos', etiqueta: 'Pedidos', href: '/dashboard/pedidos' },
@@ -37,9 +30,6 @@ export function Sidebar({
   nombreUsuario,
   rolLabel,
   seccion,
-  vistaActiva,
-  conteos,
-  esVendedor,
   viendoComoJab,
   mostrarTablero,
   puedeConfigurar = true,
@@ -48,9 +38,6 @@ export function Sidebar({
   nombreUsuario: string;
   rolLabel: string;
   seccion: Seccion;
-  vistaActiva?: Vista;
-  conteos?: Record<Vista, number>;
-  esVendedor?: boolean;
   viendoComoJab?: boolean;
   mostrarTablero?: boolean;
   puedeConfigurar?: boolean;
@@ -76,46 +63,18 @@ export function Sidebar({
       )}
 
       <div className="px-5 pb-5 border-b border-jab-border">
-        <div className="flex items-center justify-between gap-2">
-          <div className="flex items-center gap-2 min-w-0">
-            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-jab-panel-2 text-xs font-semibold">
-              {iniciales(tenantNombre)}
-            </span>
-            <span className="text-sm font-medium truncate">{tenantNombre}</span>
-          </div>
-          <NotificationBell />
+        <div className="flex items-center gap-2 min-w-0">
+          <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-jab-panel-2 text-xs font-semibold">
+            {iniciales(tenantNombre)}
+          </span>
+          <span className="text-sm font-medium truncate">{tenantNombre}</span>
         </div>
       </div>
 
       <nav className="flex-1 px-3 py-4 space-y-6 overflow-y-auto">
         <div>
           <p className="px-2 mb-2 text-[11px] font-semibold tracking-widest text-jab-muted uppercase">
-            CRM
-          </p>
-          <ul className="space-y-0.5">
-            {NAV_TRABAJO.map((item) => (
-              <li key={item.vista}>
-                <Link
-                  href={`/dashboard?vista=${item.vista}`}
-                  className={`flex items-center justify-between rounded-md px-2 py-1.5 text-sm ${
-                    seccion === 'trabajo' && vistaActiva === item.vista
-                      ? 'bg-jab-panel-2 text-jab-text'
-                      : 'text-jab-muted hover:text-jab-text'
-                  }`}
-                >
-                  {item.etiqueta}
-                  {conteos && item.vista !== 'inicio' && (
-                    <span className="text-xs text-jab-muted">{conteos[item.vista]}</span>
-                  )}
-                </Link>
-              </li>
-            ))}
-          </ul>
-        </div>
-
-        <div>
-          <p className="px-2 mb-2 text-[11px] font-semibold tracking-widest text-jab-muted uppercase">
-            Cuentas
+            Cuenta
           </p>
           <ul className="space-y-0.5">
             {navCuenta.map((item) => (

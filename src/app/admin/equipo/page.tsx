@@ -16,7 +16,7 @@ export default async function AdminEquipoPage() {
       .eq('role', 'jab_staff')
       .order('created_at', { ascending: true }),
     supabase.from('tenants').select('id, name').order('name', { ascending: true }),
-    supabase.from('staff_acceso_clientes').select('usuario_id, tenant_id, puede_ver_crm'),
+    supabase.from('staff_acceso_clientes').select('usuario_id, tenant_id'),
   ]);
 
   const staffList: Staff[] = (staff ?? []).map((s) => ({
@@ -34,8 +34,7 @@ export default async function AdminEquipoPage() {
           </Link>
           <h1 className="text-lg font-semibold mt-1">Equipo de JAB</h1>
           <p className="text-xs text-jab-muted mt-0.5">
-            Cada persona ve solo los clientes que le asignes acá, sin el CRM de leads salvo que se
-            lo des puntualmente.
+            Cada persona ve solo los clientes que le asignes acá.
           </p>
         </div>
         <div className="flex items-center gap-4">

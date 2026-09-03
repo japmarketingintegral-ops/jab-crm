@@ -3,10 +3,6 @@ import Link from 'next/link';
 import { requerirPerfil, requerirTenantActivo } from '@/lib/auth';
 import { createClient } from '@/lib/supabase/server';
 import { Sidebar } from '@/components/sidebar';
-import { AutoAsignacionToggle } from './auto-asignacion-toggle';
-import { IaConfigForm } from './ia-config-form';
-import { WhatsappCloudConfigForm } from './whatsapp-cloud-config-form';
-import { PipelineConfigEditor } from './pipeline-config-editor';
 import { DesconectarMetaButton } from './desconectar-meta-button';
 import { DesconectarWhatsappButton } from './desconectar-whatsapp-button';
 
@@ -14,7 +10,6 @@ const ROL_LABEL: Record<string, string> = {
   super_admin: 'JAB',
   client_admin: 'Administradora',
   supervisor: 'Supervisor',
-  salesperson: 'Vendedor',
 };
 
 const META_MENSAJE: Record<string, { texto: string; ok: boolean }> = {
@@ -34,7 +29,7 @@ export default async function ConfiguracionPage({
   searchParams: Promise<{ meta?: string }>;
 }) {
   const perfil = await requerirPerfil();
-  if (perfil.role === 'salesperson' || perfil.role === 'supervisor') redirect('/dashboard');
+  if (perfil.role === 'supervisor') redirect('/dashboard');
   const tenantId = await requerirTenantActivo(perfil);
   const params = await searchParams;
   const mensajeMeta = params.meta ? META_MENSAJE[params.meta] : null;
@@ -42,13 +37,7 @@ export default async function ConfiguracionPage({
   const supabase = await createClient();
 
   const [{ data: tenant }, { data: fuentes }, { data: whatsapp }] = await Promise.all([
-    supabase
-      .from('tenants')
-      .select(
-        'name, slug, auto_asignacion, pipeline_config, ia_habilitada, ia_personalidad, ia_nombre_asistente, ia_auto_responder, whatsapp_cloud_phone_number_id, whatsapp_cloud_access_token',
-      )
-      .eq('id', tenantId)
-      .single(),
+    supabase.from('tenants').select('name, slug').eq('id', tenantId).single(),
     supabase
       .from('lead_sources')
       .select('platform, display_name, connected_at, access_token')
@@ -65,7 +54,6 @@ export default async function ConfiguracionPage({
   // seteado para simular el dato sin haber pasado nunca por el login real.
   const fuenteMeta = (fuentes ?? []).find((f) => f.platform === 'meta' && f.access_token);
   const metaConectado = Boolean(fuenteMeta);
-  const googleConectado = (fuentes ?? []).some((f) => f.platform === 'google' && f.connected_at);
   const whatsappConectado = whatsapp?.estado === 'conectado';
 
   return (
@@ -85,64 +73,10 @@ export default async function ConfiguracionPage({
         </div>
 
         <section>
-          <h2 className="text-sm font-semibold mb-1">Etapas del pipeline</h2>
-          <p className="text-sm text-jab-muted mb-3">
-            Renombrá cada etapa o ocultala del tablero de Pipeline. Los leads siguen guardando su
-            estado real aunque ocultes una columna.
-          </p>
-          <PipelineConfigEditor configInicial={tenant?.pipeline_config ?? null} />
-        </section>
-
-        <section>
-          <h2 className="text-sm font-semibold mb-1">Reparto automático de leads</h2>
-          <p className="text-sm text-jab-muted mb-3">
-            Cuando llega un lead nuevo de Meta o Google, se lo asigna automáticamente al próximo
-            vendedor de la lista (round robin), en vez de quedar sin asignar.
-          </p>
-          <div className="flex items-center justify-between rounded-lg bg-jab-panel-2 border border-jab-border px-4 py-3">
-            <div>
-              <p className="text-sm font-medium">Auto-asignación</p>
-              <p className="text-xs text-jab-muted">
-                {tenant?.auto_asignacion ? 'Activada' : 'Desactivada — los leads entran sin asignar'}
-              </p>
-            </div>
-            <AutoAsignacionToggle activoInicial={tenant?.auto_asignacion ?? false} />
-          </div>
-        </section>
-
-        {(perfil.role === 'client_admin' || perfil.role === 'super_admin') && (
-          <section>
-            <h2 className="text-sm font-semibold mb-1">Asistente de IA</h2>
-            <p className="text-sm text-jab-muted mb-3">
-              Personalizá cómo responde la IA por este cliente — cada cuenta tiene su propio tono e
-              instrucciones.
-            </p>
-            <IaConfigForm
-              habilitadaInicial={tenant?.ia_habilitada ?? false}
-              nombreInicial={tenant?.ia_nombre_asistente ?? ''}
-              personalidadInicial={tenant?.ia_personalidad ?? ''}
-              iaConfigurada={Boolean(process.env.ANTHROPIC_API_KEY)}
-            />
-
-            <h2 className="text-sm font-semibold mb-1 mt-6">WhatsApp (API oficial de Meta)</h2>
-            <p className="text-sm text-jab-muted mb-3">
-              Conectá el número de WhatsApp Business de este cliente. Con esto conectado, los
-              mensajes entrantes entran solos a Bandeja y, si activás las respuestas automáticas,
-              el asistente de arriba responde y hace seguimiento sin que nadie apruebe cada mensaje.
-            </p>
-            <WhatsappCloudConfigForm
-              phoneNumberIdInicial={tenant?.whatsapp_cloud_phone_number_id ?? ''}
-              tieneTokenGuardado={Boolean(tenant?.whatsapp_cloud_access_token)}
-              autoResponderInicial={tenant?.ia_auto_responder ?? false}
-            />
-          </section>
-        )}
-
-        <section>
           <h2 className="text-sm font-semibold mb-1">Integraciones</h2>
           <p className="text-sm text-jab-muted mb-3">
-            Conectá las cuentas de Meta Ads y Google Ads del cliente para que sus leads y sus
-            métricas de redes entren acá automáticamente.
+            Conectá la cuenta de Meta del cliente para que sus métricas de redes entren acá
+            automáticamente.
           </p>
 
           {mensajeMeta && (
@@ -164,7 +98,7 @@ export default async function ConfiguracionPage({
                 <p className="text-xs text-jab-muted">
                   {metaConectado
                     ? `Página conectada: ${fuenteMeta?.display_name}`
-                    : 'Conectá la página de Facebook del cliente para traer sus leads y métricas'}
+                    : 'Conectá la página de Facebook del cliente para traer sus métricas'}
                 </p>
               </div>
               {metaConectado ? (
@@ -190,27 +124,11 @@ export default async function ConfiguracionPage({
 
             <div className="flex items-center justify-between rounded-lg bg-jab-panel-2 border border-jab-border px-4 py-3">
               <div>
-                <p className="text-sm font-medium">Google Ads</p>
-                <p className="text-xs text-jab-muted">
-                  {googleConectado ? 'Conectado' : 'Requiere el webhook de lead form assets configurado'}
-                </p>
-              </div>
-              <span
-                className={`rounded-full px-3 py-1 text-xs font-medium ${
-                  googleConectado ? 'bg-jab-lime text-jab-lime-ink' : 'bg-jab-bg-deep text-jab-muted'
-                }`}
-              >
-                {googleConectado ? 'Conectado' : 'Sin conectar'}
-              </span>
-            </div>
-
-            <div className="flex items-center justify-between rounded-lg bg-jab-panel-2 border border-jab-border px-4 py-3">
-              <div>
                 <p className="text-sm font-medium">WhatsApp</p>
                 <p className="text-xs text-jab-muted">
                   {whatsappConectado
                     ? `Conectado: ${whatsapp?.numero_whatsapp}`
-                    : 'Vinculá el WhatsApp del cliente para contestar consultas desde acá'}
+                    : 'Vinculá el WhatsApp del cliente escaneando un código QR'}
                 </p>
               </div>
               {whatsappConectado ? (
@@ -236,8 +154,7 @@ export default async function ConfiguracionPage({
           </div>
 
           <p className="text-xs text-jab-muted mt-3">
-            Meta se conecta con un login (JAB elige la página del cliente y listo). Google Ads
-            todavía necesita que JAB configure a mano el webhook de lead form assets. WhatsApp se
+            Meta se conecta con un login (JAB elige la página del cliente y listo). WhatsApp se
             vincula escaneando un código QR, como un dispositivo más.
           </p>
         </section>

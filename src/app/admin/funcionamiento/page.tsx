@@ -1,7 +1,6 @@
 import Link from 'next/link';
 import { requerirSuperAdmin } from '@/lib/auth';
 import { createClient } from '@/lib/supabase/server';
-import { nivelSLA } from '@/lib/format';
 
 const BENCHMARK_PUBLICACIONES_MES = 8;
 
@@ -18,7 +17,6 @@ export default async function FuncionamientoPage() {
 
   const [
     { data: tenants },
-    { data: leads },
     { data: pedidos },
     { data: tareas },
     { data: posts },
@@ -26,7 +24,6 @@ export default async function FuncionamientoPage() {
     { data: equipoJab },
   ] = await Promise.all([
     supabase.from('tenants').select('id, name, slug').order('name'),
-    supabase.from('leads').select('tenant_id, status, updated_at'),
     supabase.from('pedidos').select('tenant_id, estado, fecha_programada, asignado_a'),
     supabase.from('tareas_internas').select('tenant_id, estado, fecha_programada, asignado_a'),
     supabase.from('social_posts').select('tenant_id, publicado_en'),
@@ -36,13 +33,6 @@ export default async function FuncionamientoPage() {
 
   const salud = (tenants ?? [])
     .map((t) => {
-      const leadsVencidos = (leads ?? []).filter(
-        (l) =>
-          l.tenant_id === t.id &&
-          l.status !== 'ganado' &&
-          l.status !== 'perdido' &&
-          nivelSLA(l.updated_at) === 'rojo',
-      ).length;
       const pedidosParados = (pedidos ?? []).filter(
         (p) => p.tenant_id === t.id && p.estado !== 'aprobado' && p.fecha_programada && p.fecha_programada < hoyStr,
       ).length;
@@ -53,8 +43,8 @@ export default async function FuncionamientoPage() {
         (f) => f.tenant_id === t.id && f.platform === 'meta' && f.access_token,
       );
       const bajoRitmo = publicacionesMes < esperadasHoy;
-      const puntaje = leadsVencidos + pedidosParados + (bajoRitmo ? 1 : 0) + (!metaConectado ? 1 : 0);
-      return { tenant: t, leadsVencidos, pedidosParados, publicacionesMes, metaConectado, bajoRitmo, puntaje };
+      const puntaje = pedidosParados + (bajoRitmo ? 1 : 0) + (!metaConectado ? 1 : 0);
+      return { tenant: t, pedidosParados, publicacionesMes, metaConectado, bajoRitmo, puntaje };
     })
     .sort((a, b) => b.puntaje - a.puntaje);
 
@@ -107,7 +97,6 @@ export default async function FuncionamientoPage() {
                   )}
                 </div>
                 <div className="flex flex-wrap gap-2 text-xs">
-                  <Indicador ok={s.leadsVencidos === 0} texto={`${s.leadsVencidos} leads vencidos`} />
                   <Indicador ok={s.pedidosParados === 0} texto={`${s.pedidosParados} pedidos parados`} />
                   <Indicador
                     ok={!s.bajoRitmo}

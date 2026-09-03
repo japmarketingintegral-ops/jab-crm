@@ -10,7 +10,6 @@ const ROL_LABEL: Record<string, string> = {
   jab_staff: 'Equipo JAB',
   client_admin: 'Administradora',
   supervisor: 'Supervisor',
-  salesperson: 'Vendedor',
 };
 
 export default async function TableroPage() {
@@ -89,7 +88,6 @@ export default async function TableroPage() {
         nombreUsuario={perfil.full_name ?? perfil.email}
         rolLabel={ROL_LABEL[perfil.role] ?? perfil.role}
         seccion="tablero"
-        esVendedor={false}
         viendoComoJab={perfil.role === 'super_admin'}
         mostrarTablero
       />

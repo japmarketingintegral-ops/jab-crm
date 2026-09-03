@@ -66,15 +66,3 @@ export async function quitarAcceso(usuarioId: string, tenantId: string) {
   if (error) return { error: 'No se pudo quitar el acceso.' };
   return { ok: true };
 }
-
-export async function actualizarPermisoCrm(usuarioId: string, tenantId: string, puedeVerCrm: boolean) {
-  await requerirSuperAdmin();
-  const supabase = await createClient();
-  const { error } = await supabase
-    .from('staff_acceso_clientes')
-    .update({ puede_ver_crm: puedeVerCrm })
-    .eq('usuario_id', usuarioId)
-    .eq('tenant_id', tenantId);
-  if (error) return { error: 'No se pudo actualizar el permiso.' };
-  return { ok: true };
-}

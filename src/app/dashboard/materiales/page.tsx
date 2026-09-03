@@ -7,7 +7,6 @@ const ROL_LABEL: Record<string, string> = {
   super_admin: 'JAB',
   client_admin: 'Administradora',
   supervisor: 'Supervisor',
-  salesperson: 'Vendedor',
 };
 
 export default async function MaterialesPage() {
@@ -41,7 +40,6 @@ export default async function MaterialesPage() {
         nombreUsuario={perfil.full_name ?? perfil.email}
         rolLabel={ROL_LABEL[perfil.role] ?? perfil.role}
         seccion="materiales"
-        esVendedor={perfil.role === 'salesperson'}
         viendoComoJab={perfil.role === 'super_admin'}
         mostrarTablero={perfil.role === 'super_admin' || perfil.role === 'jab_staff'}
       />

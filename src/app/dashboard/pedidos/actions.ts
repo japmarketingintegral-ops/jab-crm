@@ -280,7 +280,7 @@ export async function obtenerDetallePedido(
       .from('profiles')
       .select('id, full_name, email')
       .eq('tenant_id', pedido.tenant_id)
-      .in('role', ['client_admin', 'supervisor', 'salesperson']);
+      .in('role', ['client_admin', 'supervisor']);
     for (const p of perfiles ?? []) equipo.push({ id: p.id, nombre: p.full_name ?? p.email });
   }
 

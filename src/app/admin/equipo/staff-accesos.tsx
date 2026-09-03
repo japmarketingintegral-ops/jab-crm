@@ -2,11 +2,11 @@
 
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
-import { otorgarAcceso, quitarAcceso, actualizarPermisoCrm, quitarStaff } from './actions';
+import { otorgarAcceso, quitarAcceso, quitarStaff } from './actions';
 import { iniciales } from '@/lib/format';
 
 export type Staff = { id: string; nombre: string };
-export type AccesoFila = { usuario_id: string; tenant_id: string; puede_ver_crm: boolean };
+export type AccesoFila = { usuario_id: string; tenant_id: string };
 
 function StaffCard({
   persona,
@@ -26,13 +26,6 @@ function StaffCard({
     startTransition(async () => {
       if (tieneAcceso) await quitarAcceso(persona.id, tenantId);
       else await otorgarAcceso(persona.id, tenantId);
-      router.refresh();
-    });
-  }
-
-  function toggleCrm(tenantId: string, valor: boolean) {
-    startTransition(async () => {
-      await actualizarPermisoCrm(persona.id, tenantId, valor);
       router.refresh();
     });
   }
@@ -93,18 +86,6 @@ function StaffCard({
                 />
                 {tenant.name}
               </label>
-              {acceso && (
-                <label className="flex items-center gap-1.5 text-xs text-jab-muted cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={acceso.puede_ver_crm}
-                    disabled={pending}
-                    onChange={(e) => toggleCrm(tenant.id, e.target.checked)}
-                    className="rounded border-jab-border accent-jab-accent"
-                  />
-                  Ve CRM
-                </label>
-              )}
             </div>
           );
         })}

@@ -8,7 +8,6 @@ const ROL_LABEL: Record<string, string> = {
   super_admin: 'JAB',
   client_admin: 'Administradora',
   supervisor: 'Supervisor',
-  salesperson: 'Vendedor',
 };
 
 export default async function RedesPage() {
@@ -42,7 +41,6 @@ export default async function RedesPage() {
         nombreUsuario={perfil.full_name ?? perfil.email}
         rolLabel={ROL_LABEL[perfil.role] ?? perfil.role}
         seccion="redes"
-        esVendedor={perfil.role === 'salesperson'}
         viendoComoJab={perfil.role === 'super_admin'}
         mostrarTablero={perfil.role === 'super_admin' || perfil.role === 'jab_staff'}
       />

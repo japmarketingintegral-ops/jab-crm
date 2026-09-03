@@ -9,12 +9,10 @@ const PLATAFORMA_LABEL: Record<string, string> = { meta: 'Meta', google: 'Google
 export function TenantCard({
   tenant,
   enRiesgo,
-  leadsCount,
   fuentesTenant,
 }: {
   tenant: { id: string; name: string; slug: string };
   enRiesgo: boolean;
-  leadsCount: number;
   fuentesTenant: { id: string; platform: string; display_name: string; connected_at: string | null; access_token: string | null }[];
 }) {
   const [pending, startTransition] = useTransition();
@@ -47,9 +45,7 @@ export function TenantCard({
               </span>
             )}
           </div>
-          <p className="text-xs text-jab-muted mb-2">
-            /{tenant.slug} · {leadsCount} leads en 30 días
-          </p>
+          <p className="text-xs text-jab-muted mb-2">/{tenant.slug}</p>
         </div>
         <div onClick={(e) => e.stopPropagation()} className="shrink-0">
           <EliminarTenantButton tenantId={tenant.id} nombre={tenant.name} />

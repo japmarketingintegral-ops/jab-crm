@@ -5,7 +5,7 @@ import { createClient } from '@/lib/supabase/server';
 import { createServiceClient } from '@/lib/supabase/service';
 import type { UserRole } from '@/lib/supabase/types';
 
-const ROLES_INVITABLES: UserRole[] = ['client_admin', 'supervisor', 'salesperson'];
+const ROLES_INVITABLES: UserRole[] = ['client_admin', 'supervisor'];
 
 export async function invitarVendedor(_prevState: string | undefined, formData: FormData) {
   const perfil = await requerirPerfil();
@@ -20,7 +20,7 @@ export async function invitarVendedor(_prevState: string | undefined, formData: 
   if (!email) return 'Falta el email.';
   const role = ROLES_INVITABLES.includes(rolSolicitado as UserRole)
     ? (rolSolicitado as UserRole)
-    : 'salesperson';
+    : 'supervisor';
 
   // service_role: invitar un usuario nuevo es una operación admin que no
   // puede hacer el cliente anon, sin importar el rol de quien la pide acá
@@ -76,18 +76,7 @@ export async function quitarDelEquipo(userId: string) {
     return { error: 'Solo un admin puede hacer esto.' };
   }
   if (userId === perfil.id) return { error: 'No podés quitarte a vos mismo.' };
-  const tenantId = await requerirTenantActivo(perfil);
-
-  const supabase = await createClient();
-  // No borramos el usuario de Auth (podría tener historial de leads
-  // asignados) — solo lo desvinculamos del tenant. Sus leads asignados
-  // quedan como están; se pueden reasignar desde la ficha de cada uno.
-  const { error } = await supabase
-    .from('leads')
-    .update({ assigned_to: null })
-    .eq('assigned_to', userId)
-    .eq('tenant_id', tenantId);
-  if (error) return { error: 'No se pudieron liberar sus leads.' };
+  await requerirTenantActivo(perfil);
 
   const service = createServiceClient();
   const { error: delError } = await service.auth.admin.deleteUser(userId);

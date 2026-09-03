@@ -9,7 +9,6 @@ const ROL_LABEL: Record<string, string> = {
   super_admin: 'JAB',
   client_admin: 'Administradora',
   supervisor: 'Supervisor',
-  salesperson: 'Vendedor',
 };
 
 export default async function EquipoPage() {
@@ -19,21 +18,14 @@ export default async function EquipoPage() {
 
   const supabase = await createClient();
 
-  const [{ data: tenant }, { data: equipo }, { data: conteos }] = await Promise.all([
+  const [{ data: tenant }, { data: equipo }] = await Promise.all([
     supabase.from('tenants').select('name').eq('id', tenantId).single(),
     supabase
       .from('profiles')
       .select('id, full_name, email, role, created_at')
       .eq('tenant_id', tenantId)
       .order('created_at', { ascending: true }),
-    supabase.from('leads').select('assigned_to').eq('tenant_id', tenantId),
   ]);
-
-  const leadsPorPersona = new Map<string, number>();
-  for (const l of conteos ?? []) {
-    if (!l.assigned_to) continue;
-    leadsPorPersona.set(l.assigned_to, (leadsPorPersona.get(l.assigned_to) ?? 0) + 1);
-  }
 
   return (
     <div className="flex flex-1 min-h-0">
@@ -42,7 +34,6 @@ export default async function EquipoPage() {
         nombreUsuario={perfil.full_name ?? perfil.email}
         rolLabel={ROL_LABEL[perfil.role] ?? perfil.role}
         seccion="equipo"
-        esVendedor={perfil.role === 'salesperson'}
         viendoComoJab={perfil.role === 'super_admin'}
         mostrarTablero={perfil.role === 'super_admin' || perfil.role === 'jab_staff'}
       />
@@ -60,9 +51,6 @@ export default async function EquipoPage() {
             >
               <div>
                 <p className="text-sm font-medium">{persona.full_name ?? persona.email}</p>
-                <p className="text-xs text-jab-muted">
-                  {leadsPorPersona.get(persona.id) ?? 0} leads asignados
-                </p>
               </div>
               <div className="flex items-center gap-3">
                 {esAdmin && persona.id !== perfil.id && persona.role !== 'super_admin' ? (
