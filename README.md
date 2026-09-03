@@ -189,11 +189,19 @@ lienzo de adentro cambia según la sección:
    propiedad GA4 por tenant.
 3. **Apuntar el dominio final**: hoy vive en `jab-crm.vercel.app`, falta
    apuntar `clientes.jabmarketing.site` (DNS en Cloudflare) cuando quieras.
-4. **Insights automáticos**: por ahora los reportes son solo datos — no
-   hay todavía un sistema que compare períodos y genere recomendaciones
-   accionables sobre qué funcionó y qué no.
-5. Sin tests automatizados ni CI — lint/tipos/build se corren a mano antes
-   de cada push.
+4. **Insights con IA**: Inicio ya compara el período elegido contra el
+   anterior y señala mejor/peor campaña, mejor/peor publicación y la
+   tendencia de interacciones — todo calculado directo de los datos, sin
+   IA todavía. Falta el sistema de la sección 9 del pivot: insights
+   guardados con fecha/fuentes/confianza, revisables y aprobables por JAB
+   antes de mostrarse al cliente.
+5. **Tests y CI**: hay tests unitarios (Vitest, `npm test`) para permisos y
+   cálculo de períodos/variaciones, y un workflow de GitHub Actions
+   (`.github/workflows/ci.yml`) que corre lint + tipos + tests + build en
+   cada push/PR a `main`. Falta activar la protección de rama en GitHub
+   (Settings → Branches) para que ese check bloquee merges — no es algo
+   que se configure desde el código. También faltan tests de integración
+   (RLS, aislamiento entre tenants) y E2E.
 
 ## Desarrollo local
 
