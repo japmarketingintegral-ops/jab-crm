@@ -64,7 +64,7 @@ export function InicioContent({
   materiales: MaterialResumen[];
 }) {
   return (
-    <main className="jab-canvas-light flex-1 p-6 overflow-y-auto">
+    <main className="jab-canvas-light flex-1 p-4 pb-24 lg:p-6 overflow-y-auto">
       <h1 className="text-xl font-bold mb-1">Inicio</h1>
       <p className="text-sm text-jab-muted mb-6">
         Lo que está pasando con tu marketing en los últimos 30 días, de un vistazo.

@@ -73,7 +73,7 @@ export default async function MiTrabajoPage() {
   ];
 
   return (
-    <div className="flex flex-1 min-h-0">
+    <div className="flex flex-1 min-h-0 flex-col lg:flex-row">
       <Sidebar
         tenantNombre={tenant?.name ?? '—'}
         nombreUsuario={perfil.full_name ?? perfil.email}
@@ -82,7 +82,7 @@ export default async function MiTrabajoPage() {
         viendoComoJab={perfil.role === 'super_admin'}
         mostrarTablero
       />
-      <main className="flex-1 p-6 flex flex-col min-w-0">
+      <main className="flex-1 p-4 pb-24 lg:p-6 flex flex-col min-w-0">
         <div className="flex items-center justify-between mb-6">
           <div>
             <h1 className="text-xl font-bold">Mi trabajo</h1>

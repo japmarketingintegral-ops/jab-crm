@@ -2,7 +2,7 @@ import { Skeleton, SidebarSkeleton } from '@/components/skeleton';
 
 export default function CargandoDashboard() {
   return (
-    <div className="flex flex-1 min-h-0">
+    <div className="flex flex-1 min-h-0 flex-col lg:flex-row">
       <SidebarSkeleton />
       <main className="flex-1 p-6 space-y-6 overflow-y-auto">
         <div className="flex items-center justify-between">

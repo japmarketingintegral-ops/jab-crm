@@ -53,7 +53,7 @@ export default async function ConfiguracionPage({
   const metaConectado = Boolean(fuenteMeta);
 
   return (
-    <div className="flex flex-1 min-h-0">
+    <div className="flex flex-1 min-h-0 flex-col lg:flex-row">
       <Sidebar
         tenantNombre={tenant?.name ?? '—'}
         nombreUsuario={perfil.full_name ?? perfil.email}
@@ -62,7 +62,7 @@ export default async function ConfiguracionPage({
         viendoComoJab={perfil.role === 'super_admin'}
         mostrarTablero={perfil.role === 'super_admin' || perfil.role === 'jab_staff'}
       />
-      <main className="jab-canvas-light flex-1 p-6 max-w-2xl w-full overflow-y-auto space-y-8">
+      <main className="jab-canvas-light flex-1 p-4 pb-24 lg:p-6 max-w-2xl w-full overflow-y-auto space-y-8">
         <div>
           <h1 className="text-xl font-bold">Configuración</h1>
           <p className="text-sm text-jab-muted">{tenant?.name} · {tenant?.slug}</p>

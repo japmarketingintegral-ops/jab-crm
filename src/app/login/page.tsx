@@ -26,15 +26,15 @@ export default function LoginPage() {
 
         <div className="max-w-md">
           <h1 className="text-4xl font-bold leading-tight">
-            Cada lead,
+            Tu marketing,
             <br />
-            cada pedido,
+            de un vistazo,
             <br />
-            con dueño.
+            siempre al día.
           </h1>
           <p className="mt-6 text-jab-muted">
-            Leads, pedidos de contenido y métricas de redes: todo entra, se reparte y se
-            sigue en un solo panel.
+            Redes, pauta, pedidos y materiales: todo lo que hace JAB por tu cuenta, en un
+            solo panel.
           </p>
         </div>
 
