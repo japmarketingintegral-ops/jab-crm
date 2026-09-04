@@ -8,6 +8,7 @@ import type { Database } from '@/lib/supabase/types';
 type Acceso = Database['public']['Tables']['onboarding_accesos']['Row'];
 
 export function AccesosSection({ accesos }: { accesos: Acceso[] }) {
+  const [expandido, setExpandido] = useState(false);
   const [abierto, setAbierto] = useState(false);
   const router = useRouter();
   const [error, formAction, pending] = useActionState(async (_prev: string | undefined, fd: FormData) => {
@@ -20,25 +21,44 @@ export function AccesosSection({ accesos }: { accesos: Acceso[] }) {
   }, undefined);
 
   return (
-    <div className="space-y-3">
-      <div className="rounded-lg bg-jab-amber/10 border border-jab-amber/30 px-4 py-2.5">
-        <p className="text-xs text-jab-amber">
-          Información sensible — solo la ve el administrador de la cuenta y JAB. No la compartas
-          por fuera de este panel.
-        </p>
-      </div>
+    <div>
+      <button
+        type="button"
+        onClick={() => setExpandido((v) => !v)}
+        className="flex w-full items-center justify-between rounded-lg bg-jab-amber/10 border border-jab-amber/30 px-4 py-3 text-left"
+      >
+        <span className="flex items-center gap-2">
+          <span aria-hidden>🔒</span>
+          <span className="text-sm font-medium text-jab-amber">Accesos internos</span>
+          {accesos.length > 0 && (
+            <span className="text-xs text-jab-amber/70">
+              {accesos.length} {accesos.length === 1 ? 'guardado' : 'guardados'}
+            </span>
+          )}
+        </span>
+        <span className="text-jab-amber text-xs">{expandido ? 'Ocultar ▲' : 'Ver ▼'}</span>
+      </button>
 
-      {accesos.length === 0 ? (
-        <p className="text-sm text-jab-muted">Todavía no cargaste ningún acceso.</p>
-      ) : (
-        <div className="space-y-2">
-          {accesos.map((a) => (
-            <AccesoRow key={a.id} acceso={a} onEliminado={() => router.refresh()} />
-          ))}
-        </div>
-      )}
+      {expandido && (
+        <div className="space-y-3 mt-3">
+          <p className="text-xs text-jab-muted">
+            Solo lo ve el administrador de la cuenta y JAB. No compartas esto por fuera del panel.
+          </p>
 
-      {abierto ? (
+          {accesos.length === 0 ? (
+            <div className="rounded-lg bg-jab-panel-2 border border-jab-border p-6 text-center">
+              <p className="text-sm text-jab-muted mb-1">Todavía no registramos accesos de esta cuenta.</p>
+              <p className="text-xs text-jab-muted">JAB puede cargarlos cuando haga falta gestionar una plataforma.</p>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {accesos.map((a) => (
+                <AccesoRow key={a.id} acceso={a} onEliminado={() => router.refresh()} />
+              ))}
+            </div>
+          )}
+
+          {abierto ? (
         <form action={formAction} className="rounded-lg bg-jab-panel-2 border border-jab-border p-4 space-y-3">
           <div className="grid sm:grid-cols-2 gap-3">
             <div className="space-y-1">
@@ -109,6 +129,8 @@ export function AccesosSection({ accesos }: { accesos: Acceso[] }) {
         >
           + Agregar acceso
         </button>
+      )}
+        </div>
       )}
     </div>
   );

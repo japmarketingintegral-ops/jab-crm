@@ -56,10 +56,6 @@ export default async function BriefPage() {
 
         {esAdmin && (
           <section>
-            <h2 className="text-sm font-semibold mb-1">Accesos y credenciales</h2>
-            <p className="text-xs text-jab-muted mb-3">
-              Usuarios y contraseñas de cuentas que JAB necesita gestionar (redes, hosting, etc.).
-            </p>
             <AccesosSection accesos={accesos ?? []} />
           </section>
         )}
