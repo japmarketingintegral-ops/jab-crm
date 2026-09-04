@@ -3,6 +3,7 @@
 import { requerirPerfil, requerirTenantActivo } from '@/lib/auth';
 import { createClient } from '@/lib/supabase/server';
 import { createServiceClient } from '@/lib/supabase/service';
+import { registrarAuditoria } from '@/lib/auditoria';
 import type { UserRole } from '@/lib/supabase/types';
 
 const ROLES_INVITABLES: UserRole[] = ['client_admin', 'client_viewer'];
@@ -60,12 +61,29 @@ export async function cambiarRolMiembro(userId: string, nuevoRol: UserRole) {
   const tenantId = await requerirTenantActivo(perfil);
 
   const supabase = await createClient();
+  const { data: anterior } = await supabase
+    .from('profiles')
+    .select('role, full_name, email')
+    .eq('id', userId)
+    .single();
+
   const { error } = await supabase
     .from('profiles')
     .update({ role: nuevoRol })
     .eq('id', userId)
     .eq('tenant_id', tenantId);
   if (error) return { error: 'No se pudo cambiar el rol.' };
+
+  await registrarAuditoria(supabase, {
+    tenantId,
+    actorId: perfil.id,
+    accion: 'equipo.rol_cambiado',
+    entidadTipo: 'profile',
+    entidadId: userId,
+    entidadTitulo: anterior?.full_name ?? anterior?.email ?? null,
+    valorAnterior: { role: anterior?.role ?? null },
+    valorNuevo: { role: nuevoRol },
+  });
 
   return { ok: true };
 }
@@ -76,11 +94,24 @@ export async function quitarDelEquipo(userId: string) {
     return { error: 'Solo un admin puede hacer esto.' };
   }
   if (userId === perfil.id) return { error: 'No podés quitarte a vos mismo.' };
-  await requerirTenantActivo(perfil);
+  const tenantId = await requerirTenantActivo(perfil);
+
+  const supabase = await createClient();
+  const { data: quitado } = await supabase.from('profiles').select('full_name, email, role').eq('id', userId).single();
 
   const service = createServiceClient();
   const { error: delError } = await service.auth.admin.deleteUser(userId);
   if (delError) return { error: 'No se pudo quitar el acceso.' };
+
+  await registrarAuditoria(supabase, {
+    tenantId,
+    actorId: perfil.id,
+    accion: 'equipo.quitado',
+    entidadTipo: 'profile',
+    entidadId: userId,
+    entidadTitulo: quitado?.full_name ?? quitado?.email ?? null,
+    valorAnterior: { role: quitado?.role ?? null },
+  });
 
   return { ok: true };
 }

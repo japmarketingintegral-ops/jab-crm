@@ -4,6 +4,7 @@ import { puedeGestionarCuenta, requerirPerfil, requerirTenantActivo } from '@/li
 import { createClient } from '@/lib/supabase/server';
 import { createServiceClient } from '@/lib/supabase/service';
 import { sincronizarPublicacionesMeta } from '@/lib/meta';
+import { registrarAuditoria } from '@/lib/auditoria';
 
 /** Trae las últimas publicaciones de Facebook/Instagram de la página conectada y las guarda. También corre solo, todos los días, vía /api/cron/sincronizar-redes — este botón es para pedir un refresh inmediato sin esperar al cron. */
 export async function sincronizarMetricasMeta(): Promise<{ ok?: boolean; error?: string }> {
@@ -53,7 +54,25 @@ export async function eliminarPost(postId: string) {
   }
 
   const supabase = await createClient();
+  const { data: post } = await supabase
+    .from('social_posts')
+    .select('tenant_id, titulo')
+    .eq('id', postId)
+    .single();
+
   const { error } = await supabase.from('social_posts').delete().eq('id', postId);
   if (error) return { error: 'No se pudo borrar la publicación.' };
+
+  if (post) {
+    await registrarAuditoria(supabase, {
+      tenantId: post.tenant_id,
+      actorId: perfil.id,
+      accion: 'post.eliminado',
+      entidadTipo: 'social_post',
+      entidadId: postId,
+      entidadTitulo: post.titulo,
+    });
+  }
+
   return { ok: true };
 }

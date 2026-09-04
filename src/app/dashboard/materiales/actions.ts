@@ -3,6 +3,7 @@
 import { puedeGestionarCuenta, requerirPerfil, requerirTenantActivo } from '@/lib/auth';
 import { createClient } from '@/lib/supabase/server';
 import { createServiceClient } from '@/lib/supabase/service';
+import { registrarAuditoria } from '@/lib/auditoria';
 
 const BUCKET = 'materiales';
 const MAX_ARCHIVO_BYTES = 20 * 1024 * 1024;
@@ -43,7 +44,7 @@ export async function eliminarMaterial(materialId: string) {
   const supabase = await createClient();
   const { data: material } = await supabase
     .from('materiales')
-    .select('ruta_storage')
+    .select('tenant_id, nombre_archivo, ruta_storage')
     .eq('id', materialId)
     .single();
   if (!material) return { error: 'No se encontró el material.' };
@@ -53,6 +54,16 @@ export async function eliminarMaterial(materialId: string) {
 
   const { error } = await supabase.from('materiales').delete().eq('id', materialId);
   if (error) return { error: 'No se pudo eliminar el material.' };
+
+  await registrarAuditoria(supabase, {
+    tenantId: material.tenant_id,
+    actorId: perfil.id,
+    accion: 'material.eliminado',
+    entidadTipo: 'material',
+    entidadId: materialId,
+    entidadTitulo: material.nombre_archivo,
+  });
+
   return { ok: true };
 }
 

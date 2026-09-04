@@ -3,6 +3,7 @@
 import { requerirPerfil, requerirTenantActivo } from '@/lib/auth';
 import { createClient } from '@/lib/supabase/server';
 import { createServiceClient } from '@/lib/supabase/service';
+import { registrarAuditoria } from '@/lib/auditoria';
 
 export async function desconectarMeta() {
   const perfil = await requerirPerfil();
@@ -12,6 +13,13 @@ export async function desconectarMeta() {
   const tenantId = await requerirTenantActivo(perfil);
 
   const supabase = await createClient();
+  const { data: fuente } = await supabase
+    .from('lead_sources')
+    .select('display_name')
+    .eq('tenant_id', tenantId)
+    .eq('platform', 'meta')
+    .maybeSingle();
+
   const { error } = await supabase
     .from('lead_sources')
     .update({ connected_at: null })
@@ -23,6 +31,14 @@ export async function desconectarMeta() {
   // puede borrarlo.
   const service = createServiceClient();
   await service.from('integration_secrets').delete().eq('tenant_id', tenantId).eq('platform', 'meta');
+
+  await registrarAuditoria(supabase, {
+    tenantId,
+    actorId: perfil.id,
+    accion: 'meta.desconectado',
+    entidadTipo: 'lead_sources',
+    entidadTitulo: fuente?.display_name ?? 'Meta',
+  });
 
   return { ok: true };
 }

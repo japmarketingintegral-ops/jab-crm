@@ -4,6 +4,7 @@ import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { requerirSuperAdmin, COOKIE_TENANT_ACTIVO } from '@/lib/auth';
 import { createServiceClient } from '@/lib/supabase/service';
+import { registrarAuditoria } from '@/lib/auditoria';
 
 const BUCKETS_CON_ARCHIVOS_POR_TENANT = ['pedidos-adjuntos', 'materiales'];
 
@@ -19,7 +20,7 @@ export async function eliminarTenant(
   tenantId: string,
   nombreConfirmado: string,
 ): Promise<{ error?: string }> {
-  await requerirSuperAdmin();
+  const perfil = await requerirSuperAdmin();
   const supabase = createServiceClient();
 
   const { data: tenant } = await supabase
@@ -57,9 +58,21 @@ export async function eliminarTenant(
   const { error: deleteError } = await supabase.from('tenants').delete().eq('id', tenantId);
   if (deleteError) return { error: `No se pudo borrar el cliente: ${deleteError.message}` };
 
-  for (const perfil of perfiles ?? []) {
-    await supabase.auth.admin.deleteUser(perfil.id);
+  for (const p of perfiles ?? []) {
+    await supabase.auth.admin.deleteUser(p.id);
   }
+
+  // tenant_id se guarda en null a propósito: el tenant ya no existe, pero
+  // el registro de que se borró (quién, cuándo, cómo se llamaba) tiene que
+  // sobrevivir a la cascada.
+  await registrarAuditoria(supabase, {
+    tenantId: null,
+    actorId: perfil.id,
+    accion: 'tenant.eliminado',
+    entidadTipo: 'tenant',
+    entidadId: tenantId,
+    entidadTitulo: tenant.name,
+  });
 
   redirect('/admin');
 }

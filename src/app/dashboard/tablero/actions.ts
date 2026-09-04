@@ -4,6 +4,7 @@ import { requerirPerfil, requerirTenantActivo } from '@/lib/auth';
 import { createClient } from '@/lib/supabase/server';
 import { enviarEmail } from '@/lib/email';
 import { escapeHtml } from '@/lib/format';
+import { registrarAuditoria } from '@/lib/auditoria';
 import type { TareaInternaEstado } from '@/lib/supabase/types';
 
 function esEquipoJab(role: string) {
@@ -392,7 +393,25 @@ export async function eliminarTareaInterna(tareaId: string) {
   const perfil = await requerirPerfil();
   if (!esEquipoJab(perfil.role)) return { error: 'Esto es solo para el equipo de JAB.' };
   const supabase = await createClient();
+  const { data: tarea } = await supabase
+    .from('tareas_internas')
+    .select('tenant_id, titulo')
+    .eq('id', tareaId)
+    .single();
+
   const { error } = await supabase.from('tareas_internas').delete().eq('id', tareaId);
   if (error) return { error: 'No se pudo eliminar.' };
+
+  if (tarea) {
+    await registrarAuditoria(supabase, {
+      tenantId: tarea.tenant_id,
+      actorId: perfil.id,
+      accion: 'tarea.eliminada',
+      entidadTipo: 'tarea_interna',
+      entidadId: tareaId,
+      entidadTitulo: tarea.titulo,
+    });
+  }
+
   return { ok: true };
 }

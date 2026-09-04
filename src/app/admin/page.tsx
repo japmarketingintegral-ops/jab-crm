@@ -52,6 +52,9 @@ export default async function AdminPage() {
           <Link href="/admin/equipo" className="text-sm text-jab-muted hover:text-jab-text">
             Equipo de JAB
           </Link>
+          <Link href="/admin/auditoria" className="text-sm text-jab-muted hover:text-jab-text">
+            Auditoría
+          </Link>
           <Link
             href="/admin/tenants/nuevo"
             className="text-sm rounded-full bg-jab-lime text-jab-lime-ink px-4 py-1.5 font-bold uppercase tracking-wide"

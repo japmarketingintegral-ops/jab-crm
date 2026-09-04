@@ -102,6 +102,51 @@ export interface Database {
         Relationships: [];
         Update: Partial<Database['public']['Tables']['integration_secrets']['Insert']>;
       };
+      auditoria: {
+        Row: {
+          id: string;
+          tenant_id: string | null;
+          actor_id: string | null;
+          accion: string;
+          entidad_tipo: string;
+          entidad_id: string | null;
+          entidad_titulo: string | null;
+          valor_anterior: unknown;
+          valor_nuevo: unknown;
+          origen: 'portal' | 'integracion' | 'automatizacion';
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          tenant_id?: string | null;
+          actor_id?: string | null;
+          accion: string;
+          entidad_tipo: string;
+          entidad_id?: string | null;
+          entidad_titulo?: string | null;
+          valor_anterior?: unknown;
+          valor_nuevo?: unknown;
+          origen?: 'portal' | 'integracion' | 'automatizacion';
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'auditoria_actor_id_fkey';
+            columns: ['actor_id'];
+            isOneToOne: false;
+            referencedRelation: 'profiles';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'auditoria_tenant_id_fkey';
+            columns: ['tenant_id'];
+            isOneToOne: false;
+            referencedRelation: 'tenants';
+            referencedColumns: ['id'];
+          },
+        ];
+        Update: Partial<Database['public']['Tables']['auditoria']['Insert']>;
+      };
       meta_conexiones_pendientes: {
         Row: {
           id: string;

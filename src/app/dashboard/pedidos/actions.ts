@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/server';
 import { createServiceClient } from '@/lib/supabase/service';
 import { enviarEmail } from '@/lib/email';
 import { escapeHtml } from '@/lib/format';
+import { registrarAuditoria } from '@/lib/auditoria';
 import type { PedidoEstado, PedidoCategoria } from '@/lib/supabase/types';
 
 const CATEGORIAS: PedidoCategoria[] = ['redes', 'contenido', 'comunicado', 'video', 'pauta', 'otro'];
@@ -201,10 +202,19 @@ export async function cambiarEstadoPedido(pedidoId: string, estado: PedidoEstado
     .from('pedidos')
     .update({ estado })
     .eq('id', pedidoId)
-    .select('tenant_id')
+    .select('tenant_id, titulo')
     .single();
   if (error || !pedido) return { error: 'No se pudo cambiar el estado.' };
   await registrarActividadPedido(supabase, pedidoId, pedido.tenant_id, perfil.id, `Pasó a "${ESTADO_LABEL[estado]}"`);
+  await registrarAuditoria(supabase, {
+    tenantId: pedido.tenant_id,
+    actorId: perfil.id,
+    accion: estado === 'aprobado' ? 'pedido.aprobado' : 'pedido.estado_cambiado',
+    entidadTipo: 'pedido',
+    entidadId: pedidoId,
+    entidadTitulo: pedido.titulo,
+    valorNuevo: { estado },
+  });
   await notificarPedido(
     supabase,
     pedidoId,
@@ -238,6 +248,15 @@ export async function asignarPedido(pedidoId: string, userId: string | null) {
       perfil.id,
       `Asignó a ${asignado?.full_name ?? asignado?.email ?? 'alguien'}`,
     );
+    await registrarAuditoria(supabase, {
+      tenantId: pedido.tenant_id,
+      actorId: perfil.id,
+      accion: 'pedido.asignado',
+      entidadTipo: 'pedido',
+      entidadId: pedidoId,
+      entidadTitulo: pedido.titulo,
+      valorNuevo: { asignado_a: userId, asignado_nombre: asignado?.full_name ?? asignado?.email ?? null },
+    });
     if (asignado?.email) {
       await enviarEmail({
         to: asignado.email,
