@@ -61,7 +61,11 @@ export function PeriodoSelector({
       guardado.valor === 'custom'
         ? `periodo=custom&desde=${guardado.desde}&hasta=${guardado.hasta}`
         : `periodo=${guardado.valor}`;
-    router.replace(`${basePath}?${query}`);
+    // router.replace() llamado sincrónicamente en el efecto de montaje no
+    // navega (el router todavía está resolviendo la navegación inicial) --
+    // un tick de diferencia alcanza para que lo tome.
+    const id = setTimeout(() => router.replace(`${basePath}?${query}`), 0);
+    return () => clearTimeout(id);
   }, [searchParams, actual, basePath, router]);
 
   return (
