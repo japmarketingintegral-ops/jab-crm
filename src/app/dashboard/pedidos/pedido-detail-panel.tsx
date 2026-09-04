@@ -196,91 +196,95 @@ export function PedidoDetailPanel({
                 </div>
               )}
 
-              <div>
-                <p className="text-[11px] font-semibold tracking-widest text-jab-muted uppercase mb-2">
-                  Fecha programada
-                </p>
-                <input
-                  type="date"
-                  disabled={pending}
-                  defaultValue={detalle.fechaProgramada ?? ''}
-                  onChange={(e) => conRecarga(() => programarFechaPedido(pedidoId, e.target.value || null))}
-                  className="w-full rounded-lg bg-jab-panel-2 border border-jab-border px-3 py-2 text-sm outline-none focus:border-jab-accent"
-                />
-              </div>
-            </div>
-
-            <div>
-              <div className="flex items-center justify-between mb-2">
-                <p className="text-[11px] font-semibold tracking-widest text-jab-muted uppercase">Checklist</p>
-                {checklistTotal > 0 && (
-                  <p className="text-xs text-jab-muted">
-                    {checklistHechos}/{checklistTotal}
+              {esEquipoJab && (
+                <div>
+                  <p className="text-[11px] font-semibold tracking-widest text-jab-muted uppercase mb-2">
+                    Fecha programada
                   </p>
-                )}
-              </div>
-              {checklistTotal > 0 && (
-                <div className="h-1.5 rounded-full bg-jab-panel-2 mb-2 overflow-hidden">
-                  <div
-                    className="h-full bg-jab-lime"
-                    style={{ width: `${(checklistHechos / checklistTotal) * 100}%` }}
+                  <input
+                    type="date"
+                    disabled={pending}
+                    defaultValue={detalle.fechaProgramada ?? ''}
+                    onChange={(e) => conRecarga(() => programarFechaPedido(pedidoId, e.target.value || null))}
+                    className="w-full rounded-lg bg-jab-panel-2 border border-jab-border px-3 py-2 text-sm outline-none focus:border-jab-accent"
                   />
                 </div>
               )}
-              <div className="space-y-1">
-                {detalle.checklist.map((item) => (
-                  <div key={item.id} className="flex items-center gap-2 group">
-                    <input
-                      type="checkbox"
-                      checked={item.completado}
-                      disabled={pending}
-                      onChange={(e) => conRecarga(() => toggleItemChecklistPedido(item.id, e.target.checked))}
-                      className="shrink-0"
-                    />
-                    <p className={`flex-1 text-sm ${item.completado ? 'line-through text-jab-muted' : ''}`}>
-                      {item.texto}
+            </div>
+
+            {esEquipoJab && (
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-[11px] font-semibold tracking-widest text-jab-muted uppercase">Checklist</p>
+                  {checklistTotal > 0 && (
+                    <p className="text-xs text-jab-muted">
+                      {checklistHechos}/{checklistTotal}
                     </p>
-                    <button
-                      disabled={pending}
-                      onClick={() => conRecarga(() => eliminarItemChecklistPedido(item.id))}
-                      className="opacity-0 group-hover:opacity-100 text-xs text-jab-muted hover:text-jab-red"
-                    >
-                      Quitar
-                    </button>
+                  )}
+                </div>
+                {checklistTotal > 0 && (
+                  <div className="h-1.5 rounded-full bg-jab-panel-2 mb-2 overflow-hidden">
+                    <div
+                      className="h-full bg-jab-lime"
+                      style={{ width: `${(checklistHechos / checklistTotal) * 100}%` }}
+                    />
                   </div>
-                ))}
-              </div>
-              <div className="flex gap-2 mt-2">
-                <input
-                  value={nuevoItem}
-                  onChange={(e) => setNuevoItem(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' && nuevoItem.trim() && !pending) {
+                )}
+                <div className="space-y-1">
+                  {detalle.checklist.map((item) => (
+                    <div key={item.id} className="flex items-center gap-2 group">
+                      <input
+                        type="checkbox"
+                        checked={item.completado}
+                        disabled={pending}
+                        onChange={(e) => conRecarga(() => toggleItemChecklistPedido(item.id, e.target.checked))}
+                        className="shrink-0"
+                      />
+                      <p className={`flex-1 text-sm ${item.completado ? 'line-through text-jab-muted' : ''}`}>
+                        {item.texto}
+                      </p>
+                      <button
+                        disabled={pending}
+                        onClick={() => conRecarga(() => eliminarItemChecklistPedido(item.id))}
+                        className="opacity-0 group-hover:opacity-100 text-xs text-jab-muted hover:text-jab-red"
+                      >
+                        Quitar
+                      </button>
+                    </div>
+                  ))}
+                </div>
+                <div className="flex gap-2 mt-2">
+                  <input
+                    value={nuevoItem}
+                    onChange={(e) => setNuevoItem(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && nuevoItem.trim() && !pending) {
+                        conRecarga(async () => {
+                          const res = await agregarItemChecklistPedido(pedidoId, nuevoItem);
+                          if (!res.error) setNuevoItem('');
+                          return res;
+                        });
+                      }
+                    }}
+                    placeholder="Agregar un ítem..."
+                    className="flex-1 rounded-lg bg-jab-panel-2 border border-jab-border px-3 py-2 text-sm outline-none placeholder:text-jab-muted focus:border-jab-accent"
+                  />
+                  <button
+                    disabled={pending || !nuevoItem.trim()}
+                    onClick={() =>
                       conRecarga(async () => {
                         const res = await agregarItemChecklistPedido(pedidoId, nuevoItem);
                         if (!res.error) setNuevoItem('');
                         return res;
-                      });
+                      })
                     }
-                  }}
-                  placeholder="Agregar un ítem..."
-                  className="flex-1 rounded-lg bg-jab-panel-2 border border-jab-border px-3 py-2 text-sm outline-none placeholder:text-jab-muted focus:border-jab-accent"
-                />
-                <button
-                  disabled={pending || !nuevoItem.trim()}
-                  onClick={() =>
-                    conRecarga(async () => {
-                      const res = await agregarItemChecklistPedido(pedidoId, nuevoItem);
-                      if (!res.error) setNuevoItem('');
-                      return res;
-                    })
-                  }
-                  className="rounded-full border border-jab-border px-3 py-1.5 text-xs font-medium disabled:opacity-50"
-                >
-                  Agregar
-                </button>
+                    className="rounded-full border border-jab-border px-3 py-1.5 text-xs font-medium disabled:opacity-50"
+                  >
+                    Agregar
+                  </button>
+                </div>
               </div>
-            </div>
+            )}
 
             <div>
               <p className="text-[11px] font-semibold tracking-widest text-jab-muted uppercase mb-2">

@@ -1,6 +1,6 @@
 'use server';
 
-import { puedeGestionarCuenta, requerirPerfil, requerirTenantActivo } from '@/lib/auth';
+import { esEquipoJab, requerirPerfil, requerirTenantActivo } from '@/lib/auth';
 import { createClient } from '@/lib/supabase/server';
 import { createServiceClient } from '@/lib/supabase/service';
 import { enviarEmail } from '@/lib/email';
@@ -172,9 +172,31 @@ async function notificarPedido(
   }
 }
 
+/**
+ * Qué transición de estado puede disparar el lado cliente (client_admin,
+ * client_viewer) sin ser del equipo de JAB — solo puede reaccionar a una
+ * pieza en revisión: aprobarla o mandarla de vuelta a proceso pidiendo
+ * cambios. Mover el pedido hacia adelante (pedido → en_proceso → revisión)
+ * es trabajo operativo de JAB. esEquipoJab() no pasa por acá: para JAB
+ * cualquier transición vale.
+ */
+const TRANSICIONES_CLIENTE: Partial<Record<PedidoEstado, PedidoEstado[]>> = {
+  revision: ['aprobado', 'en_proceso'],
+};
+
 export async function cambiarEstadoPedido(pedidoId: string, estado: PedidoEstado) {
   const perfil = await requerirPerfil();
   const supabase = await createClient();
+
+  if (!esEquipoJab(perfil.role)) {
+    const { data: actual } = await supabase.from('pedidos').select('estado').eq('id', pedidoId).single();
+    if (!actual) return { error: 'No se encontró el pedido.' };
+    const permitidos = TRANSICIONES_CLIENTE[actual.estado] ?? [];
+    if (!permitidos.includes(estado)) {
+      return { error: 'No podés mover el pedido a ese estado.' };
+    }
+  }
+
   const { data: pedido, error } = await supabase
     .from('pedidos')
     .update({ estado })
@@ -195,8 +217,8 @@ export async function cambiarEstadoPedido(pedidoId: string, estado: PedidoEstado
 
 export async function asignarPedido(pedidoId: string, userId: string | null) {
   const perfil = await requerirPerfil();
-  if (!puedeGestionarCuenta(perfil.role)) {
-    return { error: 'Solo un admin puede asignar.' };
+  if (!esEquipoJab(perfil.role)) {
+    return { error: 'Solo el equipo de JAB puede asignar.' };
   }
   const supabase = await createClient();
   const { data: pedido, error } = await supabase
@@ -236,6 +258,9 @@ export async function asignarPedido(pedidoId: string, userId: string | null) {
 
 export async function programarFechaPedido(pedidoId: string, fecha: string | null) {
   const perfil = await requerirPerfil();
+  if (!esEquipoJab(perfil.role)) {
+    return { error: 'Solo el equipo de JAB puede programar la fecha.' };
+  }
   const supabase = await createClient();
   const { data: pedido, error } = await supabase
     .from('pedidos')
@@ -257,6 +282,8 @@ export async function programarFechaPedido(pedidoId: string, fecha: string | nul
 export type ItemChecklist = { id: string; texto: string; completado: boolean; orden: number };
 
 export async function agregarItemChecklistPedido(pedidoId: string, texto: string) {
+  const perfil = await requerirPerfil();
+  if (!esEquipoJab(perfil.role)) return { error: 'Solo el equipo de JAB puede armar el checklist.' };
   if (!texto.trim()) return { error: 'El ítem no puede estar vacío.' };
   const supabase = await createClient();
   const { data: pedido } = await supabase.from('pedidos').select('tenant_id').eq('id', pedidoId).single();
@@ -276,6 +303,8 @@ export async function agregarItemChecklistPedido(pedidoId: string, texto: string
 }
 
 export async function toggleItemChecklistPedido(itemId: string, completado: boolean) {
+  const perfil = await requerirPerfil();
+  if (!esEquipoJab(perfil.role)) return { error: 'Solo el equipo de JAB puede tocar el checklist.' };
   const supabase = await createClient();
   const { error } = await supabase.from('pedido_checklist_items').update({ completado }).eq('id', itemId);
   if (error) return { error: 'No se pudo actualizar el ítem.' };
@@ -283,6 +312,8 @@ export async function toggleItemChecklistPedido(itemId: string, completado: bool
 }
 
 export async function eliminarItemChecklistPedido(itemId: string) {
+  const perfil = await requerirPerfil();
+  if (!esEquipoJab(perfil.role)) return { error: 'Solo el equipo de JAB puede tocar el checklist.' };
   const supabase = await createClient();
   const { error } = await supabase.from('pedido_checklist_items').delete().eq('id', itemId);
   if (error) return { error: 'No se pudo eliminar el ítem.' };
@@ -340,21 +371,37 @@ export async function obtenerDetallePedido(
       .order('orden', { ascending: true }),
   ]);
 
+  // A quién se le puede asignar un pedido: el equipo de JAB (super_admin +
+  // jab_staff con acceso a este cliente), nunca gente del lado cliente —
+  // asignar es gestión interna de la agencia, no algo que el cliente elija.
   const equipo: MiembroEquipo[] = [];
-  if (puedeGestionarCuenta(perfil.role)) {
-    const { data: perfiles } = await supabase
-      .from('profiles')
-      .select('id, full_name, email')
-      .eq('tenant_id', pedido.tenant_id)
-      .in('role', ['client_admin', 'client_viewer']);
-    for (const p of perfiles ?? []) equipo.push({ id: p.id, nombre: p.full_name ?? p.email });
+  if (esEquipoJab(perfil.role)) {
+    const [{ data: superAdmins }, { data: staffConAcceso }] = await Promise.all([
+      supabase.from('profiles').select('id, full_name, email').eq('role', 'super_admin'),
+      supabase
+        .from('staff_acceso_clientes')
+        .select('usuario_id, staff:profiles!staff_acceso_clientes_usuario_id_fkey(id, full_name, email)')
+        .eq('tenant_id', pedido.tenant_id),
+    ]);
+    const vistos = new Set<string>();
+    for (const p of superAdmins ?? []) {
+      if (vistos.has(p.id)) continue;
+      vistos.add(p.id);
+      equipo.push({ id: p.id, nombre: p.full_name ?? p.email });
+    }
+    for (const s of staffConAcceso ?? []) {
+      const p = s.staff;
+      if (!p || vistos.has(p.id)) continue;
+      vistos.add(p.id);
+      equipo.push({ id: p.id, nombre: p.full_name ?? p.email });
+    }
   }
 
   // Quién tiene asignado el pedido es información interna de gestión — el
   // cliente nunca la ve, ni siquiera en el payload de la respuesta (no
   // alcanza con que la UI la oculte: si viaja igual, se ve inspeccionando
   // la network tab).
-  const esEquipoJab = perfil.role === 'super_admin' || perfil.role === 'jab_staff';
+  const puedeVerAsignacion = esEquipoJab(perfil.role);
 
   return {
     ficha: {
@@ -365,8 +412,8 @@ export async function obtenerDetallePedido(
       categoria: pedido.categoria,
       creadorNombre: pedido.creador?.full_name ?? pedido.creador?.email ?? null,
       creadoEn: pedido.created_at,
-      asignadoA: esEquipoJab ? pedido.asignado_a : null,
-      asignadoNombre: esEquipoJab ? (pedido.asignado?.full_name ?? pedido.asignado?.email ?? null) : null,
+      asignadoA: puedeVerAsignacion ? pedido.asignado_a : null,
+      asignadoNombre: puedeVerAsignacion ? (pedido.asignado?.full_name ?? pedido.asignado?.email ?? null) : null,
       fechaProgramada: pedido.fecha_programada,
       archivos: (archivos ?? []).map((a) => ({
         id: a.id,

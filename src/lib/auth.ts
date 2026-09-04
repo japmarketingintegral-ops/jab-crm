@@ -75,10 +75,19 @@ export function puedeAdministrar(role: UserRole): boolean {
 }
 
 /** Matriz de permisos: ¿este rol puede operar la cuenta del cliente
- * (sincronizar integraciones, subir/eliminar materiales, editar el brief,
- * asignar pedidos)? Sí para quien administra el cliente (client_admin) y
- * para todo el equipo de JAB (super_admin/jab_staff) — no para
- * client_viewer, que solo mira. */
+ * (sincronizar integraciones, subir/eliminar materiales, editar el brief)?
+ * Sí para quien administra el cliente (client_admin) y para todo el equipo
+ * de JAB (super_admin/jab_staff) — no para client_viewer, que solo mira. */
 export function puedeGestionarCuenta(role: UserRole): boolean {
   return role === 'client_admin' || role === 'super_admin' || role === 'jab_staff';
+}
+
+/** ¿Este rol es parte del equipo de JAB (la agencia), no del lado cliente?
+ * Se usa para las acciones operativas de gestión de un pedido — asignar
+ * responsable, programar fecha, armar el checklist, mover el pedido por
+ * los estados internos (pedido → en_proceso → revisión) — que
+ * puedeGestionarCuenta() no distingue porque también incluye a
+ * client_admin. */
+export function esEquipoJab(role: UserRole): boolean {
+  return role === 'super_admin' || role === 'jab_staff';
 }
