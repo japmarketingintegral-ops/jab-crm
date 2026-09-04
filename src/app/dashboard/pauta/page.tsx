@@ -3,6 +3,7 @@ import { puedeGestionarCuenta, requerirPerfil, requerirTenantActivo } from '@/li
 import { createClient } from '@/lib/supabase/server';
 import { Sidebar } from '@/components/sidebar';
 import { resolverPeriodo, variacion } from '@/lib/periodo';
+import { periodoDesdeCookie } from '@/lib/periodo-cookie';
 import { PeriodoSelector } from '../periodo-selector';
 import { KpiCard } from '../reportes/kpi-card';
 import { SincronizarAdsButton } from './sincronizar-ads-button';
@@ -61,7 +62,7 @@ export default async function PautaPage({
   const tenantId = await requerirTenantActivo(perfil);
   const esAdmin = puedeGestionarCuenta(perfil.role);
   const params = await searchParams;
-  const periodo = resolverPeriodo(params);
+  const periodo = resolverPeriodo(params.periodo ? params : { ...params, ...(await periodoDesdeCookie()) });
   const orden: Orden = params.orden === 'conversiones' || params.orden === 'costo' ? params.orden : 'gasto';
 
   const supabase = await createClient();

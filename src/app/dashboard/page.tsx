@@ -2,6 +2,7 @@ import { requerirPerfil, requerirTenantActivo } from '@/lib/auth';
 import { createClient } from '@/lib/supabase/server';
 import { Sidebar } from '@/components/sidebar';
 import { resolverPeriodo } from '@/lib/periodo';
+import { periodoDesdeCookie } from '@/lib/periodo-cookie';
 import {
   InicioContent,
   type CampanaResumen,
@@ -28,7 +29,7 @@ export default async function DashboardPage({
   const perfil = await requerirPerfil();
   const tenantId = await requerirTenantActivo(perfil);
   const params = await searchParams;
-  const periodo = resolverPeriodo(params);
+  const periodo = resolverPeriodo(params.periodo ? params : { ...params, ...(await periodoDesdeCookie()) });
 
   const supabase = await createClient();
 
