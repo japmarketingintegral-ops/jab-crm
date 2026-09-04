@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { fechaCortaSinHora } from '@/lib/format';
 import { KpiCard } from '../reportes/kpi-card';
 import { EliminarPostButton } from './eliminar-post-button';
@@ -9,56 +9,84 @@ import { PLATAFORMA_LABEL, PLATAFORMA_COLOR, interaccionesPost } from '@/lib/soc
 import type { Database, SocialPlatform } from '@/lib/supabase/types';
 
 type Post = Database['public']['Tables']['social_posts']['Row'];
+type PostResumen = Pick<
+  Post,
+  'id' | 'plataforma' | 'publicado_en' | 'alcance' | 'me_gusta' | 'comentarios' | 'compartidos' | 'titulo' | 'url' | 'imagen_url'
+>;
+type Filtro = { desde: string | null; hasta: string | null; plataforma: SocialPlatform | null };
 
-const PLATAFORMAS_FILTRO: SocialPlatform[] = ['instagram', 'facebook', 'linkedin'];
+function construirUrl(filtros: Filtro, pagina: number) {
+  const params = new URLSearchParams();
+  if (filtros.desde) params.set('desde', filtros.desde);
+  if (filtros.hasta) params.set('hasta', filtros.hasta);
+  if (filtros.plataforma) params.set('plataforma', filtros.plataforma);
+  if (pagina > 1) params.set('pagina', String(pagina));
+  const qs = params.toString();
+  return qs ? `/dashboard/redes?${qs}` : '/dashboard/redes';
+}
 
-export function RedesReporte({ posts, esAdmin }: { posts: Post[]; esAdmin: boolean }) {
-  // Arranca sin filtro de fecha: si el cliente no publicó nada en los
-  // últimos 30 días, un default acotado tapa todo su historial y da la
-  // falsa impresión de que no hay datos (o de que se perdió lo
-  // sincronizado). El usuario acota el rango si quiere, no al revés.
-  const [desde, setDesde] = useState('');
-  const [hasta, setHasta] = useState('');
-  const [plataforma, setPlataforma] = useState<SocialPlatform | 'todas'>('todas');
+export function RedesReporte({
+  postsResumen,
+  postsPagina,
+  totalFiltrado,
+  pagina,
+  porPagina,
+  filtros,
+  plataformasDisponibles,
+  esAdmin,
+}: {
+  /** Todas las publicaciones del rango filtrado (sin paginar) — para KPIs y
+   * gráficos, que necesitan el total real, no sólo la página actual. */
+  postsResumen: PostResumen[];
+  /** Sólo la página actual, con todo el detalle — lo que se renderiza en
+   * la grilla de tarjetas. */
+  postsPagina: Post[];
+  totalFiltrado: number;
+  pagina: number;
+  porPagina: number;
+  filtros: Filtro;
+  plataformasDisponibles: SocialPlatform[];
+  esAdmin: boolean;
+}) {
+  const router = useRouter();
+  const hayFiltro = Boolean(filtros.desde || filtros.hasta) || filtros.plataforma !== null;
+  const totalPaginas = Math.max(1, Math.ceil(totalFiltrado / porPagina));
 
-  const lista = useMemo(
-    () =>
-      posts.filter((p) => {
-        if (desde && p.publicado_en < desde) return false;
-        if (hasta && p.publicado_en > hasta) return false;
-        if (plataforma !== 'todas' && p.plataforma !== plataforma) return false;
-        return true;
-      }),
-    [posts, desde, hasta, plataforma],
-  );
+  const totalAlcance = postsResumen.reduce((acc, p) => acc + p.alcance, 0);
+  const totalInteracciones = postsResumen.reduce((acc, p) => acc + interaccionesPost(p), 0);
+  const promedioInteracciones = postsResumen.length ? Math.round(totalInteracciones / postsResumen.length) : 0;
 
-  const totalAlcance = lista.reduce((acc, p) => acc + p.alcance, 0);
-  const totalInteracciones = lista.reduce((acc, p) => acc + interaccionesPost(p), 0);
-  const promedioInteracciones = lista.length ? Math.round(totalInteracciones / lista.length) : 0;
-
-  const mejor = lista.length
-    ? [...lista].sort((a, b) => interaccionesPost(b) - interaccionesPost(a) || b.alcance - a.alcance)[0]
+  const mejor = postsResumen.length
+    ? [...postsResumen].sort((a, b) => interaccionesPost(b) - interaccionesPost(a) || b.alcance - a.alcance)[0]
     : null;
 
-  const hayFiltro = Boolean(desde || hasta) || plataforma !== 'todas';
+  const irA = (nuevosFiltros: Partial<Filtro>, nuevaPagina = 1) =>
+    router.push(construirUrl({ ...filtros, ...nuevosFiltros }, nuevaPagina));
 
   return (
     <>
-      {posts.length > 0 && (
+      {(totalFiltrado > 0 || hayFiltro) && (
         <div className="flex flex-wrap items-center gap-3 mb-6 text-sm">
           <div className="flex items-center gap-1 rounded-lg bg-jab-panel-2 border border-jab-border p-1">
-            {(['todas', ...PLATAFORMAS_FILTRO] as const).map((p) => (
+            <button
+              type="button"
+              onClick={() => irA({ plataforma: null })}
+              className={`rounded px-3 py-1 text-xs font-medium transition-colors ${
+                !filtros.plataforma ? 'bg-jab-accent text-jab-bg-deep' : 'text-jab-muted hover:text-jab-text'
+              }`}
+            >
+              Todas
+            </button>
+            {plataformasDisponibles.map((p) => (
               <button
                 key={p}
                 type="button"
-                onClick={() => setPlataforma(p)}
+                onClick={() => irA({ plataforma: p })}
                 className={`rounded px-3 py-1 text-xs font-medium transition-colors ${
-                  plataforma === p
-                    ? 'bg-jab-accent text-jab-bg-deep'
-                    : 'text-jab-muted hover:text-jab-text'
+                  filtros.plataforma === p ? 'bg-jab-accent text-jab-bg-deep' : 'text-jab-muted hover:text-jab-text'
                 }`}
               >
-                {p === 'todas' ? 'Todas' : PLATAFORMA_LABEL[p]}
+                {PLATAFORMA_LABEL[p]}
               </button>
             ))}
           </div>
@@ -70,17 +98,17 @@ export function RedesReporte({ posts, esAdmin }: { posts: Post[]; esAdmin: boole
             <input
               id="redes-desde"
               type="date"
-              value={desde}
-              max={hasta || undefined}
-              onChange={(e) => setDesde(e.target.value)}
+              defaultValue={filtros.desde ?? ''}
+              max={filtros.hasta ?? undefined}
+              onChange={(e) => irA({ desde: e.target.value || null })}
               className="rounded-lg bg-jab-panel-2 border border-jab-border px-3 py-1.5 outline-none focus:border-jab-accent"
             />
             <span className="text-jab-muted">a</span>
             <input
               type="date"
-              value={hasta}
-              min={desde || undefined}
-              onChange={(e) => setHasta(e.target.value)}
+              defaultValue={filtros.hasta ?? ''}
+              min={filtros.desde ?? undefined}
+              onChange={(e) => irA({ hasta: e.target.value || null })}
               className="rounded-lg bg-jab-panel-2 border border-jab-border px-3 py-1.5 outline-none focus:border-jab-accent"
             />
           </div>
@@ -88,11 +116,7 @@ export function RedesReporte({ posts, esAdmin }: { posts: Post[]; esAdmin: boole
           {hayFiltro && (
             <button
               type="button"
-              onClick={() => {
-                setDesde('');
-                setHasta('');
-                setPlataforma('todas');
-              }}
+              onClick={() => irA({ desde: null, hasta: null, plataforma: null })}
               className="text-xs text-jab-muted hover:text-jab-text underline"
             >
               Ver todo
@@ -101,27 +125,36 @@ export function RedesReporte({ posts, esAdmin }: { posts: Post[]; esAdmin: boole
         </div>
       )}
 
-      {posts.length === 0 ? (
-        <div className="rounded-lg bg-jab-panel-2 border border-jab-border p-6">
-          <p className="text-sm text-jab-muted">
-            Todavía no hay publicaciones cargadas. Apenas conectemos Meta y sincronicemos, vas a
-            ver acá las métricas y cuál es la que mejor funcionó.
+      {totalFiltrado === 0 ? (
+        <div className="rounded-lg bg-jab-panel-2 border border-jab-border p-8 text-center">
+          <p className="text-sm font-medium mb-1">
+            {hayFiltro ? 'No hay publicaciones en ese rango' : 'Todavía no hay publicaciones cargadas'}
           </p>
-        </div>
-      ) : lista.length === 0 ? (
-        <div className="rounded-lg bg-jab-panel-2 border border-jab-border p-6">
-          <p className="text-sm text-jab-muted">No hay publicaciones en ese período.</p>
+          <p className="text-sm text-jab-muted mb-4">
+            {hayFiltro
+              ? 'Probá con otro período o plataforma.'
+              : 'Apenas conectemos Meta y sincronicemos, vas a ver acá las métricas y cuál es la que mejor funcionó.'}
+          </p>
+          {hayFiltro && (
+            <button
+              type="button"
+              onClick={() => irA({ desde: null, hasta: null, plataforma: null })}
+              className="rounded-full bg-jab-accent text-jab-bg-deep px-4 py-1.5 text-xs font-bold uppercase tracking-wide"
+            >
+              Ver todo
+            </button>
+          )}
         </div>
       ) : (
         <>
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-8">
-            <KpiCard etiqueta="Publicaciones" valor={String(lista.length)} />
-            <KpiCard etiqueta="Alcance total" valor={totalAlcance.toLocaleString('es-AR')} />
-            <KpiCard etiqueta="Interacciones totales" valor={totalInteracciones.toLocaleString('es-AR')} />
-            <KpiCard etiqueta="Interacciones por post" valor={String(promedioInteracciones)} />
+            <KpiCard etiqueta="Publicaciones" valor={String(totalFiltrado)} ayuda="Total de publicaciones en el rango filtrado." />
+            <KpiCard etiqueta="Alcance total" valor={totalAlcance.toLocaleString('es-AR')} ayuda="Cuentas únicas alcanzadas, sumando todas las publicaciones del período." />
+            <KpiCard etiqueta="Interacciones totales" valor={totalInteracciones.toLocaleString('es-AR')} ayuda="Me gusta + comentarios + compartidos, sumados." />
+            <KpiCard etiqueta="Interacciones por post" valor={String(promedioInteracciones)} ayuda="Promedio de interacciones por publicación en el período." />
           </div>
 
-          <RedesCharts posts={lista} />
+          <RedesCharts posts={postsResumen} />
 
           {mejor && (
             <div className="mb-8">
@@ -165,9 +198,16 @@ export function RedesReporte({ posts, esAdmin }: { posts: Post[]; esAdmin: boole
           )}
 
           <div>
-            <p className="text-sm font-semibold mb-3">Todas las publicaciones</p>
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-sm font-semibold">Todas las publicaciones</p>
+              {totalPaginas > 1 && (
+                <p className="text-xs text-jab-muted">
+                  Página {pagina} de {totalPaginas}
+                </p>
+              )}
+            </div>
             <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
-              {lista.map((p) => (
+              {postsPagina.map((p) => (
                 <div key={p.id} className="rounded-lg bg-jab-panel-2 border border-jab-border p-4">
                   {p.imagen_url && (
                     // eslint-disable-next-line @next/next/no-img-element
@@ -204,6 +244,27 @@ export function RedesReporte({ posts, esAdmin }: { posts: Post[]; esAdmin: boole
                 </div>
               ))}
             </div>
+
+            {totalPaginas > 1 && (
+              <div className="flex items-center justify-center gap-2 mt-6">
+                <button
+                  type="button"
+                  disabled={pagina <= 1}
+                  onClick={() => irA({}, pagina - 1)}
+                  className="rounded-full border border-jab-border px-3 py-1.5 text-xs font-medium disabled:opacity-40"
+                >
+                  ← Anterior
+                </button>
+                <button
+                  type="button"
+                  disabled={pagina >= totalPaginas}
+                  onClick={() => irA({}, pagina + 1)}
+                  className="rounded-full border border-jab-border px-3 py-1.5 text-xs font-medium disabled:opacity-40"
+                >
+                  Siguiente →
+                </button>
+              </div>
+            )}
           </div>
         </>
       )}

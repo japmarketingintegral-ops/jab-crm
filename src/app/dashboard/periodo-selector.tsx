@@ -15,10 +15,14 @@ export function PeriodoSelector({
   actual,
   desde,
   hasta,
+  basePath = '/dashboard',
 }: {
   actual: PeriodoValor;
   desde: string;
   hasta: string;
+  /** A qué ruta empuja el cambio de período — cada pantalla que lo usa
+   * (Inicio, Pauta, Redes...) mantiene su propio período en la URL. */
+  basePath?: string;
 }) {
   const router = useRouter();
   const [mostrarCustom, setMostrarCustom] = useState(actual === 'custom');
@@ -32,7 +36,7 @@ export function PeriodoSelector({
           key={o.valor}
           onClick={() => {
             setMostrarCustom(false);
-            router.push(`/dashboard?periodo=${o.valor}`);
+            router.push(`${basePath}?periodo=${o.valor}`);
           }}
           className={`rounded-full px-3 py-1.5 text-xs font-medium ${
             actual === o.valor
@@ -58,7 +62,7 @@ export function PeriodoSelector({
           onSubmit={(e) => {
             e.preventDefault();
             if (!desdeInput || !hastaInput) return;
-            router.push(`/dashboard?periodo=custom&desde=${desdeInput}&hasta=${hastaInput}`);
+            router.push(`${basePath}?periodo=custom&desde=${desdeInput}&hasta=${hastaInput}`);
           }}
         >
           <input
