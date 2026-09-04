@@ -271,13 +271,30 @@ export function TableroKanban({
               <div className="flex-1 space-y-2 min-h-[100px] rounded-lg bg-jab-panel-2/40 p-2">
                 {items.map((t) => {
                   const vencimiento = nivelVencimiento(t.fechaProgramada);
+                  const nombreAccesible = [
+                    t.titulo,
+                    t.etiquetaCategoria ? CATEGORIA_LABEL[t.etiquetaCategoria] : null,
+                    t.fechaProgramada ? `vence ${fechaCortaSinHora(t.fechaProgramada)}` : null,
+                    t.asignadoNombre ? `asignado a ${t.asignadoNombre}` : null,
+                  ]
+                    .filter(Boolean)
+                    .join(', ');
                   return (
                     <div
                       key={`${t.origen}-${t.id}`}
                       draggable
                       onDragStart={() => setArrastrando(t)}
                       onClick={() => setSeleccion(t)}
-                      className="cursor-grab active:cursor-grabbing rounded-lg bg-jab-panel border border-jab-border p-3"
+                      role="button"
+                      tabIndex={0}
+                      aria-label={nombreAccesible}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault();
+                          setSeleccion(t);
+                        }
+                      }}
+                      className="cursor-grab active:cursor-grabbing rounded-lg bg-jab-panel border border-jab-border p-3 outline-none focus-visible:ring-2 focus-visible:ring-jab-accent"
                     >
                       {t.origen === 'pedido' ? (
                         <p className="text-[9px] font-mono text-jab-accent mb-1">↳ pedido del cliente</p>

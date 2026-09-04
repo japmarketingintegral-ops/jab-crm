@@ -69,13 +69,30 @@ export function PedidosKanban({
               <div className="flex-1 space-y-2 min-h-[100px] rounded-lg bg-jab-panel-2/40 p-2">
                 {items.map((p) => {
                   const sla = p.estado !== 'aprobado' ? nivelSLAPedido(p.actualizadoEn) : null;
+                  const nombreAccesible = [
+                    p.titulo,
+                    CATEGORIA_LABEL[p.categoria],
+                    p.fechaProgramada ? `programado ${fechaCortaSinHora(p.fechaProgramada)}` : null,
+                    esEquipoJab && p.asignadoNombre ? `asignado a ${p.asignadoNombre}` : null,
+                  ]
+                    .filter(Boolean)
+                    .join(', ');
                   return (
                     <div
                       key={p.id}
                       draggable
                       onDragStart={() => setArrastrando(p.id)}
                       onClick={() => setPedidoSeleccionado(p.id)}
-                      className={`cursor-grab active:cursor-grabbing rounded-lg bg-jab-panel border border-jab-border p-3 ${
+                      role="button"
+                      tabIndex={0}
+                      aria-label={nombreAccesible}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault();
+                          setPedidoSeleccionado(p.id);
+                        }
+                      }}
+                      className={`cursor-grab active:cursor-grabbing rounded-lg bg-jab-panel border border-jab-border p-3 outline-none focus-visible:ring-2 focus-visible:ring-jab-accent ${
                         sla ? `border-l-4 ${SLA_BORDE[sla]}` : ''
                       }`}
                     >
