@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState, useTransition } from 'react';
+import { useMemo, useState, useSyncExternalStore, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { PedidoDetailPanel, CATEGORIA_LABEL, CATEGORIA_COLOR } from '../dashboard/pedidos/pedido-detail-panel';
 import { TareaDetailPanel } from '../dashboard/tablero/tarea-detail-panel';
@@ -40,6 +40,27 @@ function saludo(): string {
   if (hora < 12) return 'Buenos días';
   if (hora < 19) return 'Buenas tardes';
   return 'Buenas noches';
+}
+
+const suscribirNunca = () => () => {};
+
+/**
+ * "Hola" fijo hasta que React confirme que ya hidrató en el cliente --
+ * calcular el saludo directo en el render rompía la hidratación: el
+ * server (UTC) y el navegador (hora local) caían en franjas distintas y
+ * React tiraba error 418 por texto no coincidente. useSyncExternalStore
+ * con getServerSnapshot en false es el patrón que React recomienda para
+ * esto (evita el warning, a diferencia de setState en un useEffect). De
+ * paso, el saludo pasa a usar la hora real del visitante, no la del
+ * servidor.
+ */
+function useSaludo(): string {
+  const hidratado = useSyncExternalStore(
+    suscribirNunca,
+    () => true,
+    () => false,
+  );
+  return hidratado ? saludo() : 'Hola';
 }
 
 /** Primer nombre para el saludo. Si no hay full_name cargado, page.tsx pasa
@@ -158,6 +179,7 @@ export function MiTrabajoLista({
   nombreUsuario: string;
 }) {
   const router = useRouter();
+  const saludoTexto = useSaludo();
   const [pending, startTransition] = useTransition();
   const [seleccion, setSeleccion] = useState<TarjetaMiTrabajo | null>(null);
   const [busqueda, setBusqueda] = useState('');
@@ -205,7 +227,7 @@ export function MiTrabajoLista({
     <>
       <div className="mb-6">
         <h1 className="text-xl font-bold">
-          {saludo()}, {primerNombre(nombreUsuario)}
+          {saludoTexto}, {primerNombre(nombreUsuario)}
         </h1>
         <p className="text-sm text-jab-muted">
           {totalVencidas > 0
