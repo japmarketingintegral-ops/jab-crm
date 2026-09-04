@@ -2,7 +2,7 @@ import { redirect } from 'next/navigation';
 import { requerirPerfil, requerirTenantActivo } from '@/lib/auth';
 import { createClient } from '@/lib/supabase/server';
 import { Sidebar } from '@/components/sidebar';
-import { MiTrabajoKanban, type TarjetaMiTrabajo } from './mi-trabajo-kanban';
+import { MiTrabajoLista, type TarjetaMiTrabajo } from './mi-trabajo-lista';
 
 const ROL_LABEL: Record<string, string> = {
   super_admin: 'JAB',
@@ -82,17 +82,12 @@ export default async function MiTrabajoPage() {
         viendoComoJab={perfil.role === 'super_admin'}
         mostrarTablero
       />
-      <main className="flex-1 p-4 pb-24 lg:p-6 flex flex-col min-w-0">
-        <div className="flex items-center justify-between mb-6">
-          <div>
-            <h1 className="text-xl font-bold">Mi trabajo</h1>
-            <p className="text-sm text-jab-muted">
-              Tus tareas y pedidos asignados, en todos los clientes.
-            </p>
-          </div>
-        </div>
-
-        <MiTrabajoKanban tarjetas={tarjetas} etiquetasDisponibles={etiquetasRaw ?? []} />
+      <main className="flex-1 p-4 pb-24 lg:p-6 overflow-y-auto">
+        <MiTrabajoLista
+          tarjetas={tarjetas}
+          etiquetasDisponibles={etiquetasRaw ?? []}
+          nombreUsuario={perfil.full_name ?? perfil.email}
+        />
       </main>
     </div>
   );
