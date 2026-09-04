@@ -25,7 +25,10 @@
 
 create table if not exists public.integration_secrets (
   tenant_id uuid not null references public.tenants (id) on delete cascade,
-  platform public.social_platform not null,
+  -- lead_platform, no social_platform -- es el mismo tipo que
+  -- lead_sources.platform (de donde se copian los tokens abajo), no el de
+  -- social_posts.plataforma.
+  platform public.lead_platform not null,
   access_token text,
   user_access_token text,
   updated_at timestamptz not null default now(),
