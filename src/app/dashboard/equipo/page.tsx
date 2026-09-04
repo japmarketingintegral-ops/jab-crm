@@ -67,7 +67,7 @@ export default async function EquipoPage() {
         </div>
         <div className="flex items-center gap-3 shrink-0">
           {esAdmin && persona.id !== perfil.id && persona.role !== 'super_admin' ? (
-            <RolSelect userId={persona.id} rolActual={persona.role} />
+            <RolSelect userId={persona.id} rolActual={persona.role} nombre={persona.full_name ?? persona.email} />
           ) : (
             <span className="text-xs text-jab-muted">{ROL_LABEL[persona.role] ?? persona.role}</span>
           )}

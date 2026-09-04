@@ -434,13 +434,14 @@ export function TareaDetailPanel({
 
             <button
               disabled={pending}
-              onClick={() =>
+              onClick={() => {
+                if (!confirm('¿Eliminar esta tarea para siempre? No se puede deshacer.')) return;
                 startTransition(async () => {
                   await eliminarTareaInterna(tareaId);
                   router.refresh();
                   onClose();
-                })
-              }
+                });
+              }}
               className="text-xs text-jab-muted hover:text-jab-red"
             >
               Eliminar tarea
