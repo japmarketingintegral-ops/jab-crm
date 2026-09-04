@@ -60,10 +60,8 @@ export interface Database {
           display_name: string;
           connected_at: string | null;
           created_at: string;
-          access_token: string | null;
           instagram_business_account_id: string | null;
           token_actualizado_en: string | null;
-          user_access_token: string | null;
           ad_account_id: string | null;
         };
         Insert: {
@@ -74,14 +72,35 @@ export interface Database {
           display_name: string;
           connected_at?: string | null;
           created_at?: string;
-          access_token?: string | null;
           instagram_business_account_id?: string | null;
-          user_access_token?: string | null;
           ad_account_id?: string | null;
           token_actualizado_en?: string | null;
         };
         Relationships: [];
         Update: Partial<Database['public']['Tables']['lead_sources']['Insert']>;
+      };
+      // Tokens de integraciones (Meta, etc.) -- separados de lead_sources
+      // porque esa tabla es legible por client_admin (RLS por tenant) y los
+      // tokens no deben viajar nunca a un cliente. Sin ninguna policy de
+      // RLS: solo el service_role la toca, mismo patrón que
+      // whatsapp_credenciales / meta_conexiones_pendientes.
+      integration_secrets: {
+        Row: {
+          tenant_id: string;
+          platform: LeadPlatform;
+          access_token: string | null;
+          user_access_token: string | null;
+          updated_at: string;
+        };
+        Insert: {
+          tenant_id: string;
+          platform: LeadPlatform;
+          access_token?: string | null;
+          user_access_token?: string | null;
+          updated_at?: string;
+        };
+        Relationships: [];
+        Update: Partial<Database['public']['Tables']['integration_secrets']['Insert']>;
       };
       meta_conexiones_pendientes: {
         Row: {
@@ -272,6 +291,7 @@ export interface Database {
           autor_id: string | null;
           texto: string;
           tipo: string;
+          visibilidad: 'cliente' | 'interno' | 'sistema';
           created_at: string;
         };
         Insert: {
@@ -281,6 +301,7 @@ export interface Database {
           autor_id?: string | null;
           texto: string;
           tipo?: string;
+          visibilidad?: 'cliente' | 'interno' | 'sistema';
           created_at?: string;
         };
         Relationships: [

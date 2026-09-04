@@ -29,7 +29,7 @@ export default async function RedesPage() {
       .select('id')
       .eq('tenant_id', tenantId)
       .eq('platform', 'meta')
-      .not('access_token', 'is', null)
+      .not('connected_at', 'is', null)
       .maybeSingle(),
   ]);
   const metaConectado = Boolean(fuenteMeta);

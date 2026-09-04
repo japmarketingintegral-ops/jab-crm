@@ -1,6 +1,7 @@
 import crypto from 'crypto';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Database, SocialPlatform } from '@/lib/supabase/types';
+import { createServiceClient } from '@/lib/supabase/service';
 
 export const META_GRAPH_VERSION = 'v21.0';
 export const META_GRAPH_URL = `https://graph.facebook.com/${META_GRAPH_VERSION}`;
@@ -111,7 +112,13 @@ export async function suscribirPaginaAWebhook(pageId: string, pageAccessToken: s
  * conserva el id si la página ya estaba conectada antes) y la suscribe al
  * webhook de leadgen. Usa el cliente de sesión del usuario (no el service
  * role) para que la escritura pase por las mismas políticas de RLS que
- * cualquier otra edición de Configuración.
+ * cualquier otra edición de Configuración — lead_sources ya no guarda
+ * ningún token, así que esa escritura es segura con el cliente de sesión.
+ *
+ * Los tokens (access_token, user_access_token) van aparte, a
+ * integration_secrets, que no tiene ninguna policy de RLS: solo el
+ * service_role puede tocarla. lead_sources es legible por client_admin
+ * (RLS por tenant) y un token nunca debe viajar a un cliente.
  */
 export async function conectarPaginaMeta(
   supabase: SupabaseClient<Database>,
@@ -127,17 +134,30 @@ export async function conectarPaginaMeta(
       external_account_id: pagina.id,
       display_name: pagina.name,
       connected_at: ahora,
-      access_token: pagina.access_token,
       instagram_business_account_id: pagina.instagram_business_account?.id ?? null,
       token_actualizado_en: ahora,
-      // El token de página no alcanza para leer datos de Ads (ads_read es un
-      // permiso de nivel usuario) — se guarda el token largo del usuario que
-      // conectó, aparte, solo para eso.
-      ...(tokenUsuarioLarga ? { user_access_token: tokenUsuarioLarga } : {}),
     },
     { onConflict: 'platform,external_account_id' },
   );
   if (error) throw new Error(`No se pudo guardar la conexión: ${error.message}`);
+
+  const service = createServiceClient();
+  const { error: secretError } = await service.from('integration_secrets').upsert(
+    {
+      tenant_id: tenantId,
+      platform: 'meta',
+      access_token: pagina.access_token,
+      updated_at: ahora,
+      // El token de página no alcanza para leer datos de Ads (ads_read es un
+      // permiso de nivel usuario) — se guarda el token largo del usuario que
+      // conectó, aparte, solo para eso. Si no vino en esta llamada, no se
+      // toca el que ya hubiera (mismo criterio que antes en lead_sources).
+      ...(tokenUsuarioLarga ? { user_access_token: tokenUsuarioLarga } : {}),
+    },
+    { onConflict: 'tenant_id,platform' },
+  );
+  if (secretError) throw new Error(`No se pudo guardar el token: ${secretError.message}`);
+
   await suscribirPaginaAWebhook(pagina.id, pagina.access_token);
 }
 

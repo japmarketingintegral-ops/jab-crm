@@ -15,23 +15,28 @@ export async function GET(request: NextRequest) {
   }
 
   const supabase = createServiceClient();
-  const { data: fuentes } = await supabase
-    .from('lead_sources')
-    .select('tenant_id, external_account_id, access_token, instagram_business_account_id')
-    .eq('platform', 'meta')
-    .not('access_token', 'is', null);
+  const [{ data: fuentes }, { data: secretos }] = await Promise.all([
+    supabase
+      .from('lead_sources')
+      .select('tenant_id, external_account_id, instagram_business_account_id')
+      .eq('platform', 'meta')
+      .not('connected_at', 'is', null),
+    supabase.from('integration_secrets').select('tenant_id, access_token').eq('platform', 'meta'),
+  ]);
+  const tokenPorTenant = new Map((secretos ?? []).map((s) => [s.tenant_id, s.access_token]));
 
   let sincronizados = 0;
   let fallidos = 0;
 
   for (const fuente of fuentes ?? []) {
-    if (!fuente.access_token) continue;
+    const accessToken = tokenPorTenant.get(fuente.tenant_id);
+    if (!accessToken) continue;
     const resultado = await sincronizarPublicacionesMeta(
       supabase,
       fuente.tenant_id,
       {
         external_account_id: fuente.external_account_id,
-        access_token: fuente.access_token,
+        access_token: accessToken,
         instagram_business_account_id: fuente.instagram_business_account_id,
       },
       null,

@@ -13,7 +13,7 @@ export function TenantCard({
 }: {
   tenant: { id: string; name: string; slug: string };
   enRiesgo: boolean;
-  fuentesTenant: { id: string; platform: string; display_name: string; connected_at: string | null; access_token: string | null }[];
+  fuentesTenant: { id: string; platform: string; display_name: string; connected_at: string | null; conectado: boolean }[];
 }) {
   const [pending, startTransition] = useTransition();
 
@@ -55,19 +55,12 @@ export function TenantCard({
         <p className="text-xs text-jab-amber">Sin integraciones conectadas todavía.</p>
       ) : (
         <ul className="text-xs text-jab-muted space-y-0.5">
-          {fuentesTenant.map((f) => {
-            // Meta: "conectado" solo si hay un access_token real (login hecho de
-            // verdad desde Configuración). connected_at solo no alcanza — los
-            // tenants de ejemplo lo tienen seteado para simular el dato sin haber
-            // pasado nunca por el login real.
-            const conectado = f.platform === 'meta' ? Boolean(f.access_token) : Boolean(f.connected_at);
-            return (
-              <li key={f.id}>
-                {PLATAFORMA_LABEL[f.platform] ?? f.platform} · {f.display_name} ·{' '}
-                {conectado ? 'conectado' : 'pendiente de conectar'}
-              </li>
-            );
-          })}
+          {fuentesTenant.map((f) => (
+            <li key={f.id}>
+              {PLATAFORMA_LABEL[f.platform] ?? f.platform} · {f.display_name} ·{' '}
+              {f.conectado ? 'conectado' : 'pendiente de conectar'}
+            </li>
+          ))}
         </ul>
       )}
     </div>

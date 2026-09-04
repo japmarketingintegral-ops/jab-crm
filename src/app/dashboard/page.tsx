@@ -65,7 +65,7 @@ export default async function DashboardPage({
       .select('display_name, ad_account_id, connected_at')
       .eq('tenant_id', tenantId)
       .eq('platform', 'meta')
-      .not('access_token', 'is', null)
+      .not('connected_at', 'is', null)
       .maybeSingle(),
     supabase
       .from('materiales')

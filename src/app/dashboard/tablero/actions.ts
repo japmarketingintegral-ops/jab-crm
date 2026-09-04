@@ -103,7 +103,7 @@ export async function asignarTarea(tareaId: string, userId: string | null) {
         to: asignado.email,
         subject: `Te asignaron una tarea: ${tarea.titulo ?? 'sin título'}`,
         html: `
-          <p>Te asignaron una tarea interna en Jab CRM.</p>
+          <p>Te asignaron una tarea interna en el Portal de Clientes JAB.</p>
           <p><strong>${escapeHtml(tarea.titulo ?? 'Sin título')}</strong></p>
           <p><a href="https://clientes.jabmarketing.site/dashboard/tablero" style="color:#3b6fe0;">Ver en el Tablero →</a></p>
         `,

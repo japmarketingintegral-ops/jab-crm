@@ -66,6 +66,7 @@ export function PedidoDetailPanel({
   const [equipo, setEquipo] = useState<MiembroEquipo[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [comentario, setComentario] = useState('');
+  const [notaInterna, setNotaInterna] = useState(false);
   const [nuevoItem, setNuevoItem] = useState('');
   const [pending, startTransition] = useTransition();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -344,22 +345,38 @@ export function PedidoDetailPanel({
                 value={comentario}
                 onChange={(e) => setComentario(e.target.value)}
                 rows={2}
-                placeholder="Escribí una actualización o pregunta..."
+                placeholder={notaInterna ? 'Nota interna -- el cliente no la ve...' : 'Escribí una actualización o pregunta...'}
                 className="w-full rounded-lg bg-jab-panel-2 border border-jab-border px-3 py-2 text-sm outline-none placeholder:text-jab-muted focus:border-jab-accent"
               />
-              <button
-                disabled={pending || !comentario.trim()}
-                onClick={() =>
-                  conRecarga(async () => {
-                    const res = await agregarComentario(pedidoId, comentario);
-                    if (!res.error) setComentario('');
-                    return res;
-                  })
-                }
-                className="mt-2 rounded-full bg-jab-lime text-jab-lime-ink px-4 py-1.5 text-xs font-bold uppercase tracking-wide disabled:opacity-50"
-              >
-                Comentar
-              </button>
+              <div className="flex items-center justify-between mt-2">
+                {esEquipoJab ? (
+                  <label className="flex items-center gap-1.5 text-xs text-jab-muted cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={notaInterna}
+                      onChange={(e) => setNotaInterna(e.target.checked)}
+                    />
+                    Nota interna (el cliente no la ve)
+                  </label>
+                ) : (
+                  <span />
+                )}
+                <button
+                  disabled={pending || !comentario.trim()}
+                  onClick={() =>
+                    conRecarga(async () => {
+                      const res = await agregarComentario(pedidoId, comentario, notaInterna);
+                      if (!res.error) setComentario('');
+                      return res;
+                    })
+                  }
+                  className={`rounded-full px-4 py-1.5 text-xs font-bold uppercase tracking-wide disabled:opacity-50 ${
+                    notaInterna ? 'bg-jab-amber text-jab-bg-deep' : 'bg-jab-lime text-jab-lime-ink'
+                  }`}
+                >
+                  {notaInterna ? 'Agregar nota interna' : 'Comentar'}
+                </button>
+              </div>
 
               <ul className="space-y-3 mt-4">
                 {detalle.comentarios
@@ -372,10 +389,18 @@ export function PedidoDetailPanel({
                         {fechaCorta(c.creadoEn)}
                       </li>
                     ) : (
-                      <li key={c.id} className="border-l-2 border-jab-border pl-3">
-                        <p className="text-xs text-jab-muted">
+                      <li
+                        key={c.id}
+                        className={`border-l-2 pl-3 ${c.interno ? 'border-jab-amber' : 'border-jab-border'}`}
+                      >
+                        <p className="text-xs text-jab-muted flex items-center gap-1.5">
                           <span className="font-semibold text-jab-text">{c.autorNombre ?? 'Alguien'}</span> ·{' '}
                           {fechaCorta(c.creadoEn)}
+                          {c.interno && (
+                            <span className="rounded px-1.5 py-0.5 text-[10px] font-bold uppercase bg-jab-amber/20 text-jab-amber">
+                              Interno
+                            </span>
+                          )}
                         </p>
                         <p className="text-sm mt-0.5">{c.texto}</p>
                       </li>

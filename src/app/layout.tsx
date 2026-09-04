@@ -13,8 +13,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Jab CRM",
-  description: "Panel interno de gestión de leads de Jab Marketing.",
+  title: "Portal de Clientes JAB",
+  description: "Portal de reportes y pedidos para clientes de Jab Marketing.",
   robots: {
     index: false,
     follow: false,

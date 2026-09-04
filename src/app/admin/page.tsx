@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { requerirSuperAdmin } from '@/lib/auth';
 import { createClient } from '@/lib/supabase/server';
+import { createServiceClient } from '@/lib/supabase/service';
 import { CerrarSesionButton } from '@/components/cerrar-sesion-button';
 import { KpiCard } from '../dashboard/reportes/kpi-card';
 import { TenantCard } from './tenant-card';
@@ -8,14 +9,23 @@ import { TenantCard } from './tenant-card';
 export default async function AdminPage() {
   await requerirSuperAdmin();
   const supabase = await createClient();
+  // Los tokens viven en integration_secrets (sin RLS, solo service_role) —
+  // acá solo se usa para saber si hay uno conectado, nunca se lee el valor.
+  const service = createServiceClient();
 
-  const [{ data: tenants }, { data: sources }, { data: posts }] = await Promise.all([
+  const [{ data: tenants }, { data: sourcesRaw }, { data: secretos }, { data: posts }] = await Promise.all([
     supabase.from('tenants').select('id, name, slug, created_at').order('created_at', { ascending: false }),
-    supabase
-      .from('lead_sources')
-      .select('id, tenant_id, platform, display_name, connected_at, access_token'),
+    supabase.from('lead_sources').select('id, tenant_id, platform, display_name, connected_at'),
+    service.from('integration_secrets').select('tenant_id, platform, access_token'),
     supabase.from('social_posts').select('tenant_id, publicado_en'),
   ]);
+  const conectados = new Set(
+    (secretos ?? []).filter((s) => s.access_token).map((s) => `${s.tenant_id}:${s.platform}`),
+  );
+  const sources = (sourcesRaw ?? []).map((s) => ({
+    ...s,
+    conectado: s.platform === 'meta' ? conectados.has(`${s.tenant_id}:${s.platform}`) : Boolean(s.connected_at),
+  }));
 
   const treintaDiasAtras = new Date();
   treintaDiasAtras.setDate(treintaDiasAtras.getDate() - 30);
@@ -26,9 +36,7 @@ export default async function AdminPage() {
   }
 
   const tenantsList = tenants ?? [];
-  const integracionesPendientes = (sources ?? []).filter((f) =>
-    f.platform === 'meta' ? !f.access_token : !f.connected_at,
-  ).length;
+  const integracionesPendientes = sources.filter((f) => !f.conectado).length;
   // "En riesgo": cliente con más de 30 días de antigüedad y cero
   // publicaciones en el último mes — señal de cuenta parada, no se aplica a
   // clientes recién dados de alta que todavía no arrancaron.
@@ -76,7 +84,7 @@ export default async function AdminPage() {
 
           <div className="space-y-2">
             {tenants.map((tenant) => {
-              const fuentesTenant = sources?.filter((s) => s.tenant_id === tenant.id) ?? [];
+              const fuentesTenant = sources.filter((s) => s.tenant_id === tenant.id);
               const enRiesgo =
                 new Date(tenant.created_at) < treintaDiasAtras && (publicacionesPorTenant.get(tenant.id) ?? 0) === 0;
               return (

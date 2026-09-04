@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { requerirSuperAdmin } from '@/lib/auth';
 import { createClient } from '@/lib/supabase/server';
+import { createServiceClient } from '@/lib/supabase/service';
 
 const BENCHMARK_PUBLICACIONES_MES = 8;
 
@@ -15,21 +16,28 @@ export default async function FuncionamientoPage() {
   const diasEnMes = new Date(hoy.getFullYear(), hoy.getMonth() + 1, 0).getDate();
   const esperadasHoy = Math.max(1, Math.round((BENCHMARK_PUBLICACIONES_MES * diaDelMes) / diasEnMes));
 
+  // Los tokens viven en integration_secrets (sin RLS, solo service_role) —
+  // acá solo se usa para saber si hay uno, nunca se lee el valor.
+  const service = createServiceClient();
+
   const [
     { data: tenants },
     { data: pedidos },
     { data: tareas },
     { data: posts },
     { data: fuentes },
+    { data: secretos },
     { data: equipoJab },
   ] = await Promise.all([
     supabase.from('tenants').select('id, name, slug').order('name'),
     supabase.from('pedidos').select('tenant_id, estado, fecha_programada, asignado_a'),
     supabase.from('tareas_internas').select('tenant_id, estado, fecha_programada, asignado_a'),
     supabase.from('social_posts').select('tenant_id, publicado_en'),
-    supabase.from('lead_sources').select('tenant_id, platform, access_token'),
+    supabase.from('lead_sources').select('tenant_id, platform, connected_at'),
+    service.from('integration_secrets').select('tenant_id, access_token').eq('platform', 'meta'),
     supabase.from('profiles').select('id, full_name, email').in('role', ['super_admin', 'jab_staff']),
   ]);
+  const tenantsConectados = new Set((secretos ?? []).filter((s) => s.access_token).map((s) => s.tenant_id));
 
   const salud = (tenants ?? [])
     .map((t) => {
@@ -40,8 +48,8 @@ export default async function FuncionamientoPage() {
         (p) => p.tenant_id === t.id && p.publicado_en.startsWith(mesActual),
       ).length;
       const metaConectado = (fuentes ?? []).some(
-        (f) => f.tenant_id === t.id && f.platform === 'meta' && f.access_token,
-      );
+        (f) => f.tenant_id === t.id && f.platform === 'meta',
+      ) && tenantsConectados.has(t.id);
       const bajoRitmo = publicacionesMes < esperadasHoy;
       const puntaje = pedidosParados + (bajoRitmo ? 1 : 0) + (!metaConectado ? 1 : 0);
       return { tenant: t, pedidosParados, publicacionesMes, metaConectado, bajoRitmo, puntaje };

@@ -1,4 +1,4 @@
-# Jab CRM
+# Portal de Clientes JAB
 
 Portal de reportes de marketing para los clientes de Jab Marketing. No es un
 CRM de ventas: no gestiona leads, pipeline comercial, vendedores ni

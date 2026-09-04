@@ -37,16 +37,14 @@ export default async function ConfiguracionPage({
 
   const [{ data: tenant }, { data: fuenteMeta }] = await Promise.all([
     supabase.from('tenants').select('name, slug').eq('id', tenantId).single(),
-    // access_token nunca se selecciona en una página que puede pedir un
-    // client_admin — el filtro not-null alcanza para saber si está
-    // conectado, sin traer el valor del token. Filtra también los tenants
-    // de ejemplo, que tienen connected_at seteado pero ningún login real.
+    // El token de Meta vive en integration_secrets (sin RLS, solo
+    // service_role) -- acá nunca se selecciona ni se filtra por él.
     supabase
       .from('lead_sources')
       .select('display_name, connected_at, ad_account_id')
       .eq('tenant_id', tenantId)
       .eq('platform', 'meta')
-      .not('access_token', 'is', null)
+      .not('connected_at', 'is', null)
       .maybeSingle(),
   ]);
 

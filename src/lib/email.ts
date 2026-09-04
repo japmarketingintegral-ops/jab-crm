@@ -1,6 +1,6 @@
 import { Resend } from 'resend';
 
-const FROM = process.env.RESEND_FROM_EMAIL || 'Jab CRM <notificaciones@jabmarketing.site>';
+const FROM = process.env.RESEND_FROM_EMAIL || 'Jab Marketing <notificaciones@jabmarketing.site>';
 
 let cliente: Resend | null = null;
 function obtenerCliente(): Resend | null {
@@ -44,7 +44,7 @@ function envolverPlantilla(contenidoHtml: string): string {
     <div style="background:#f4f5f9;padding:32px 16px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
       <div style="max-width:480px;margin:0 auto;background:#ffffff;border-radius:12px;overflow:hidden;border:1px solid #dde1f0;">
         <div style="background:#0a0e27;padding:20px 24px;">
-          <span style="color:#f4f5fb;font-weight:700;font-size:15px;letter-spacing:-0.01em;">Jab CRM</span>
+          <span style="color:#f4f5fb;font-weight:700;font-size:15px;letter-spacing:-0.01em;">Jab Marketing</span>
         </div>
         <div style="padding:24px;color:#1b2038;font-size:14px;line-height:1.6;">
           ${contenidoHtml}

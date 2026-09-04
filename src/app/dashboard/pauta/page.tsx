@@ -34,7 +34,7 @@ export default async function PautaPage() {
       .select('ad_account_id')
       .eq('tenant_id', tenantId)
       .eq('platform', 'meta')
-      .not('access_token', 'is', null)
+      .not('connected_at', 'is', null)
       .maybeSingle(),
   ]);
 

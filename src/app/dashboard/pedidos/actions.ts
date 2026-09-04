@@ -124,7 +124,7 @@ async function registrarActividadPedido(
 ) {
   await supabase
     .from('pedido_comentarios')
-    .insert({ pedido_id: pedidoId, tenant_id: tenantId, autor_id: autorId, texto, tipo: 'sistema' });
+    .insert({ pedido_id: pedidoId, tenant_id: tenantId, autor_id: autorId, texto, tipo: 'sistema', visibilidad: 'sistema' });
 }
 
 /**
@@ -243,7 +243,7 @@ export async function asignarPedido(pedidoId: string, userId: string | null) {
         to: asignado.email,
         subject: `Te asignaron un pedido: ${pedido.titulo ?? 'sin título'}`,
         html: `
-          <p>Te asignaron un pedido en Jab CRM.</p>
+          <p>Te asignaron un pedido en el Portal de Clientes JAB.</p>
           <p><strong>${escapeHtml(pedido.titulo ?? 'Sin título')}</strong></p>
           <p><a href="https://clientes.jabmarketing.site/dashboard/pedidos" style="color:#3b6fe0;">Ver en Pedidos →</a></p>
         `,
@@ -332,7 +332,14 @@ export type DetallePedido = {
   asignadoNombre: string | null;
   fechaProgramada: string | null;
   archivos: { id: string; nombre: string; subidoEn: string }[];
-  comentarios: { id: string; texto: string; tipo: string; autorNombre: string | null; creadoEn: string }[];
+  comentarios: {
+    id: string;
+    texto: string;
+    tipo: string;
+    interno: boolean;
+    autorNombre: string | null;
+    creadoEn: string;
+  }[];
   checklist: ItemChecklist[];
 };
 
@@ -361,7 +368,9 @@ export async function obtenerDetallePedido(
       .order('created_at', { ascending: true }),
     supabase
       .from('pedido_comentarios')
-      .select('id, texto, tipo, created_at, profiles(full_name, email)')
+      // No hace falta filtrar "interno" a mano: la RLS de pedido_comentarios
+      // ya no devuelve esas filas para quien no sea del equipo de JAB.
+      .select('id, texto, tipo, visibilidad, created_at, profiles(full_name, email)')
       .eq('pedido_id', pedidoId)
       .order('created_at', { ascending: true }),
     supabase
@@ -424,6 +433,7 @@ export async function obtenerDetallePedido(
         id: c.id,
         texto: c.texto,
         tipo: c.tipo,
+        interno: c.visibilidad === 'interno',
         autorNombre: c.profiles?.full_name ?? c.profiles?.email ?? null,
         creadoEn: c.created_at,
       })),
@@ -438,9 +448,12 @@ export async function obtenerDetallePedido(
   };
 }
 
-export async function agregarComentario(pedidoId: string, texto: string) {
+export async function agregarComentario(pedidoId: string, texto: string, interno = false) {
   const perfil = await requerirPerfil();
   if (!texto.trim()) return { error: 'El comentario no puede estar vacío.' };
+  // Solo JAB puede dejar una nota interna -- si alguien manda interno=true
+  // sin serlo, se guarda igual como comentario normal, nunca al revés.
+  const esInterno = interno && esEquipoJab(perfil.role);
 
   const supabase = await createClient();
   const { data: pedido } = await supabase.from('pedidos').select('tenant_id').eq('id', pedidoId).single();
@@ -451,16 +464,22 @@ export async function agregarComentario(pedidoId: string, texto: string) {
     tenant_id: pedido.tenant_id,
     autor_id: perfil.id,
     texto: texto.trim(),
+    visibilidad: esInterno ? 'interno' : 'cliente',
   });
   if (error) return { error: 'No se pudo guardar el comentario.' };
 
-  await notificarPedido(
-    supabase,
-    pedidoId,
-    perfil.id,
-    'Pedido: comentario nuevo',
-    `${escapeHtml(perfil.full_name ?? perfil.email)} comentó: "${escapeHtml(texto.trim().slice(0, 200))}"`,
-  );
+  // Una nota interna no le llega por mail al cliente que pidió o al que
+  // está asignado -- es a propósito ("interna" significa que el cliente no
+  // se entera ni por la ficha ni por notificación).
+  if (!esInterno) {
+    await notificarPedido(
+      supabase,
+      pedidoId,
+      perfil.id,
+      'Pedido: comentario nuevo',
+      `${escapeHtml(perfil.full_name ?? perfil.email)} comentó: "${escapeHtml(texto.trim().slice(0, 200))}"`,
+    );
+  }
 
   return { ok: true };
 }
