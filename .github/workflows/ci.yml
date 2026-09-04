@@ -34,11 +34,12 @@ jobs:
       - name: Lint
         run: npm run lint
 
-      - name: Tipos
-        run: npx tsc --noEmit
-
       - name: Tests
         run: npm test
 
-      - name: Build
+      # next build corre su propio chequeo completo de TypeScript como parte
+      # del proceso -- un "tsc --noEmit" suelto antes del build falla porque
+      # LayoutProps y el resto de los tipos que genera Next (.next/types/)
+      # todavia no existen en ese punto.
+      - name: Build (incluye chequeo de tipos)
         run: npm run build
