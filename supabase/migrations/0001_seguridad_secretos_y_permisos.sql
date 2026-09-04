@@ -76,12 +76,12 @@ drop policy if exists "ad_metrics_write" on public.ad_metrics;
 create policy "ad_metrics_write" on public.ad_metrics for all
   using (
     is_super_admin()
-    or (current_role() = any (array['client_admin', 'client_viewer']::user_role[]) and tenant_id = current_tenant_id())
+    or ("current_role"() = any (array['client_admin', 'client_viewer']::user_role[]) and tenant_id = current_tenant_id())
     or (es_staff() and staff_tiene_acceso(tenant_id))
   )
   with check (
     is_super_admin()
-    or (current_role() = any (array['client_admin', 'client_viewer']::user_role[]) and tenant_id = current_tenant_id())
+    or ("current_role"() = any (array['client_admin', 'client_viewer']::user_role[]) and tenant_id = current_tenant_id())
     or (es_staff() and staff_tiene_acceso(tenant_id))
   );
 
