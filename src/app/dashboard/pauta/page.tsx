@@ -6,6 +6,8 @@ import { resolverPeriodo, variacion } from '@/lib/periodo';
 import { PeriodoSelector } from '../periodo-selector';
 import { KpiCard } from '../reportes/kpi-card';
 import { SincronizarAdsButton } from './sincronizar-ads-button';
+import { FrescuraDatos } from '@/components/frescura-datos';
+import { fechaCortaSinHora } from '@/lib/format';
 
 const ROL_LABEL: Record<string, string> = {
   super_admin: 'JAB',
@@ -70,7 +72,7 @@ export default async function PautaPage({
     // mismo patrón que Inicio.
     supabase
       .from('ad_metrics')
-      .select('campana_id, campana_nombre, fecha, gasto, impresiones, clics, conversiones')
+      .select('campana_id, campana_nombre, fecha, gasto, impresiones, clics, conversiones, created_at')
       .eq('tenant_id', tenantId)
       .gte('fecha', periodo.desdeAnterior)
       .lte('fecha', periodo.hasta),
@@ -87,6 +89,11 @@ export default async function PautaPage({
   const filasActual = metricas.filter((m) => m.fecha >= periodo.desde);
   const filasAnterior = metricas.filter((m) => m.fecha < periodo.desde);
   const cuentaConectada = Boolean(fuenteMeta?.ad_account_id);
+  const ultimaSync = metricas.reduce<string | null>(
+    (max, m) => (!max || m.created_at > max ? m.created_at : max),
+    null,
+  );
+  const cobertura = metricas.reduce<string | null>((max, m) => (!max || m.fecha > max ? m.fecha : max), null);
 
   const sumar = (rows: typeof filasActual, campo: 'gasto' | 'impresiones' | 'clics' | 'conversiones') =>
     rows.reduce((acc, m) => acc + m[campo], 0);
@@ -176,6 +183,18 @@ export default async function PautaPage({
             {esAdmin && cuentaConectada && <SincronizarAdsButton />}
           </div>
         </div>
+
+        {esAdmin && (
+          <div className="mb-4">
+            <FrescuraDatos
+              fuente="Meta Ads"
+              conectado={cuentaConectada}
+              ultimaSync={ultimaSync}
+              cobertura={cobertura ? fechaCortaSinHora(cobertura) : null}
+              horaCronUtc={10}
+            />
+          </div>
+        )}
 
         {!cuentaConectada ? (
           <div className="rounded-lg bg-jab-panel-2 border border-jab-border p-8 text-center">

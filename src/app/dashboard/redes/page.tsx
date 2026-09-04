@@ -3,6 +3,8 @@ import { createClient } from '@/lib/supabase/server';
 import { Sidebar } from '@/components/sidebar';
 import { SincronizarMetaButton } from './sincronizar-meta-button';
 import { RedesReporte } from './redes-reporte';
+import { FrescuraDatos } from '@/components/frescura-datos';
+import { fechaCortaSinHora } from '@/lib/format';
 import type { SocialPlatform } from '@/lib/supabase/types';
 
 const ROL_LABEL: Record<string, string> = {
@@ -64,7 +66,7 @@ export default async function RedesPage({
       resumenQuery,
       // Página actual, con todo el detalle, para la grilla.
       paginaQuery.order('publicado_en', { ascending: false }).range(desde0, desde0 + POR_PAGINA - 1),
-      supabase.from('social_posts').select('plataforma').eq('tenant_id', tenantId),
+      supabase.from('social_posts').select('plataforma, created_at, publicado_en').eq('tenant_id', tenantId),
       supabase
         .from('lead_sources')
         .select('id')
@@ -75,6 +77,14 @@ export default async function RedesPage({
     ]);
   const metaConectado = Boolean(fuenteMeta);
   const plataformasConDatos = Array.from(new Set((plataformasData ?? []).map((p) => p.plataforma)));
+  const ultimaSync = (plataformasData ?? []).reduce<string | null>(
+    (max, p) => (!max || p.created_at > max ? p.created_at : max),
+    null,
+  );
+  const cobertura = (plataformasData ?? []).reduce<string | null>(
+    (max, p) => (!max || p.publicado_en > max ? p.publicado_en : max),
+    null,
+  );
 
   return (
     <div className="flex flex-1 min-h-0 flex-col lg:flex-row">
@@ -94,6 +104,18 @@ export default async function RedesPage({
           </div>
           {esAdmin && metaConectado && <SincronizarMetaButton />}
         </div>
+
+        {esAdmin && (
+          <div className="mb-4">
+            <FrescuraDatos
+              fuente="Meta"
+              conectado={metaConectado}
+              ultimaSync={ultimaSync}
+              cobertura={cobertura ? fechaCortaSinHora(cobertura) : null}
+              horaCronUtc={9}
+            />
+          </div>
+        )}
 
         <RedesReporte
           postsResumen={postsResumen ?? []}
