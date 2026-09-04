@@ -1,7 +1,7 @@
 'use client';
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useEffect, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import type { PeriodoValor } from '@/lib/periodo';
 
 const OPCIONES: { valor: PeriodoValor; etiqueta: string }[] = [
@@ -10,6 +10,19 @@ const OPCIONES: { valor: PeriodoValor; etiqueta: string }[] = [
   { valor: '30d', etiqueta: '30 días' },
   { valor: '90d', etiqueta: '90 días' },
 ];
+
+/** Último período elegido por el usuario, para que se mantenga al
+ * cambiar de pantalla (Fase 2.1 del roadmap) en vez de resetear a
+ * "Últimos 30 días" cada vez. */
+const STORAGE_KEY = 'jab-periodo-preferido';
+
+function guardarPreferencia(valor: PeriodoValor, desde: string, hasta: string) {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ valor, desde, hasta }));
+  } catch {
+    // localStorage puede no estar disponible (modo privado, cuota) — no es crítico.
+  }
+}
 
 export function PeriodoSelector({
   actual,
@@ -20,14 +33,36 @@ export function PeriodoSelector({
   actual: PeriodoValor;
   desde: string;
   hasta: string;
-  /** A qué ruta empuja el cambio de período — cada pantalla que lo usa
-   * (Inicio, Pauta, Redes...) mantiene su propio período en la URL. */
+  /** A qué ruta empuja el cambio de período. El valor elegido se recuerda
+   * entre pantallas (ver STORAGE_KEY) — cambiarlo en Inicio también lo
+   * aplica al entrar a Pauta, y viceversa. */
   basePath?: string;
 }) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [mostrarCustom, setMostrarCustom] = useState(actual === 'custom');
   const [desdeInput, setDesdeInput] = useState(desde);
   const [hastaInput, setHastaInput] = useState(hasta);
+
+  // Si esta pantalla se abrió sin período en la URL, aplicá el último que
+  // el usuario eligió en cualquier otra pantalla (si hay uno guardado).
+  useEffect(() => {
+    if (searchParams.has('periodo')) return;
+    let guardado: { valor: PeriodoValor; desde: string; hasta: string } | null = null;
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      guardado = raw ? JSON.parse(raw) : null;
+    } catch {
+      return;
+    }
+    if (!guardado || guardado.valor === actual) return;
+    if (!OPCIONES.some((o) => o.valor === guardado!.valor) && guardado.valor !== 'custom') return;
+    const query =
+      guardado.valor === 'custom'
+        ? `periodo=custom&desde=${guardado.desde}&hasta=${guardado.hasta}`
+        : `periodo=${guardado.valor}`;
+    router.replace(`${basePath}?${query}`);
+  }, [searchParams, actual, basePath, router]);
 
   return (
     <div className="flex flex-wrap items-center gap-1.5">
@@ -36,6 +71,7 @@ export function PeriodoSelector({
           key={o.valor}
           onClick={() => {
             setMostrarCustom(false);
+            guardarPreferencia(o.valor, desde, hasta);
             router.push(`${basePath}?periodo=${o.valor}`);
           }}
           className={`rounded-full px-3 py-1.5 text-xs font-medium ${
@@ -62,6 +98,7 @@ export function PeriodoSelector({
           onSubmit={(e) => {
             e.preventDefault();
             if (!desdeInput || !hastaInput) return;
+            guardarPreferencia('custom', desdeInput, hastaInput);
             router.push(`${basePath}?periodo=custom&desde=${desdeInput}&hasta=${hastaInput}`);
           }}
         >
