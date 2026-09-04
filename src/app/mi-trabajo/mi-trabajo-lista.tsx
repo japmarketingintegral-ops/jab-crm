@@ -42,6 +42,13 @@ function saludo(): string {
   return 'Buenas noches';
 }
 
+/** Primer nombre para el saludo. Si no hay full_name cargado, page.tsx pasa
+ * el email entero (no tiene espacios) -- se corta en el "@" en vez de
+ * saludar con la dirección completa. */
+function primerNombre(nombreOEmail: string): string {
+  return nombreOEmail.split(' ')[0].split('@')[0];
+}
+
 function estaEnSemana(fecha: string | null): boolean {
   if (!fecha) return false;
   const hoyStr = new Date().toISOString().slice(0, 10);
@@ -198,7 +205,7 @@ export function MiTrabajoLista({
     <>
       <div className="mb-6">
         <h1 className="text-xl font-bold">
-          {saludo()}, {nombreUsuario.split(' ')[0]}
+          {saludo()}, {primerNombre(nombreUsuario)}
         </h1>
         <p className="text-sm text-jab-muted">
           {totalVencidas > 0

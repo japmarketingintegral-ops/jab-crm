@@ -89,7 +89,8 @@ export default async function EquipoPage() {
         viendoComoJab={perfil.role === 'super_admin'}
         mostrarTablero={perfil.role === 'super_admin' || perfil.role === 'jab_staff'}
       />
-      <main className="jab-canvas-light flex-1 p-4 pb-24 lg:p-6 max-w-2xl w-full overflow-y-auto">
+      <main className="jab-canvas-light flex-1 p-4 pb-24 lg:p-6 overflow-y-auto">
+       <div className="max-w-2xl">
         <div className="flex items-center justify-between mb-6">
           <div>
             <h1 className="text-xl font-bold">Equipo</h1>
@@ -133,6 +134,7 @@ export default async function EquipoPage() {
             </div>
           </div>
         )}
+       </div>
       </main>
     </div>
   );

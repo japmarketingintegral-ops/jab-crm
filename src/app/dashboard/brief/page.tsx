@@ -41,24 +41,26 @@ export default async function BriefPage() {
         mostrarTablero={perfil.role === 'super_admin' || perfil.role === 'jab_staff'}
         puedeConfigurar={perfil.role === 'client_admin' || perfil.role === 'super_admin'}
       />
-      <main className="jab-canvas-light flex-1 p-4 pb-24 lg:p-6 max-w-2xl w-full overflow-y-auto space-y-10">
-        <div>
-          <h1 className="text-xl font-bold">Brief del cliente</h1>
-          <p className="text-sm text-jab-muted">
-            Contanos de tu negocio en 6 pasos cortos — el equipo lo usa para trabajar bien la cuenta,
-            y al final te armamos un reporte automático con lo más importante.
-          </p>
-        </div>
+      <main className="jab-canvas-light flex-1 p-4 pb-24 lg:p-6 overflow-y-auto">
+        <div className="max-w-2xl space-y-10">
+          <div>
+            <h1 className="text-xl font-bold">Brief del cliente</h1>
+            <p className="text-sm text-jab-muted">
+              Contanos de tu negocio en 6 pasos cortos — el equipo lo usa para trabajar bien la cuenta,
+              y al final te armamos un reporte automático con lo más importante.
+            </p>
+          </div>
 
-        <section>
-          <BriefWizard brief={brief} soloLectura={!veTodo} iaConfigurada={Boolean(process.env.ANTHROPIC_API_KEY)} />
-        </section>
-
-        {esAdmin && (
           <section>
-            <AccesosSection accesos={accesos ?? []} />
+            <BriefWizard brief={brief} soloLectura={!veTodo} iaConfigurada={Boolean(process.env.ANTHROPIC_API_KEY)} />
           </section>
-        )}
+
+          {esAdmin && (
+            <section>
+              <AccesosSection accesos={accesos ?? []} />
+            </section>
+          )}
+        </div>
       </main>
     </div>
   );

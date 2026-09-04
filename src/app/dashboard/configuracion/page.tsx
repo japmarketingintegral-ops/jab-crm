@@ -61,7 +61,8 @@ export default async function ConfiguracionPage({
         viendoComoJab={perfil.role === 'super_admin'}
         mostrarTablero={perfil.role === 'super_admin' || perfil.role === 'jab_staff'}
       />
-      <main className="jab-canvas-light flex-1 p-4 pb-24 lg:p-6 max-w-2xl w-full overflow-y-auto space-y-8">
+      <main className="jab-canvas-light flex-1 p-4 pb-24 lg:p-6 overflow-y-auto">
+       <div className="max-w-2xl space-y-8">
         <div>
           <h1 className="text-xl font-bold">Configuración</h1>
           <p className="text-sm text-jab-muted">{tenant?.name} · {tenant?.slug}</p>
@@ -163,6 +164,7 @@ export default async function ConfiguracionPage({
             <CuentaPublicitariaForm valorActual={fuenteMeta?.ad_account_id ?? null} />
           </section>
         )}
+       </div>
       </main>
     </div>
   );
