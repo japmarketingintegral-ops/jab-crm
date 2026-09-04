@@ -80,6 +80,7 @@ export function TableroKanban({
   const [etiquetaFiltro, setEtiquetaFiltro] = useState('todas');
   const [soloVencidas, setSoloVencidas] = useState(false);
   const [soloPedidos, setSoloPedidos] = useState(false);
+  const [ocultarVacias, setOcultarVacias] = useState(false);
 
   const colorPorEtiqueta = useMemo(() => {
     const map = new Map<string, string>();
@@ -211,6 +212,15 @@ export function TableroKanban({
         >
           Solo pedidos
         </button>
+        <button
+          type="button"
+          onClick={() => setOcultarVacias((v) => !v)}
+          className={`rounded-full px-3 py-1.5 text-xs font-medium whitespace-nowrap ${
+            ocultarVacias ? 'bg-jab-accent text-jab-bg-deep' : 'bg-jab-panel-2 text-jab-muted hover:text-jab-text'
+          }`}
+        >
+          Ocultar vacías
+        </button>
         {(busqueda || miembroFiltro !== 'todos' || etiquetaFiltro !== 'todas' || soloVencidas || soloPedidos) && (
           <button
             type="button"
@@ -229,7 +239,7 @@ export function TableroKanban({
       </div>
 
       <div className="flex-1 overflow-x-auto flex gap-4">
-        {COLUMNAS.map((col) => {
+        {COLUMNAS.filter((col) => !ocultarVacias || tarjetas.some((t) => t.estado === col.key)).map((col) => {
           const items = filtradas.filter((t) => t.estado === col.key);
           const totalColumna = tarjetas.filter((t) => t.estado === col.key).length;
           const superaWip = Boolean(col.limiteWip && totalColumna > col.limiteWip);
@@ -248,12 +258,14 @@ export function TableroKanban({
                 <span className="h-1.5 w-1.5 rounded-full bg-current" />
                 {col.titulo}
                 <span className="ml-auto font-mono text-[11px] opacity-70">
-                  {items.length}/{totalColumna}
+                  {totalColumna === 0 ? 'Sin tareas' : `${totalColumna} ${totalColumna === 1 ? 'tarea' : 'tareas'}`}
                 </span>
               </div>
-              {superaWip && (
-                <p className="text-[10px] text-jab-red mb-2 -mt-2">
-                  Pasó el límite de {col.limiteWip} tareas a la vez
+              {col.limiteWip && (
+                <p className={`text-[10px] mb-2 -mt-2 ${superaWip ? 'text-jab-red font-semibold' : 'text-jab-muted'}`}>
+                  {superaWip
+                    ? `Pasó el límite de ${col.limiteWip} tareas a la vez`
+                    : `Límite WIP: ${col.limiteWip}`}
                 </p>
               )}
               <div className="flex-1 space-y-2 min-h-[100px] rounded-lg bg-jab-panel-2/40 p-2">

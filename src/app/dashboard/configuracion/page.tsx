@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/server';
 import { Sidebar } from '@/components/sidebar';
 import { DesconectarMetaButton } from './desconectar-meta-button';
 import { CuentaPublicitariaForm } from './cuenta-publicitaria-form';
+import { tiempoRelativo } from '@/lib/format';
 
 const ROL_LABEL: Record<string, string> = {
   super_admin: 'JAB',
@@ -41,7 +42,7 @@ export default async function ConfiguracionPage({
     // service_role) -- acá nunca se selecciona ni se filtra por él.
     supabase
       .from('lead_sources')
-      .select('display_name, connected_at, ad_account_id')
+      .select('display_name, connected_at, ad_account_id, token_actualizado_en')
       .eq('tenant_id', tenantId)
       .eq('platform', 'meta')
       .not('connected_at', 'is', null)
@@ -85,39 +86,71 @@ export default async function ConfiguracionPage({
             </p>
           )}
 
-          <div className="flex items-center justify-between rounded-lg bg-jab-panel-2 border border-jab-border px-4 py-3">
-            <div>
-              <p className="text-sm font-medium">Meta (Facebook / Instagram)</p>
-              <p className="text-xs text-jab-muted">
-                {metaConectado
-                  ? `Página conectada: ${fuenteMeta?.display_name}`
-                  : 'Conectá la página de Facebook del cliente para traer sus métricas'}
-              </p>
-            </div>
-            {metaConectado ? (
-              <div className="flex items-center gap-2">
-                <span className="rounded-full px-3 py-1 text-xs font-medium bg-jab-lime text-jab-lime-ink">
-                  Conectado
+          <div className="rounded-lg bg-jab-panel-2 border border-jab-border p-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-jab-meta/15 text-sm font-bold text-jab-meta">
+                  M
                 </span>
-                {(perfil.role === 'client_admin' || perfil.role === 'super_admin') && (
-                  <DesconectarMetaButton />
-                )}
+                <div>
+                  <p className="text-sm font-medium">Meta (Facebook / Instagram)</p>
+                  <p className="text-xs text-jab-muted">
+                    {metaConectado ? `Página conectada: ${fuenteMeta?.display_name}` : 'Todavía no conectado'}
+                  </p>
+                </div>
               </div>
+              {metaConectado ? (
+                <div className="flex items-center gap-2">
+                  <span className="rounded-full px-3 py-1 text-xs font-medium bg-jab-lime text-jab-lime-ink">
+                    Conectado
+                  </span>
+                  {(perfil.role === 'client_admin' || perfil.role === 'super_admin') && <DesconectarMetaButton />}
+                </div>
+              ) : (
+                (perfil.role === 'super_admin' || perfil.role === 'jab_staff') && (
+                  <a
+                    href="/api/auth/meta"
+                    className="rounded-full bg-jab-accent text-jab-bg-deep px-4 py-1.5 text-xs font-bold uppercase tracking-wide"
+                  >
+                    Conectar
+                  </a>
+                )
+              )}
+            </div>
+
+            {metaConectado ? (
+              <p className="text-[11px] text-jab-muted mt-3">
+                {fuenteMeta?.token_actualizado_en
+                  ? `Última sincronización de la conexión: hace ${tiempoRelativo(fuenteMeta.token_actualizado_en)}.`
+                  : null}
+              </p>
             ) : (
-              (perfil.role === 'super_admin' || perfil.role === 'jab_staff') && (
-                <a
-                  href="/api/auth/meta"
-                  className="rounded-full bg-jab-accent text-jab-bg-deep px-4 py-1.5 text-xs font-bold uppercase tracking-wide"
-                >
-                  Conectar
-                </a>
-              )
+              <ol className="mt-3 space-y-1 text-[11px] text-jab-muted list-decimal list-inside">
+                <li>Conectá Meta (JAB elige la página del cliente con un login).</li>
+                <li>Si administra varias páginas, elegís la del cliente.</li>
+                <li>Cargás el ID de la cuenta publicitaria, si también querés ver Pauta.</li>
+                <li>Listo — Redes y Pauta se sincronizan solos, todos los días.</li>
+              </ol>
             )}
           </div>
+        </section>
 
-          <p className="text-xs text-jab-muted mt-3">
-            Meta se conecta con un login (JAB elige la página del cliente y listo).
-          </p>
+        <section>
+          <h2 className="text-sm font-semibold mb-1">Próximamente</h2>
+          <p className="text-sm text-jab-muted mb-3">Todavía no disponibles, en camino.</p>
+          <div className="space-y-2">
+            {['Google Ads', 'Google Analytics'].map((nombre) => (
+              <div
+                key={nombre}
+                className="flex items-center justify-between rounded-lg bg-jab-panel-2/60 border border-jab-border px-4 py-3 opacity-70"
+              >
+                <p className="text-sm font-medium">{nombre}</p>
+                <span className="rounded-full px-3 py-1 text-xs font-medium bg-jab-panel-2 text-jab-muted">
+                  Próximamente
+                </span>
+              </div>
+            ))}
+          </div>
         </section>
 
         {metaConectado && (perfil.role === 'super_admin' || perfil.role === 'jab_staff') && (
