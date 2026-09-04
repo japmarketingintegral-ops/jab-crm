@@ -3,16 +3,17 @@
 import { useTransition } from 'react';
 import { entrarComoCliente } from './actions';
 import { EliminarTenantButton } from './eliminar-tenant-button';
+import { HEALTH_ESTADO_LABEL, HEALTH_ESTADO_COLOR, type HealthScore } from '@/lib/health-score';
 
 const PLATAFORMA_LABEL: Record<string, string> = { meta: 'Meta' };
 
 export function TenantCard({
   tenant,
-  enRiesgo,
+  health,
   fuentesTenant,
 }: {
   tenant: { id: string; name: string; slug: string };
-  enRiesgo: boolean;
+  health: HealthScore;
   fuentesTenant: { id: string; platform: string; display_name: string; connected_at: string | null; conectado: boolean }[];
 }) {
   const [pending, startTransition] = useTransition();
@@ -39,13 +40,19 @@ export function TenantCard({
         <div>
           <div className="flex items-center gap-2 mb-0.5">
             <p className="text-sm font-medium">{tenant.name}</p>
-            {enRiesgo && (
-              <span className="rounded px-1.5 py-0.5 text-[10px] font-bold uppercase bg-jab-red text-white">
-                En riesgo
+            {health.estado !== 'saludable' && (
+              <span
+                title={health.causas.join(' ')}
+                className={`rounded px-1.5 py-0.5 text-[10px] font-bold uppercase ${HEALTH_ESTADO_COLOR[health.estado]}`}
+              >
+                {HEALTH_ESTADO_LABEL[health.estado]} · {health.score}
               </span>
             )}
           </div>
           <p className="text-xs text-jab-muted mb-2">/{tenant.slug}</p>
+          {health.estado !== 'saludable' && health.causas.length > 0 && (
+            <p className="text-[11px] text-jab-muted mb-2">{health.causas[0]}</p>
+          )}
         </div>
         <div onClick={(e) => e.stopPropagation()} className="shrink-0">
           <EliminarTenantButton tenantId={tenant.id} nombre={tenant.name} />

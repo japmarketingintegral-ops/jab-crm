@@ -5,6 +5,7 @@ import { createServiceClient } from '@/lib/supabase/service';
 import { CerrarSesionButton } from '@/components/cerrar-sesion-button';
 import { KpiCard } from '../dashboard/reportes/kpi-card';
 import { TenantCard } from './tenant-card';
+import { obtenerHealthScores } from '@/lib/health-score-data';
 
 export default async function AdminPage() {
   await requerirSuperAdmin();
@@ -13,11 +14,11 @@ export default async function AdminPage() {
   // acá solo se usa para saber si hay uno conectado, nunca se lee el valor.
   const service = createServiceClient();
 
-  const [{ data: tenants }, { data: sourcesRaw }, { data: secretos }, { data: posts }] = await Promise.all([
+  const [{ data: tenants }, { data: sourcesRaw }, { data: secretos }, healthScores] = await Promise.all([
     supabase.from('tenants').select('id, name, slug, created_at').order('created_at', { ascending: false }),
     supabase.from('lead_sources').select('id, tenant_id, platform, display_name, connected_at'),
     service.from('integration_secrets').select('tenant_id, platform, access_token'),
-    supabase.from('social_posts').select('tenant_id, publicado_en'),
+    obtenerHealthScores(supabase, service),
   ]);
   const conectados = new Set(
     (secretos ?? []).filter((s) => s.access_token).map((s) => `${s.tenant_id}:${s.platform}`),
@@ -27,22 +28,15 @@ export default async function AdminPage() {
     conectado: s.platform === 'meta' ? conectados.has(`${s.tenant_id}:${s.platform}`) : Boolean(s.connected_at),
   }));
 
-  const treintaDiasAtras = new Date();
-  treintaDiasAtras.setDate(treintaDiasAtras.getDate() - 30);
-  const publicacionesPorTenant = new Map<string, number>();
-  for (const p of posts ?? []) {
-    if (new Date(p.publicado_en) < treintaDiasAtras) continue;
-    publicacionesPorTenant.set(p.tenant_id, (publicacionesPorTenant.get(p.tenant_id) ?? 0) + 1);
-  }
-
   const tenantsList = tenants ?? [];
   const integracionesPendientes = sources.filter((f) => !f.conectado).length;
-  // "En riesgo": cliente con más de 30 días de antigüedad y cero
-  // publicaciones en el último mes — señal de cuenta parada, no se aplica a
-  // clientes recién dados de alta que todavía no arrancaron.
-  const clientesEnRiesgo = tenantsList.filter(
-    (t) => new Date(t.created_at) < treintaDiasAtras && (publicacionesPorTenant.get(t.id) ?? 0) === 0,
-  ).length;
+  // Mismo health score que /admin/funcionamiento -- antes esta pantalla
+  // tenía su propia cuenta de "riesgo" (0 publicaciones en 30 días) sin
+  // relación con la de funcionamiento, y podían mostrar números distintos.
+  const clientesEnRiesgo = tenantsList.filter((t) => {
+    const estado = healthScores.get(t.id)?.estado;
+    return estado === 'en_riesgo' || estado === 'critico';
+  }).length;
 
   return (
     <main className="flex-1 p-6 max-w-4xl mx-auto w-full">
@@ -85,10 +79,9 @@ export default async function AdminPage() {
           <div className="space-y-2">
             {tenants.map((tenant) => {
               const fuentesTenant = sources.filter((s) => s.tenant_id === tenant.id);
-              const enRiesgo =
-                new Date(tenant.created_at) < treintaDiasAtras && (publicacionesPorTenant.get(tenant.id) ?? 0) === 0;
+              const health = healthScores.get(tenant.id) ?? { score: 100, estado: 'saludable' as const, causas: [] };
               return (
-                <TenantCard key={tenant.id} tenant={tenant} enRiesgo={enRiesgo} fuentesTenant={fuentesTenant} />
+                <TenantCard key={tenant.id} tenant={tenant} health={health} fuentesTenant={fuentesTenant} />
               );
             })}
           </div>
