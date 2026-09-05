@@ -5,6 +5,9 @@ import { SincronizarMetaButton } from './sincronizar-meta-button';
 import { RedesReporte } from './redes-reporte';
 import { FrescuraDatos } from '@/components/frescura-datos';
 import { fechaCortaSinHora } from '@/lib/format';
+import { resolverPeriodo } from '@/lib/periodo';
+import { periodoDesdeCookie } from '@/lib/periodo-cookie';
+import { PeriodoSelector, PeriodoTexto } from '../periodo-selector';
 import type { SocialPlatform } from '@/lib/supabase/types';
 
 const ROL_LABEL: Record<string, string> = {
@@ -16,20 +19,19 @@ const ROL_LABEL: Record<string, string> = {
 export const POR_PAGINA = 24;
 const PLATAFORMAS_VALIDAS: SocialPlatform[] = ['instagram', 'facebook', 'tiktok', 'linkedin', 'otra'];
 
-type Filtro = { desde: string | null; hasta: string | null; plataforma: SocialPlatform | null };
+type Filtro = { plataforma: SocialPlatform | null };
 
 export default async function RedesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ desde?: string; hasta?: string; plataforma?: string; pagina?: string }>;
+  searchParams: Promise<{ periodo?: string; desde?: string; hasta?: string; plataforma?: string; pagina?: string }>;
 }) {
   const perfil = await requerirPerfil();
   const tenantId = await requerirTenantActivo(perfil);
   const esAdmin = puedeGestionarCuenta(perfil.role);
   const params = await searchParams;
+  const periodo = resolverPeriodo(params.periodo ? params : { ...params, ...(await periodoDesdeCookie()) });
   const filtro: Filtro = {
-    desde: params.desde || null,
-    hasta: params.hasta || null,
     plataforma: PLATAFORMAS_VALIDAS.includes(params.plataforma as SocialPlatform)
       ? (params.plataforma as SocialPlatform)
       : null,
@@ -42,16 +44,15 @@ export default async function RedesPage({
   let resumenQuery = supabase
     .from('social_posts')
     .select('id, plataforma, publicado_en, alcance, me_gusta, comentarios, compartidos, titulo, url, imagen_url')
-    .eq('tenant_id', tenantId);
-  let paginaQuery = supabase.from('social_posts').select('*', { count: 'exact' }).eq('tenant_id', tenantId);
-  if (filtro.desde) {
-    resumenQuery = resumenQuery.gte('publicado_en', filtro.desde);
-    paginaQuery = paginaQuery.gte('publicado_en', filtro.desde);
-  }
-  if (filtro.hasta) {
-    resumenQuery = resumenQuery.lte('publicado_en', filtro.hasta);
-    paginaQuery = paginaQuery.lte('publicado_en', filtro.hasta);
-  }
+    .eq('tenant_id', tenantId)
+    .gte('publicado_en', periodo.desde)
+    .lte('publicado_en', periodo.hasta);
+  let paginaQuery = supabase
+    .from('social_posts')
+    .select('*', { count: 'exact' })
+    .eq('tenant_id', tenantId)
+    .gte('publicado_en', periodo.desde)
+    .lte('publicado_en', periodo.hasta);
   if (filtro.plataforma) {
     resumenQuery = resumenQuery.eq('plataforma', filtro.plataforma);
     paginaQuery = paginaQuery.eq('plataforma', filtro.plataforma);
@@ -97,12 +98,18 @@ export default async function RedesPage({
         mostrarTablero={perfil.role === 'super_admin' || perfil.role === 'jab_staff'}
       />
       <main className="jab-canvas-light flex-1 p-4 pb-24 lg:p-6 overflow-y-auto">
-        <div className="flex items-center justify-between mb-6">
+        <div className="flex flex-wrap items-center justify-between gap-3 mb-1">
           <div>
             <h1 className="text-xl font-bold">KPIs Redes sociales</h1>
             <p className="text-sm text-jab-muted">Lo que publicamos y cómo funcionó.</p>
           </div>
-          {esAdmin && metaConectado && <SincronizarMetaButton />}
+          <div className="flex items-center gap-3">
+            <PeriodoSelector actual={periodo.valor} desde={periodo.desde} hasta={periodo.hasta} basePath="/dashboard/redes" />
+            {esAdmin && metaConectado && <SincronizarMetaButton />}
+          </div>
+        </div>
+        <div className="mb-6">
+          <PeriodoTexto periodo={periodo} />
         </div>
 
         {esAdmin && (
@@ -124,6 +131,7 @@ export default async function RedesPage({
           pagina={pagina}
           porPagina={POR_PAGINA}
           filtros={filtro}
+          periodoQuery={{ valor: periodo.valor, desde: periodo.desde, hasta: periodo.hasta }}
           plataformasDisponibles={plataformasConDatos as SocialPlatform[]}
           esAdmin={esAdmin}
         />

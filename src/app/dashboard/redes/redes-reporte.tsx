@@ -13,16 +13,23 @@ type PostResumen = Pick<
   Post,
   'id' | 'plataforma' | 'publicado_en' | 'alcance' | 'me_gusta' | 'comentarios' | 'compartidos' | 'titulo' | 'url' | 'imagen_url'
 >;
-type Filtro = { desde: string | null; hasta: string | null; plataforma: SocialPlatform | null };
+type Filtro = { plataforma: SocialPlatform | null };
+type PeriodoQuery = { valor: string; desde: string; hasta: string };
 
-function construirUrl(filtros: Filtro, pagina: number) {
+/** El período (PeriodoSelector, en el header de la página) viaja en la URL
+ * por separado de este filtro de plataforma/paginación -- cualquier link
+ * que arme este componente tiene que preservarlo, si no cambiar de página
+ * o de plataforma resetearía el período elegido al default. */
+function construirUrl(periodoQuery: PeriodoQuery, filtros: Filtro, pagina: number) {
   const params = new URLSearchParams();
-  if (filtros.desde) params.set('desde', filtros.desde);
-  if (filtros.hasta) params.set('hasta', filtros.hasta);
+  params.set('periodo', periodoQuery.valor);
+  if (periodoQuery.valor === 'custom') {
+    params.set('desde', periodoQuery.desde);
+    params.set('hasta', periodoQuery.hasta);
+  }
   if (filtros.plataforma) params.set('plataforma', filtros.plataforma);
   if (pagina > 1) params.set('pagina', String(pagina));
-  const qs = params.toString();
-  return qs ? `/dashboard/redes?${qs}` : '/dashboard/redes';
+  return `/dashboard/redes?${params.toString()}`;
 }
 
 export function RedesReporte({
@@ -32,6 +39,7 @@ export function RedesReporte({
   pagina,
   porPagina,
   filtros,
+  periodoQuery,
   plataformasDisponibles,
   esAdmin,
 }: {
@@ -45,11 +53,15 @@ export function RedesReporte({
   pagina: number;
   porPagina: number;
   filtros: Filtro;
+  /** Período activo (del PeriodoSelector en el header) -- se repite en
+   * cada link que arma este componente para no perderlo al paginar o
+   * cambiar de plataforma. */
+  periodoQuery: PeriodoQuery;
   plataformasDisponibles: SocialPlatform[];
   esAdmin: boolean;
 }) {
   const router = useRouter();
-  const hayFiltro = Boolean(filtros.desde || filtros.hasta) || filtros.plataforma !== null;
+  const hayFiltro = filtros.plataforma !== null;
   const totalPaginas = Math.max(1, Math.ceil(totalFiltrado / porPagina));
 
   const totalAlcance = postsResumen.reduce((acc, p) => acc + p.alcance, 0);
@@ -61,11 +73,15 @@ export function RedesReporte({
     : null;
 
   const irA = (nuevosFiltros: Partial<Filtro>, nuevaPagina = 1) =>
-    router.push(construirUrl({ ...filtros, ...nuevosFiltros }, nuevaPagina));
+    router.push(construirUrl(periodoQuery, { ...filtros, ...nuevosFiltros }, nuevaPagina));
+
+  // Con una sola plataforma conectada, el toggle "Todas / Instagram" no
+  // sirve para nada -- ocultarlo en vez de mostrar un filtro sin sentido.
+  const mostrarFiltroPlataforma = plataformasDisponibles.length > 1;
 
   return (
     <>
-      {(totalFiltrado > 0 || hayFiltro) && (
+      {mostrarFiltroPlataforma && (totalFiltrado > 0 || hayFiltro) && (
         <div className="flex flex-wrap items-center gap-3 mb-6 text-sm">
           <div className="flex items-center gap-1 rounded-lg bg-jab-panel-2 border border-jab-border p-1">
             <button
@@ -91,35 +107,13 @@ export function RedesReporte({
             ))}
           </div>
 
-          <div className="flex items-center gap-2">
-            <label className="text-jab-muted" htmlFor="redes-desde">
-              Período
-            </label>
-            <input
-              id="redes-desde"
-              type="date"
-              defaultValue={filtros.desde ?? ''}
-              max={filtros.hasta ?? undefined}
-              onChange={(e) => irA({ desde: e.target.value || null })}
-              className="rounded-lg bg-jab-panel-2 border border-jab-border px-3 py-1.5 outline-none focus:border-jab-accent"
-            />
-            <span className="text-jab-muted">a</span>
-            <input
-              type="date"
-              defaultValue={filtros.hasta ?? ''}
-              min={filtros.desde ?? undefined}
-              onChange={(e) => irA({ hasta: e.target.value || null })}
-              className="rounded-lg bg-jab-panel-2 border border-jab-border px-3 py-1.5 outline-none focus:border-jab-accent"
-            />
-          </div>
-
           {hayFiltro && (
             <button
               type="button"
-              onClick={() => irA({ desde: null, hasta: null, plataforma: null })}
+              onClick={() => irA({ plataforma: null })}
               className="text-xs text-jab-muted hover:text-jab-text underline"
             >
-              Ver todo
+              Ver todas las plataformas
             </button>
           )}
         </div>
@@ -128,20 +122,20 @@ export function RedesReporte({
       {totalFiltrado === 0 ? (
         <div className="rounded-lg bg-jab-panel-2 border border-jab-border p-8 text-center">
           <p className="text-sm font-medium mb-1">
-            {hayFiltro ? 'No hay publicaciones en ese rango' : 'Todavía no hay publicaciones cargadas'}
+            {hayFiltro ? 'No hay publicaciones de esa plataforma en este período' : 'Todavía no hay publicaciones en este período'}
           </p>
           <p className="text-sm text-jab-muted mb-4">
             {hayFiltro
-              ? 'Probá con otro período o plataforma.'
-              : 'Apenas conectemos Meta y sincronicemos, vas a ver acá las métricas y cuál es la que mejor funcionó.'}
+              ? 'Probá con otra plataforma o ampliá el período, arriba.'
+              : 'Probá un período más amplio, o esperá a que JAB sincronice las últimas publicaciones.'}
           </p>
           {hayFiltro && (
             <button
               type="button"
-              onClick={() => irA({ desde: null, hasta: null, plataforma: null })}
+              onClick={() => irA({ plataforma: null })}
               className="rounded-full bg-jab-accent text-jab-bg-deep px-4 py-1.5 text-xs font-bold uppercase tracking-wide"
             >
-              Ver todo
+              Ver todas las plataformas
             </button>
           )}
         </div>

@@ -4,7 +4,7 @@ import { createClient } from '@/lib/supabase/server';
 import { Sidebar } from '@/components/sidebar';
 import { resolverPeriodo, variacion } from '@/lib/periodo';
 import { periodoDesdeCookie } from '@/lib/periodo-cookie';
-import { PeriodoSelector } from '../periodo-selector';
+import { PeriodoSelector, PeriodoTexto } from '../periodo-selector';
 import { KpiCard } from '../reportes/kpi-card';
 import { SincronizarAdsButton } from './sincronizar-ads-button';
 import { PautaCharts } from './pauta-charts';
@@ -173,17 +173,18 @@ export default async function PautaPage({
         mostrarTablero={perfil.role === 'super_admin' || perfil.role === 'jab_staff'}
       />
       <main className="jab-canvas-light flex-1 p-4 pb-24 lg:p-6 overflow-y-auto">
-        <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
+        <div className="flex flex-wrap items-center justify-between gap-3 mb-1">
           <div>
             <h1 className="text-xl font-bold">Pauta · Meta Ads</h1>
-            <p className="text-sm text-jab-muted">
-              {periodo.etiqueta} · montos en ARS, según la moneda de la cuenta publicitaria.
-            </p>
+            <p className="text-sm text-jab-muted">Montos en ARS, según la moneda de la cuenta publicitaria.</p>
           </div>
           <div className="flex items-center gap-3">
             <PeriodoSelector actual={periodo.valor} desde={periodo.desde} hasta={periodo.hasta} basePath="/dashboard/pauta" />
             {esAdmin && cuentaConectada && <SincronizarAdsButton />}
           </div>
+        </div>
+        <div className="mb-6">
+          <PeriodoTexto periodo={periodo} />
         </div>
 
         {esAdmin && (

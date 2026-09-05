@@ -29,9 +29,17 @@ type Post = {
 const EJE = { fontSize: 11, fill: '#5a6088' };
 const GRID = '#e4e6ef';
 
-function ChartCard({ titulo, children }: { titulo: string; children: React.ReactNode }) {
+function ChartCard({
+  titulo,
+  children,
+  className,
+}: {
+  titulo: string;
+  children: React.ReactNode;
+  className?: string;
+}) {
   return (
-    <div className="rounded-lg bg-jab-panel border border-jab-border p-4">
+    <div className={`rounded-lg bg-jab-panel border border-jab-border p-4 ${className ?? ''}`}>
       <p className="text-sm font-semibold mb-4">{titulo}</p>
       <div className="h-56">{children}</div>
     </div>
@@ -63,9 +71,15 @@ export function RedesCharts({ posts }: { posts: Post[] }) {
     };
   });
 
+  // Con una sola plataforma, "Alcance por plataforma" es una sola barra
+  // con el mismo total que ya muestra la tarjeta de KPI de arriba -- no
+  // aporta nada, así que se oculta y el gráfico de interacciones ocupa
+  // todo el ancho en vez de dejar un hueco vacío al lado.
+  const haySoloUnaPlataforma = plataformas.length <= 1;
+
   return (
     <div className="grid lg:grid-cols-2 gap-3 mb-8">
-      <ChartCard titulo="Interacciones por publicación">
+      <ChartCard titulo="Interacciones por publicación" className={haySoloUnaPlataforma ? 'lg:col-span-2' : undefined}>
         <ResponsiveContainer width="100%" height="100%">
           <LineChart data={porFecha} margin={{ top: 4, right: 8, left: -20, bottom: 0 }}>
             <CartesianGrid stroke={GRID} vertical={false} />
@@ -87,25 +101,27 @@ export function RedesCharts({ posts }: { posts: Post[] }) {
         </ResponsiveContainer>
       </ChartCard>
 
-      <ChartCard titulo="Alcance por plataforma">
-        <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={porPlataforma} margin={{ top: 4, right: 8, left: -20, bottom: 0 }}>
-            <CartesianGrid stroke={GRID} vertical={false} />
-            <XAxis dataKey="plataforma" tick={EJE} axisLine={{ stroke: GRID }} tickLine={false} />
-            <YAxis tick={EJE} axisLine={false} tickLine={false} allowDecimals={false} />
-            <Tooltip
-              contentStyle={{ fontSize: 12, borderRadius: 8, border: `1px solid ${GRID}` }}
-              labelStyle={{ color: '#1b2038', fontWeight: 600 }}
-              cursor={{ fill: '#eef0f8' }}
-            />
-            <Bar dataKey="alcance" radius={[4, 4, 0, 0]}>
-              {porPlataforma.map((p) => (
-                <Cell key={p.plataforma} fill={p.color} />
-              ))}
-            </Bar>
-          </BarChart>
-        </ResponsiveContainer>
-      </ChartCard>
+      {!haySoloUnaPlataforma && (
+        <ChartCard titulo="Alcance por plataforma">
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={porPlataforma} margin={{ top: 4, right: 8, left: -20, bottom: 0 }}>
+              <CartesianGrid stroke={GRID} vertical={false} />
+              <XAxis dataKey="plataforma" tick={EJE} axisLine={{ stroke: GRID }} tickLine={false} />
+              <YAxis tick={EJE} axisLine={false} tickLine={false} allowDecimals={false} />
+              <Tooltip
+                contentStyle={{ fontSize: 12, borderRadius: 8, border: `1px solid ${GRID}` }}
+                labelStyle={{ color: '#1b2038', fontWeight: 600 }}
+                cursor={{ fill: '#eef0f8' }}
+              />
+              <Bar dataKey="alcance" radius={[4, 4, 0, 0]}>
+                {porPlataforma.map((p) => (
+                  <Cell key={p.plataforma} fill={p.color} />
+                ))}
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+        </ChartCard>
+      )}
 
       <div className="lg:col-span-2">
         <ChartCard titulo="Composición de interacciones por plataforma">
