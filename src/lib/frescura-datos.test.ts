@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { calcularFrescura } from './frescura-datos';
+import { calcularFrescura, UMBRALES_FRECUENTE } from './frescura-datos';
 
 describe('calcularFrescura', () => {
   it('es "error" si la integración no está conectada, sin importar la fecha', () => {
@@ -24,5 +24,16 @@ describe('calcularFrescura', () => {
   it('es "desactualizado" más allá de 72 horas', () => {
     const hace5dias = new Date(Date.now() - 5 * 24 * 3_600_000).toISOString();
     expect(calcularFrescura(hace5dias, true)).toBe('desactualizado');
+  });
+
+  it('con UMBRALES_FRECUENTE (Meta Ads, sync cada 30 min) escala mucho antes que con el umbral diario', () => {
+    const hace45min = new Date(Date.now() - 45 * 60_000).toISOString();
+    const hace2h = new Date(Date.now() - 2 * 3_600_000).toISOString();
+    const hace8h = new Date(Date.now() - 8 * 3_600_000).toISOString();
+    expect(calcularFrescura(hace45min, true, UMBRALES_FRECUENTE)).toBe('actualizado');
+    expect(calcularFrescura(hace2h, true, UMBRALES_FRECUENTE)).toBe('demorado');
+    expect(calcularFrescura(hace8h, true, UMBRALES_FRECUENTE)).toBe('desactualizado');
+    // Las mismas horas con el umbral diario (default) todavía cuentan como al día.
+    expect(calcularFrescura(hace8h, true)).toBe('actualizado');
   });
 });

@@ -9,6 +9,7 @@ import { KpiCard } from '../reportes/kpi-card';
 import { SincronizarAdsButton } from './sincronizar-ads-button';
 import { PautaCharts } from './pauta-charts';
 import { FrescuraDatos } from '@/components/frescura-datos';
+import { UMBRALES_FRECUENTE } from '@/lib/frescura-datos';
 import { fechaCortaSinHora } from '@/lib/format';
 
 const ROL_LABEL: Record<string, string> = {
@@ -33,10 +34,62 @@ type CampanaFila = {
   conversiones: number;
   gastoAnterior: number;
   conversionesAnterior: number;
+  estado: string | null;
+  objetivo: string | null;
 };
 
-function agrupar(filas: { campana_id: string; campana_nombre: string | null; gasto: number; impresiones: number; clics: number; conversiones: number }[]) {
-  const mapa = new Map<string, { nombre: string; gasto: number; impresiones: number; clics: number; conversiones: number }>();
+// Estados y objetivos que devuelve la Graph API (effective_status /
+// objective) traducidos para no mostrarle jerga de Meta al cliente.
+const ESTADO_CAMPANA_LABEL: Record<string, string> = {
+  ACTIVE: 'Activa',
+  PAUSED: 'Pausada',
+  CAMPAIGN_PAUSED: 'Pausada',
+  ADSET_PAUSED: 'Pausada (a nivel conjunto)',
+  ARCHIVED: 'Archivada',
+  DELETED: 'Eliminada',
+  IN_PROCESS: 'En proceso',
+  WITH_ISSUES: 'Con problemas',
+  PENDING_REVIEW: 'En revisión',
+  DISAPPROVED: 'Rechazada',
+  PREAPPROVED: 'Preaprobada',
+  PENDING_BILLING_INFO: 'Falta información de facturación',
+};
+
+const OBJETIVO_CAMPANA_LABEL: Record<string, string> = {
+  OUTCOME_LEADS: 'Leads',
+  OUTCOME_SALES: 'Ventas',
+  OUTCOME_ENGAGEMENT: 'Interacción',
+  OUTCOME_AWARENESS: 'Reconocimiento de marca',
+  OUTCOME_TRAFFIC: 'Tráfico',
+  OUTCOME_APP_PROMOTION: 'Promoción de app',
+  LEAD_GENERATION: 'Leads',
+  CONVERSIONS: 'Conversiones',
+  LINK_CLICKS: 'Tráfico',
+  MESSAGES: 'Mensajes',
+  POST_ENGAGEMENT: 'Interacción',
+  BRAND_AWARENESS: 'Reconocimiento de marca',
+  REACH: 'Alcance',
+  APP_INSTALLS: 'Promoción de app',
+  VIDEO_VIEWS: 'Reproducciones de video',
+};
+
+function agrupar(
+  filas: {
+    campana_id: string;
+    campana_nombre: string | null;
+    fecha: string;
+    gasto: number;
+    impresiones: number;
+    clics: number;
+    conversiones: number;
+    estado: string | null;
+    objetivo: string | null;
+  }[],
+) {
+  const mapa = new Map<
+    string,
+    { nombre: string; gasto: number; impresiones: number; clics: number; conversiones: number; estado: string | null; objetivo: string | null; fechaEstado: string }
+  >();
   for (const f of filas) {
     const actual = mapa.get(f.campana_id) ?? {
       nombre: f.campana_nombre ?? f.campana_id,
@@ -44,11 +97,21 @@ function agrupar(filas: { campana_id: string; campana_nombre: string | null; gas
       impresiones: 0,
       clics: 0,
       conversiones: 0,
+      estado: null,
+      objetivo: null,
+      fechaEstado: '',
     };
     actual.gasto += f.gasto;
     actual.impresiones += f.impresiones;
     actual.clics += f.clics;
     actual.conversiones += f.conversiones;
+    // Estado y objetivo cambian con el tiempo (se pausa/reactiva una
+    // campaña) -- nos quedamos con el de la fila más reciente, no una suma.
+    if (f.fecha >= actual.fechaEstado) {
+      actual.estado = f.estado;
+      actual.objetivo = f.objetivo;
+      actual.fechaEstado = f.fecha;
+    }
     mapa.set(f.campana_id, actual);
   }
   return mapa;
@@ -74,7 +137,7 @@ export default async function PautaPage({
     // mismo patrón que Inicio.
     supabase
       .from('ad_metrics')
-      .select('campana_id, campana_nombre, fecha, gasto, impresiones, clics, conversiones, created_at')
+      .select('campana_id, campana_nombre, fecha, gasto, impresiones, clics, conversiones, estado, objetivo, created_at')
       .eq('tenant_id', tenantId)
       .gte('fecha', periodo.desdeAnterior)
       .lte('fecha', periodo.hasta),
@@ -194,9 +257,16 @@ export default async function PautaPage({
               conectado={cuentaConectada}
               ultimaSync={ultimaSync}
               cobertura={cobertura ? fechaCortaSinHora(cobertura) : null}
-              horaCronUtc={10}
+              umbrales={UMBRALES_FRECUENTE}
             />
           </div>
+        )}
+
+        {cuentaConectada && (
+          <p className="text-xs text-jab-muted mb-6 -mt-2">
+            Los resultados de hoy son preliminares -- Meta puede seguir ajustándolos durante el día. Los últimos 7 y
+            30 días se reconcilian todas las noches.
+          </p>
         )}
 
         {!cuentaConectada ? (
@@ -309,6 +379,8 @@ export default async function PautaPage({
                     <tr className="text-left text-[11px] font-semibold tracking-widest text-jab-muted uppercase bg-jab-panel-2">
                       <th className="py-2 px-3">Campaña</th>
                       <th className="py-2 px-3">Estado</th>
+                      <th className="py-2 px-3">Objetivo</th>
+                      <th className="py-2 px-3">Rendimiento</th>
                       <th className="py-2 px-3">Inversión</th>
                       <th className="py-2 px-3">Clics</th>
                       <th className="py-2 px-3">CTR</th>
@@ -326,6 +398,12 @@ export default async function PautaPage({
                       return (
                         <tr key={c.id} className="border-t border-jab-border">
                           <td className="py-2 px-3 font-medium">{c.nombre}</td>
+                          <td className="py-2 px-3">
+                            {c.estado ? (ESTADO_CAMPANA_LABEL[c.estado] ?? c.estado) : '—'}
+                          </td>
+                          <td className="py-2 px-3">
+                            {c.objetivo ? (OBJETIVO_CAMPANA_LABEL[c.objetivo] ?? c.objetivo) : '—'}
+                          </td>
                           <td className="py-2 px-3">
                             {necesitaRevision ? (
                               <span className="rounded-full px-2 py-0.5 text-[11px] font-semibold bg-jab-red/10 text-jab-red">
