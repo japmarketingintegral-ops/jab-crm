@@ -660,6 +660,7 @@ type PostFacebook = {
 
 /** Últimas publicaciones de la Página (alcance orgánico vía insights, o 0 si esa métrica no está disponible para ese post). */
 export async function traerPublicacionesFacebook(
+  tenantId: string,
   pageId: string,
   pageAccessToken: string,
   limite = 15,
@@ -672,9 +673,7 @@ export async function traerPublicacionesFacebook(
   url.searchParams.set('limit', String(limite));
   url.searchParams.set('access_token', pageAccessToken);
 
-  const res = await fetch(url);
-  if (!res.ok) throw new Error(`No se pudieron traer los posts de Facebook: ${await res.text()}`);
-  const data = (await res.json()) as { data: PostFacebook[] };
+  const data = await fetchMeta<{ data: PostFacebook[] }>(url, { tenantId, operacion: 'traerPublicacionesFacebook' });
 
   return (data.data ?? []).map((p) => ({
     external_id: p.id,
@@ -703,6 +702,7 @@ type MediaInstagram = {
 
 /** Últimos posteos de la cuenta de Instagram vinculada. El alcance se pide aparte por cada media porque la métrica "reach" no está disponible para todos los tipos de contenido (historias, algunos reels) — si falla para uno puntual, sigue con alcance 0 en vez de cortar todo el sync. */
 export async function traerPublicacionesInstagram(
+  tenantId: string,
   instagramBusinessAccountId: string,
   pageAccessToken: string,
   limite = 15,
@@ -715,9 +715,7 @@ export async function traerPublicacionesInstagram(
   url.searchParams.set('limit', String(limite));
   url.searchParams.set('access_token', pageAccessToken);
 
-  const res = await fetch(url);
-  if (!res.ok) throw new Error(`No se pudieron traer los posts de Instagram: ${await res.text()}`);
-  const data = (await res.json()) as { data: MediaInstagram[] };
+  const data = await fetchMeta<{ data: MediaInstagram[] }>(url, { tenantId, operacion: 'traerPublicacionesInstagram' });
 
   const conAlcance = await Promise.all(
     (data.data ?? []).map(async (m) => {
@@ -783,23 +781,32 @@ export async function sincronizarPublicacionesMeta(
     .single();
 
   const [facebookResult, instagramResult] = await Promise.allSettled([
-    traerPublicacionesFacebook(fuente.external_account_id, fuente.access_token),
+    traerPublicacionesFacebook(tenantId, fuente.external_account_id, fuente.access_token),
     fuente.instagram_business_account_id
-      ? traerPublicacionesInstagram(fuente.instagram_business_account_id, fuente.access_token)
+      ? traerPublicacionesInstagram(tenantId, fuente.instagram_business_account_id, fuente.access_token)
       : Promise.resolve([]),
   ]);
 
   const posts = facebookResult.status === 'fulfilled' ? facebookResult.value : [];
   const media = instagramResult.status === 'fulfilled' ? instagramResult.value : [];
 
+  // Mensaje seguro de cada rechazo -- si viene de fetchMeta() ya es un
+  // ErrorMetaConocido con .message clasificado (nunca el texto crudo de
+  // Meta); cualquier otro tipo de error (red caída, etc.) usa el genérico.
+  const mensajeSeguro = (motivo: unknown) =>
+    motivo instanceof ErrorMetaConocido ? motivo.message : 'Falló la sincronización con Meta.';
+
   if (facebookResult.status === 'rejected' && instagramResult.status === 'rejected') {
+    const errorSeguro = fuente.instagram_business_account_id
+      ? `Facebook: ${mensajeSeguro(facebookResult.reason)} · Instagram: ${mensajeSeguro(instagramResult.reason)}`
+      : mensajeSeguro(facebookResult.reason);
     if (registro) {
       await service
         .from('sincronizaciones')
-        .update({ estado: 'error', finalizado_en: new Date().toISOString(), error_seguro: 'Falló la sincronización con Meta.' })
+        .update({ estado: 'error', finalizado_en: new Date().toISOString(), error_seguro: errorSeguro.slice(0, 300) })
         .eq('id', registro.id);
     }
-    return { error: 'Falló la sincronización con Meta.' };
+    return { error: errorSeguro };
   }
 
   try {
@@ -819,12 +826,22 @@ export async function sincronizarPublicacionesMeta(
     }));
 
     const estadoParcial = facebookResult.status === 'rejected' || instagramResult.status === 'rejected';
+    const errorParcial = facebookResult.status === 'rejected'
+      ? `Facebook: ${mensajeSeguro(facebookResult.reason)}`
+      : instagramResult.status === 'rejected'
+        ? `Instagram: ${mensajeSeguro(instagramResult.reason)}`
+        : null;
 
     if (filas.length === 0) {
       if (registro) {
         await service
           .from('sincronizaciones')
-          .update({ estado: estadoParcial ? 'parcial' : 'ok', finalizado_en: new Date().toISOString(), registros_procesados: 0 })
+          .update({
+            estado: estadoParcial ? 'parcial' : 'ok',
+            finalizado_en: new Date().toISOString(),
+            registros_procesados: 0,
+            error_seguro: errorParcial?.slice(0, 300) ?? null,
+          })
           .eq('id', registro.id);
       }
       return { ok: true };
@@ -850,6 +867,7 @@ export async function sincronizarPublicacionesMeta(
           finalizado_en: new Date().toISOString(),
           registros_procesados: filas.length,
           ultima_fecha_datos: ultimaFecha,
+          error_seguro: errorParcial?.slice(0, 300) ?? null,
         })
         .eq('id', registro.id);
     }
