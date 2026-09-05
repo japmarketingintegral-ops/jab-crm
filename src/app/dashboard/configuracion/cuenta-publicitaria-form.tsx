@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
-import { guardarCuentaPublicitaria } from './actions';
+import { guardarCuentaPublicitariaManual } from './actions';
 
 export function CuentaPublicitariaForm({ valorActual }: { valorActual: string | null }) {
   const router = useRouter();
@@ -19,7 +19,7 @@ export function CuentaPublicitariaForm({ valorActual }: { valorActual: string | 
           e.preventDefault();
           startTransition(async () => {
             setGuardado(false);
-            const res = await guardarCuentaPublicitaria(valor);
+            const res = await guardarCuentaPublicitariaManual(valor);
             setError(res.error ?? null);
             if (res.ok) {
               setGuardado(true);

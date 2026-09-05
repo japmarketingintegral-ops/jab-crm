@@ -2,12 +2,13 @@
 
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
-import { desconectarMeta } from './actions';
+import { desconectarMetaOrganico, desconectarMetaAds } from './actions';
 
-export function DesconectarMetaButton() {
+export function DesconectarMetaButton({ tipo }: { tipo: 'organico' | 'ads' }) {
   const router = useRouter();
   const [confirmando, setConfirmando] = useState(false);
   const [pending, startTransition] = useTransition();
+  const accion = tipo === 'organico' ? desconectarMetaOrganico : desconectarMetaAds;
 
   if (confirmando) {
     return (
@@ -17,7 +18,7 @@ export function DesconectarMetaButton() {
           disabled={pending}
           onClick={() =>
             startTransition(async () => {
-              await desconectarMeta();
+              await accion();
               router.refresh();
             })
           }

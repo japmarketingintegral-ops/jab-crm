@@ -12,6 +12,8 @@ const ACCION_TEXTO: Record<AccionAuditoria, (titulo: string | null) => string> =
   'equipo.rol_cambiado': (t) => `cambió el rol de ${t ?? 'alguien'}`,
   'equipo.quitado': (t) => `quitó del equipo a ${t ?? 'alguien'}`,
   'meta.desconectado': (t) => `desconectó Meta (${t ?? 'sin nombre'})`,
+  'meta.ads_conectado_manual': (t) => `cargó una cuenta de Meta Ads a mano (${t ?? 'sin nombre'})`,
+  'meta.activos_conectados': (t) => `conectó activos de Meta (${t ?? 'sin nombre'})`,
   'material.eliminado': (t) => `eliminó el material "${t ?? 'sin nombre'}"`,
   'post.eliminado': (t) => `eliminó la publicación "${t ?? 'sin título'}"`,
   'tenant.eliminado': (t) => `eliminó el cliente "${t ?? 'sin nombre'}" para siempre`,

@@ -10,6 +10,8 @@ export type AccionAuditoria =
   | 'equipo.rol_cambiado'
   | 'equipo.quitado'
   | 'meta.desconectado'
+  | 'meta.ads_conectado_manual'
+  | 'meta.activos_conectados'
   | 'material.eliminado'
   | 'post.eliminado'
   | 'tenant.eliminado';
