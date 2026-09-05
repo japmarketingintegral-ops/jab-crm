@@ -6,6 +6,7 @@ import { createServiceClient } from '@/lib/supabase/service';
 import { enviarEmail } from '@/lib/email';
 import { escapeHtml } from '@/lib/format';
 import { registrarAuditoria } from '@/lib/auditoria';
+import { puedeClienteMoverA } from '@/lib/pedidos-permisos';
 import type { PedidoEstado, PedidoCategoria } from '@/lib/supabase/types';
 
 const CATEGORIAS: PedidoCategoria[] = ['redes', 'contenido', 'comunicado', 'video', 'pauta', 'otro'];
@@ -183,10 +184,6 @@ async function notificarPedido(
  * es trabajo operativo de JAB. esEquipoJab() no pasa por acá: para JAB
  * cualquier transición vale.
  */
-const TRANSICIONES_CLIENTE: Partial<Record<PedidoEstado, PedidoEstado[]>> = {
-  revision: ['aprobado', 'en_proceso'],
-};
-
 export async function cambiarEstadoPedido(pedidoId: string, estado: PedidoEstado) {
   const perfil = await requerirPerfil();
   const supabase = await createClient();
@@ -194,8 +191,7 @@ export async function cambiarEstadoPedido(pedidoId: string, estado: PedidoEstado
   if (!esEquipoJab(perfil.role)) {
     const { data: actual } = await supabase.from('pedidos').select('estado').eq('id', pedidoId).single();
     if (!actual) return { error: 'No se encontró el pedido.' };
-    const permitidos = TRANSICIONES_CLIENTE[actual.estado] ?? [];
-    if (!permitidos.includes(estado)) {
+    if (!puedeClienteMoverA(actual.estado, estado)) {
       return { error: 'No podés mover el pedido a ese estado.' };
     }
   }

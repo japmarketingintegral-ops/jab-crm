@@ -29,3 +29,21 @@ export const PLATAFORMA_HEX: Record<SocialPlatform, string> = {
 export function interaccionesPost(p: { me_gusta: number; comentarios: number; compartidos: number }) {
   return p.me_gusta + p.comentarios + p.compartidos;
 }
+
+/** Tasa de interacción de una publicación: interacciones / alcance, en
+ * porcentaje. null si no hay alcance registrado (no hay con qué dividir,
+ * distinto de "0%" que sí sería una tasa real). */
+export function tasaInteraccionPost(p: { me_gusta: number; comentarios: number; compartidos: number; alcance: number }): number | null {
+  if (!p.alcance) return null;
+  return (interaccionesPost(p) / p.alcance) * 100;
+}
+
+/** Tasa de interacción agregada de un conjunto de publicaciones -- suma de
+ * interacciones sobre suma de alcance, no el promedio de las tasas
+ * individuales (eso sobre-pesaría los posts de bajo alcance). */
+export function tasaInteraccionTotal(posts: { me_gusta: number; comentarios: number; compartidos: number; alcance: number }[]): number | null {
+  const alcanceTotal = posts.reduce((acc, p) => acc + p.alcance, 0);
+  if (!alcanceTotal) return null;
+  const interaccionesTotal = posts.reduce((acc, p) => acc + interaccionesPost(p), 0);
+  return (interaccionesTotal / alcanceTotal) * 100;
+}
