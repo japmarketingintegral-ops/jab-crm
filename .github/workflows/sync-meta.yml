@@ -1,0 +1,34 @@
+name: Sincronizar Meta cada 30 minutos
+
+# El plan de Vercel de este proyecto (Hobby) solo permite cron jobs una vez
+# por día -- cualquier expresión más frecuente falla al desplegar. Los cron
+# diarios en vercel.json (sincronizar-redes, sincronizar-pauta) siguen
+# corriendo como red de seguridad, pero la actualización "casi en tiempo
+# real" de Pauta (Requisito 7 del roadmap de la beta) necesita algo más
+# frecuente -- este workflow llama a los mismos endpoints protegidos con
+# CRON_SECRET, así que hacerlo desde acá o desde Vercel es equivalente
+# para la aplicación.
+#
+# Si en algún momento se pasa a un plan de Vercel que soporte cron cada 30
+# minutos, este workflow puede desactivarse y volver todo a vercel.json.
+
+on:
+  schedule:
+    - cron: '*/30 * * * *'
+  workflow_dispatch: {}
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Sincronizar Meta Ads (Pauta)
+        run: |
+          curl -sf -X GET "https://clientes.jabmarketing.site/api/cron/sincronizar-pauta" \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            -o /dev/null -w "sincronizar-pauta: %{http_code}\n"
+
+      - name: Sincronizar Redes (Meta orgánico)
+        run: |
+          curl -sf -X GET "https://clientes.jabmarketing.site/api/cron/sincronizar-redes" \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            -o /dev/null -w "sincronizar-redes: %{http_code}\n"
