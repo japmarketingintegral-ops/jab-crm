@@ -47,20 +47,9 @@ export function formatearMinutos(minutos: number | null): string {
 export type NivelSLA = 'rojo' | 'ambar' | 'verde';
 
 /**
- * Semáforo de SLA sobre `updated_at`: rojo si pasaron más de 24h sin
- * tocar el lead, ámbar entre 4 y 24, verde si está al día.
- */
-export function nivelSLA(actualizadoEn: string): NivelSLA {
-  const horas = (Date.now() - new Date(actualizadoEn).getTime()) / 3_600_000;
-  if (horas > 24) return 'rojo';
-  if (horas > 4) return 'ambar';
-  return 'verde';
-}
-
-/**
- * Semáforo de SLA para pedidos: umbrales más laxos que el de leads porque
- * un pedido de contenido no se responde en minutos como un lead — recién
- * es un problema si pasan varios días sin que nadie lo toque.
+ * Semáforo de SLA para pedidos sobre `updated_at`: umbrales laxos a
+ * propósito — un pedido de contenido no se responde en minutos, recién es
+ * un problema si pasan varios días sin que nadie lo toque.
  */
 export function nivelSLAPedido(actualizadoEn: string): NivelSLA {
   const horas = (Date.now() - new Date(actualizadoEn).getTime()) / 3_600_000;

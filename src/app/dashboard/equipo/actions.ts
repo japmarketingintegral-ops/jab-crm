@@ -8,7 +8,7 @@ import type { UserRole } from '@/lib/supabase/types';
 
 const ROLES_INVITABLES: UserRole[] = ['client_admin', 'client_viewer'];
 
-export async function invitarVendedor(_prevState: string | undefined, formData: FormData) {
+export async function invitarMiembro(_prevState: string | undefined, formData: FormData) {
   const perfil = await requerirPerfil();
   if (perfil.role !== 'client_admin' && perfil.role !== 'super_admin') {
     return 'Solo un admin puede invitar gente.';

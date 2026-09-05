@@ -10,10 +10,10 @@ const BUCKETS_CON_ARCHIVOS_POR_TENANT = ['pedidos-adjuntos', 'materiales'];
 
 /**
  * Borra un cliente entero: irreversible. La cascada de la base se encarga de
- * leads, pedidos, redes, materiales, tareas internas y accesos de equipo;
- * acá limpiamos lo que la base no puede tocar sola — los archivos en Storage
+ * pedidos, redes, materiales, tareas internas y accesos de equipo; acá
+ * limpiamos lo que la base no puede tocar sola — los archivos en Storage
  * (guardados bajo la carpeta `{tenantId}/...` de cada bucket) y las cuentas
- * de auth.users de sus client_admin/salesperson, que si no quedarían
+ * de auth.users de sus client_admin/client_viewer, que si no quedarían
  * huérfanas (sin perfil, pero todavía pudiendo intentar loguearse).
  */
 export async function eliminarTenant(

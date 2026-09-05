@@ -24,7 +24,7 @@ export function EliminarTenantButton({ tenantId, nombre }: { tenantId: string; n
   return (
     <div className="rounded-lg border border-jab-red/40 bg-jab-red/5 p-3 space-y-2 w-full max-w-xs">
       <p className="text-xs text-jab-red">
-        Esto borra leads, pedidos, redes y materiales de <strong>{nombre}</strong> para siempre.
+        Esto borra pedidos, redes, materiales y accesos de <strong>{nombre}</strong> para siempre.
         Escribí el nombre exacto para confirmar.
       </p>
       <input

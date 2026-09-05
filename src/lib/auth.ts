@@ -38,13 +38,13 @@ export async function requerirSuperAdmin(): Promise<Profile> {
 }
 
 /**
- * Tenant que el usuario está viendo ahora. Para client_admin/salesperson es
+ * Tenant que el usuario está viendo ahora. Para client_admin/client_viewer es
  * el suyo. JAB (super_admin) y el equipo de JAB (jab_staff) no pertenecen a
  * ningún tenant — entran "como" un cliente eligiéndolo desde /admin o
  * /equipo/clientes, y esa elección queda en una cookie mientras navegan el
  * resto del panel.
  *
- * OJO al usar esto: para client_admin/salesperson, RLS ya filtra las
+ * OJO al usar esto: para client_admin/client_viewer, RLS ya filtra las
  * consultas a su propio tenant sin ayuda del código. Para super_admin y
  * jab_staff, RLS los deja ver los tenants a los que tienen acceso — así que
  * cualquier query que use el valor de esta función debe agregar

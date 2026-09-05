@@ -2,13 +2,13 @@
 
 import { useActionState, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { invitarVendedor } from './actions';
+import { invitarMiembro } from './actions';
 
-export function InvitarVendedorForm() {
+export function InvitarMiembroForm() {
   const [abierto, setAbierto] = useState(false);
   const router = useRouter();
   const [error, formAction, pending] = useActionState(async (_prev: string | undefined, fd: FormData) => {
-    const res = await invitarVendedor(_prev, fd);
+    const res = await invitarMiembro(_prev, fd);
     if (res === undefined) {
       setAbierto(false);
       router.refresh();

@@ -3,7 +3,7 @@ import { createClient } from '@/lib/supabase/server';
 import { createServiceClient } from '@/lib/supabase/service';
 import { Sidebar } from '@/components/sidebar';
 import { iniciales } from '@/lib/format';
-import { InvitarVendedorForm } from './invitar-form';
+import { InvitarMiembroForm } from './invitar-form';
 import { QuitarButton } from './quitar-button';
 import { RolSelect } from './rol-select';
 
@@ -96,7 +96,7 @@ export default async function EquipoPage() {
             <h1 className="text-xl font-bold">Equipo</h1>
             <p className="text-sm text-jab-muted">Quién de tu lado accede al portal y qué puede hacer.</p>
           </div>
-          {esAdmin && <InvitarVendedorForm />}
+          {esAdmin && <InvitarMiembroForm />}
         </div>
 
         {equipo.length <= 1 ? (

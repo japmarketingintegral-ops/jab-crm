@@ -15,7 +15,7 @@ export default function RecuperarPage() {
 
         <div>
           <p className="text-xs font-semibold tracking-widest text-jab-accent uppercase">
-            Panel de leads
+            Panel de gestión
           </p>
           <h2 className="text-2xl font-bold mt-1">Recuperar contraseña</h2>
         </div>

@@ -8,15 +8,13 @@ export const META_GRAPH_URL = `https://graph.facebook.com/${META_GRAPH_VERSION}`
 
 /**
  * Permisos que pide el flujo "Conectar Meta" en Configuración: pages_show_list
- * y pages_manage_metadata dejan listar páginas y suscribirlas al webhook de
- * leadgen; leads_retrieval trae los datos completos del lead; pages_read_engagement
- * + instagram_basic + instagram_manage_insights alimentan las métricas de Redes.
+ * lista las páginas; pages_read_engagement + instagram_basic +
+ * instagram_manage_insights alimentan las métricas de Redes; ads_read trae
+ * las métricas de Pauta.
  */
 export const META_OAUTH_SCOPES = [
   'pages_show_list',
-  'pages_manage_metadata',
   'pages_read_engagement',
-  'leads_retrieval',
   'business_management',
   'instagram_basic',
   'instagram_manage_insights',
@@ -98,22 +96,13 @@ export async function obtenerPaginasDelUsuario(tokenUsuarioLarga: string): Promi
   return data.data;
 }
 
-/** Suscribe la Página al webhook de la app para el campo leadgen (sin esto, Meta no manda notificaciones de leads nuevos de esa página puntual). */
-export async function suscribirPaginaAWebhook(pageId: string, pageAccessToken: string): Promise<void> {
-  const url = new URL(`${META_GRAPH_URL}/${pageId}/subscribed_apps`);
-  url.searchParams.set('subscribed_fields', 'leadgen');
-  url.searchParams.set('access_token', pageAccessToken);
-  const res = await fetch(url, { method: 'POST' });
-  if (!res.ok) throw new Error(`No se pudo suscribir la página al webhook: ${await res.text()}`);
-}
-
 /**
  * Guarda la página elegida en lead_sources (upsert por platform+external_account_id,
- * conserva el id si la página ya estaba conectada antes) y la suscribe al
- * webhook de leadgen. Usa el cliente de sesión del usuario (no el service
- * role) para que la escritura pase por las mismas políticas de RLS que
- * cualquier otra edición de Configuración — lead_sources ya no guarda
- * ningún token, así que esa escritura es segura con el cliente de sesión.
+ * conserva el id si la página ya estaba conectada antes). Usa el cliente de
+ * sesión del usuario (no el service role) para que la escritura pase por
+ * las mismas políticas de RLS que cualquier otra edición de Configuración —
+ * lead_sources ya no guarda ningún token, así que esa escritura es segura
+ * con el cliente de sesión.
  *
  * Los tokens (access_token, user_access_token) van aparte, a
  * integration_secrets, que no tiene ninguna policy de RLS: solo el
@@ -157,8 +146,6 @@ export async function conectarPaginaMeta(
     { onConflict: 'tenant_id,platform' },
   );
   if (secretError) throw new Error(`No se pudo guardar el token: ${secretError.message}`);
-
-  await suscribirPaginaAWebhook(pagina.id, pagina.access_token);
 }
 
 export type MetricaAdsDia = {
