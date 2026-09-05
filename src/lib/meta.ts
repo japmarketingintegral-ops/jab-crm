@@ -113,7 +113,7 @@ export function clasificarErrorMeta(body: unknown): ErrorMetaClasificado {
   }
   if (codigo === 100 && subcodigo === 33) {
     return {
-      mensaje: 'No pudimos validar acceso a esta cuenta publicitaria.',
+      mensaje: 'No pudimos validar acceso a ese activo de Meta (página, cuenta publicitaria o Instagram).',
       codigo,
       subcodigo,
     };
