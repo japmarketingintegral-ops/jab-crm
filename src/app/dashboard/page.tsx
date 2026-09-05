@@ -201,6 +201,7 @@ export default async function DashboardPage({
       conectado: Boolean(fuenteMeta),
       ultimaActualizacion: ultimaPublicacionSync,
       alerta: Boolean(fuenteMeta) && postsList.length === 0 ? 'Conectado, pero todavía no sincronizó publicaciones.' : null,
+      horaCronUtc: 9,
     },
     {
       nombre: 'Pauta (Meta Ads)',
@@ -212,6 +213,7 @@ export default async function DashboardPage({
           : pautaConectada && metricasAds.length === 0
             ? 'Cuenta conectada, pero todavía no sincronizó datos.'
             : null,
+      horaCronUtc: 10,
     },
   ];
 

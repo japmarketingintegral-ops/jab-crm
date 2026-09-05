@@ -6,6 +6,7 @@ import { PLATAFORMA_LABEL, PLATAFORMA_COLOR, interaccionesPost } from '@/lib/soc
 import { fechaCortaSinHora, esImagen } from '@/lib/format';
 import { variacion, type Periodo } from '@/lib/periodo';
 import { MaterialDescargaButton } from './material-descarga-button';
+import { FrescuraDatos } from '@/components/frescura-datos';
 import type { PedidoEstado, PedidoCategoria, SocialPlatform } from '@/lib/supabase/types';
 
 export type PedidoResumen = {
@@ -46,6 +47,8 @@ export type SaludFuente = {
   conectado: boolean;
   ultimaActualizacion: string | null;
   alerta: string | null;
+  /** Hora UTC del cron diario que sincroniza esta fuente (ver vercel.json). */
+  horaCronUtc: number;
 };
 
 export type MaterialResumen = {
@@ -137,7 +140,11 @@ export function InicioContent({
   const variacionGasto =
     pautaResumen && pautaGastoAnterior !== null ? variacion(pautaResumen.gasto, pautaGastoAnterior) : null;
 
-  const hayQuePaso = mejorCampana || campanaOportunidad || mejorPost || contenidoBajoRendimiento || variacionInteracciones !== null;
+  const alertasSalud = salud.filter((s) => s.alerta);
+  const interaccionesSubieron = variacionInteracciones !== null && variacionInteracciones >= 0;
+  const interaccionesBajaron = variacionInteracciones !== null && variacionInteracciones < 0;
+  const hayFunciona = Boolean(mejorCampana || mejorPost || interaccionesSubieron);
+  const hayAtencion = Boolean(campanaOportunidad || contenidoBajoRendimiento || interaccionesBajaron || alertasSalud.length > 0);
 
   return (
     <main className="jab-canvas-light flex-1 p-4 pb-24 lg:p-6 overflow-y-auto">
@@ -150,7 +157,8 @@ export function InicioContent({
         equivalente.
       </p>
 
-      {/* Resumen ejecutivo */}
+      {/* Bloque 1: Resultados destacados */}
+      <p className="text-sm font-semibold mb-3">Resultados destacados</p>
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-8">
         <KpiCard etiqueta="Pedidos pendientes" valor={String(pedidosPendientes)} ayuda="Pedidos que todavía no llegaron a Aprobado, ahora mismo." />
         <KpiCard
@@ -177,16 +185,16 @@ export function InicioContent({
         )}
       </div>
 
-      {/* Qué pasó */}
-      {hayQuePaso && (
+      {/* Bloque 2: Qué está funcionando */}
+      {hayFunciona && (
         <div className="mb-8">
-          <p className="text-sm font-semibold mb-3">Qué pasó</p>
+          <p className="text-sm font-semibold mb-3">Qué está funcionando</p>
           <div className="grid lg:grid-cols-2 gap-3">
-            {variacionInteracciones !== null && (
+            {interaccionesSubieron && (
               <div className="rounded-lg bg-jab-panel-2 border border-jab-border p-4 text-sm">
-                Las interacciones {variacionInteracciones >= 0 ? 'subieron' : 'bajaron'}{' '}
-                <span className="font-bold">{Math.abs(variacionInteracciones)}%</span> frente al período anterior
-                ({interaccionesAnterior.toLocaleString('es-AR')} → {interaccionesTotal.toLocaleString('es-AR')}).
+                Las interacciones subieron <span className="font-bold">{variacionInteracciones}%</span> frente al
+                período anterior ({interaccionesAnterior.toLocaleString('es-AR')} →{' '}
+                {interaccionesTotal.toLocaleString('es-AR')}).
               </div>
             )}
             {mejorCampana && (
@@ -196,6 +204,23 @@ export function InicioContent({
                   <span className="font-medium">{mejorCampana.nombre}</span> — {mejorCampana.conversiones.toLocaleString('es-AR')}{' '}
                   conversiones con ${mejorCampana.gasto.toLocaleString('es-AR', { maximumFractionDigits: 0 })} de inversión.
                 </p>
+              </div>
+            )}
+            {mejorPost && <PublicacionMini post={mejorPost} titulo="Mejor publicación" />}
+          </div>
+        </div>
+      )}
+
+      {/* Bloque 3: Qué necesita atención */}
+      {hayAtencion && (
+        <div className="mb-8">
+          <p className="text-sm font-semibold mb-3">Qué necesita atención</p>
+          <div className="grid lg:grid-cols-2 gap-3">
+            {interaccionesBajaron && (
+              <div className="rounded-lg bg-jab-panel-2 border border-jab-amber/40 p-4 text-sm">
+                Las interacciones bajaron{' '}
+                <span className="font-bold">{Math.abs(variacionInteracciones!)}%</span> frente al período anterior
+                ({interaccionesAnterior.toLocaleString('es-AR')} → {interaccionesTotal.toLocaleString('es-AR')}).
               </div>
             )}
             {campanaOportunidad && (
@@ -211,18 +236,49 @@ export function InicioContent({
                 </p>
               </div>
             )}
-            {mejorPost && <PublicacionMini post={mejorPost} titulo="Mejor publicación" />}
             {contenidoBajoRendimiento && (
               <PublicacionMini post={contenidoBajoRendimiento} titulo="Contenido con oportunidad de mejora" />
             )}
+            {alertasSalud.map((s) => (
+              <div key={s.nombre} className="rounded-lg bg-jab-panel-2 border border-jab-amber/40 p-4 text-sm">
+                <span className="text-[11px] font-semibold tracking-widest text-jab-amber uppercase">{s.nombre}</span>
+                <p className="mt-1">{s.alerta}</p>
+              </div>
+            ))}
           </div>
         </div>
       )}
 
       <div className="grid lg:grid-cols-2 gap-8 mb-8">
-        {/* Próximos pasos */}
+        {/* Bloque 4: Tus próximas acciones */}
         <div>
-          <p className="text-sm font-semibold mb-3">Próximos pasos</p>
+          <p className="text-sm font-semibold mb-3">Tus próximas acciones</p>
+          <div className="flex flex-wrap gap-1.5 mb-3">
+            <Link
+              href="/dashboard/redes"
+              className="rounded-full bg-jab-panel-2 border border-jab-border px-3 py-1.5 text-xs font-medium hover:border-jab-accent"
+            >
+              Ver contenido
+            </Link>
+            <Link
+              href="/dashboard/pauta"
+              className="rounded-full bg-jab-panel-2 border border-jab-border px-3 py-1.5 text-xs font-medium hover:border-jab-accent"
+            >
+              Ver pauta
+            </Link>
+            <Link
+              href="/dashboard/pedidos"
+              className="rounded-full bg-jab-panel-2 border border-jab-border px-3 py-1.5 text-xs font-medium hover:border-jab-accent"
+            >
+              Ver pedidos pendientes
+            </Link>
+            <Link
+              href="/dashboard/pedidos"
+              className="rounded-full bg-jab-lime text-jab-lime-ink px-3 py-1.5 text-xs font-bold uppercase tracking-wide"
+            >
+              Crear pedido
+            </Link>
+          </div>
           <div className="space-y-2">
             {pedidosEnRevision > 0 && (
               <Link
@@ -285,24 +341,13 @@ export function InicioContent({
           <div className="space-y-2">
             {salud.map((s) => (
               <div key={s.nombre} className="rounded-lg bg-jab-panel-2 border border-jab-border px-4 py-3">
-                <div className="flex items-center justify-between gap-2">
-                  <p className="text-sm font-medium">{s.nombre}</p>
-                  <span
-                    className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase ${
-                      s.conectado ? 'bg-jab-lime text-jab-lime-ink' : 'bg-jab-panel text-jab-muted'
-                    }`}
-                  >
-                    {s.conectado ? 'Conectado' : 'Sin conectar'}
-                  </span>
-                </div>
-                <p className="text-xs text-jab-muted mt-1">
-                  {s.ultimaActualizacion
-                    ? `Último dato: ${fechaCortaSinHora(s.ultimaActualizacion.slice(0, 10))}`
-                    : s.conectado
-                      ? 'Todavía sin datos sincronizados.'
-                      : 'Conectala en Configuración para ver sus métricas acá.'}
-                </p>
-                {s.alerta && <p className="text-xs text-jab-amber mt-1">⚠️ {s.alerta}</p>}
+                <p className="text-sm font-medium mb-1.5">{s.nombre}</p>
+                <FrescuraDatos
+                  fuente={s.nombre}
+                  conectado={s.conectado}
+                  ultimaSync={s.ultimaActualizacion}
+                  horaCronUtc={s.horaCronUtc}
+                />
               </div>
             ))}
           </div>
@@ -342,10 +387,26 @@ export function InicioContent({
             </Link>
           </div>
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-            <KpiCard etiqueta="Inversión" valor={`$${pautaResumen.gasto.toLocaleString('es-AR', { maximumFractionDigits: 0 })}`} />
-            <KpiCard etiqueta="Impresiones" valor={pautaResumen.impresiones.toLocaleString('es-AR')} />
-            <KpiCard etiqueta="Clics" valor={pautaResumen.clics.toLocaleString('es-AR')} />
-            <KpiCard etiqueta="Conversiones" valor={pautaResumen.conversiones.toLocaleString('es-AR')} />
+            <KpiCard
+              etiqueta="Inversión"
+              valor={`$${pautaResumen.gasto.toLocaleString('es-AR', { maximumFractionDigits: 0 })}`}
+              ayuda="Gasto total en Meta Ads en el período."
+            />
+            <KpiCard
+              etiqueta="Impresiones"
+              valor={pautaResumen.impresiones.toLocaleString('es-AR')}
+              ayuda="Veces que se mostró algún anuncio, sin descontar repeticiones a la misma persona."
+            />
+            <KpiCard
+              etiqueta="Clics"
+              valor={pautaResumen.clics.toLocaleString('es-AR')}
+              ayuda="Clics en los anuncios en el período."
+            />
+            <KpiCard
+              etiqueta="Conversiones"
+              valor={pautaResumen.conversiones.toLocaleString('es-AR')}
+              ayuda="Mensajes, leads, compras y otras acciones de valor que Meta atribuye a los anuncios."
+            />
           </div>
         </div>
       )}
