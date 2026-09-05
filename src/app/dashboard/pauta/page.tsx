@@ -7,6 +7,7 @@ import { periodoDesdeCookie } from '@/lib/periodo-cookie';
 import { PeriodoSelector } from '../periodo-selector';
 import { KpiCard } from '../reportes/kpi-card';
 import { SincronizarAdsButton } from './sincronizar-ads-button';
+import { PautaCharts } from './pauta-charts';
 import { FrescuraDatos } from '@/components/frescura-datos';
 import { fechaCortaSinHora } from '@/lib/format';
 
@@ -281,6 +282,8 @@ export default async function PautaPage({
               />
             </div>
 
+            <PautaCharts filas={filasActual} />
+
             <div>
               <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
                 <p className="text-sm font-semibold">Campañas</p>
@@ -306,6 +309,7 @@ export default async function PautaPage({
                       <th className="py-2 px-3">Campaña</th>
                       <th className="py-2 px-3">Estado</th>
                       <th className="py-2 px-3">Inversión</th>
+                      <th className="py-2 px-3">Clics</th>
                       <th className="py-2 px-3">CTR</th>
                       <th className="py-2 px-3">Conversiones</th>
                       <th className="py-2 px-3">Costo/resultado</th>
@@ -337,6 +341,7 @@ export default async function PautaPage({
                             )}
                           </td>
                           <td className="py-2 px-3">${c.gasto.toLocaleString('es-AR', { maximumFractionDigits: 0 })}</td>
+                          <td className="py-2 px-3">{c.clics.toLocaleString('es-AR')}</td>
                           <td className="py-2 px-3">{ctrCampana.toLocaleString('es-AR', { maximumFractionDigits: 2 })}%</td>
                           <td className="py-2 px-3">{c.conversiones.toLocaleString('es-AR')}</td>
                           <td className="py-2 px-3">

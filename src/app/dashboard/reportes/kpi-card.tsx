@@ -35,7 +35,7 @@ export function KpiCard({
         <p className="text-2xl font-bold">{valor}</p>
         {tieneTendencia && (
           <span
-            className={`text-xs font-semibold pb-1 shrink-0 ${esBuena ? 'text-jab-whatsapp' : 'text-jab-red'}`}
+            className={`text-xs font-semibold pb-1 shrink-0 ${esBuena ? 'text-jab-green' : 'text-jab-red'}`}
           >
             {enAlza ? '↑' : '↓'} {Math.abs(tendencia.valor)}
             {tendencia.sufijo ?? '%'}
