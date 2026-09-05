@@ -6,12 +6,26 @@ import { Sidebar } from '@/components/sidebar';
 import { DesconectarMetaButton } from './desconectar-meta-button';
 import { CuentaPublicitariaForm } from './cuenta-publicitaria-form';
 import { FrescuraDatos } from '@/components/frescura-datos';
+import { UMBRALES_FRECUENTE } from '@/lib/frescura-datos';
 
 const ROL_LABEL: Record<string, string> = {
   super_admin: 'JAB',
   client_admin: 'Administradora',
   client_viewer: 'Solo lectura',
 };
+
+/** Fila "error o atención requerida" para un card de integración -- sólo
+ * se muestra si la última sincronización registrada terminó mal, con el
+ * mensaje ya seguro que guardó el propio proceso de sync (nunca el error
+ * crudo de Meta). */
+function ErrorSincronizacion({ sync }: { sync: { estado: string; error_seguro: string | null } | null }) {
+  if (!sync || (sync.estado !== 'error' && sync.estado !== 'parcial') || !sync.error_seguro) return null;
+  return (
+    <p className="mt-2 text-xs text-jab-red bg-jab-red/10 rounded px-2 py-1.5">
+      Atención: {sync.error_seguro}
+    </p>
+  );
+}
 
 const META_MENSAJE: Record<string, { texto: string; ok: boolean }> = {
   conectado: { texto: 'Meta conectado correctamente.', ok: true },
@@ -55,7 +69,7 @@ export default async function ConfiguracionPage({
       .maybeSingle(),
     service
       .from('sincronizaciones')
-      .select('tipo, estado, finalizado_en, iniciado_en')
+      .select('tipo, estado, finalizado_en, iniciado_en, error_seguro')
       .eq('tenant_id', tenantId)
       .eq('plataforma', 'meta')
       .order('iniciado_en', { ascending: false })
@@ -144,12 +158,15 @@ export default async function ConfiguracionPage({
               )}
             </div>
             {organicoConectado && (
-              <FrescuraDatos
-                fuente="Redes"
-                conectado
-                ultimaSync={syncRedes?.finalizado_en ?? syncRedes?.iniciado_en ?? null}
-                horaCronUtc={9}
-              />
+              <>
+                <FrescuraDatos
+                  fuente="Redes"
+                  conectado
+                  ultimaSync={syncRedes?.finalizado_en ?? syncRedes?.iniciado_en ?? null}
+                  horaCronUtc={9}
+                />
+                <ErrorSincronizacion sync={syncRedes} />
+              </>
             )}
           </div>
 
@@ -185,12 +202,15 @@ export default async function ConfiguracionPage({
               )}
             </div>
             {adsConectado && (
-              <FrescuraDatos
-                fuente="Meta Ads"
-                conectado
-                ultimaSync={syncAds?.finalizado_en ?? syncAds?.iniciado_en ?? null}
-                horaCronUtc={10}
-              />
+              <>
+                <FrescuraDatos
+                  fuente="Meta Ads"
+                  conectado
+                  ultimaSync={syncAds?.finalizado_en ?? syncAds?.iniciado_en ?? null}
+                  umbrales={UMBRALES_FRECUENTE}
+                />
+                <ErrorSincronizacion sync={syncAds} />
+              </>
             )}
             {puedeConectar && !adsConectado && (
               <details className="mt-3">
