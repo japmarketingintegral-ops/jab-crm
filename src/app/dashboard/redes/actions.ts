@@ -22,7 +22,7 @@ export async function sincronizarMetricasMeta(): Promise<{ ok?: boolean; error?:
     .eq('platform', 'meta')
     .not('connected_at', 'is', null)
     .maybeSingle();
-  if (!fuente) {
+  if (!fuente || !fuente.external_account_id) {
     return { error: 'Todavía no conectaste Meta en Configuración.' };
   }
 
@@ -42,7 +42,11 @@ export async function sincronizarMetricasMeta(): Promise<{ ok?: boolean; error?:
   return sincronizarPublicacionesMeta(
     supabase,
     tenantId,
-    { ...fuente, access_token: secreto.access_token },
+    {
+      external_account_id: fuente.external_account_id,
+      instagram_business_account_id: fuente.instagram_business_account_id,
+      access_token: secreto.access_token,
+    },
     perfil.id,
   );
 }

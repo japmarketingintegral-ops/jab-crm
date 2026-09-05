@@ -56,25 +56,35 @@ export interface Database {
           id: string;
           tenant_id: string;
           platform: LeadPlatform;
-          external_account_id: string;
-          display_name: string;
+          external_account_id: string | null;
+          display_name: string | null;
           connected_at: string | null;
           created_at: string;
           instagram_business_account_id: string | null;
           token_actualizado_en: string | null;
           ad_account_id: string | null;
+          ads_connected_at: string | null;
+          ad_account_name: string | null;
+          ad_account_currency: string | null;
+          business_id: string | null;
+          business_name: string | null;
         };
         Insert: {
           id?: string;
           tenant_id: string;
           platform: LeadPlatform;
-          external_account_id: string;
-          display_name: string;
+          external_account_id?: string | null;
+          display_name?: string | null;
           connected_at?: string | null;
           created_at?: string;
           instagram_business_account_id?: string | null;
           ad_account_id?: string | null;
           token_actualizado_en?: string | null;
+          ads_connected_at?: string | null;
+          ad_account_name?: string | null;
+          ad_account_currency?: string | null;
+          business_id?: string | null;
+          business_name?: string | null;
         };
         Relationships: [];
         Update: Partial<Database['public']['Tables']['lead_sources']['Insert']>;
@@ -152,6 +162,8 @@ export interface Database {
           id: string;
           tenant_id: string;
           paginas: unknown;
+          cuentas_publicitarias: unknown;
+          negocios: unknown;
           user_access_token: string | null;
           created_at: string;
         };
@@ -159,6 +171,8 @@ export interface Database {
           id?: string;
           tenant_id: string;
           paginas: unknown;
+          cuentas_publicitarias?: unknown;
+          negocios?: unknown;
           user_access_token?: string | null;
           created_at?: string;
         };
@@ -221,6 +235,8 @@ export interface Database {
           impresiones: number;
           clics: number;
           conversiones: number;
+          estado: string | null;
+          objetivo: string | null;
           created_at: string;
         };
         Insert: {
@@ -234,10 +250,42 @@ export interface Database {
           impresiones?: number;
           clics?: number;
           conversiones?: number;
+          estado?: string | null;
+          objetivo?: string | null;
           created_at?: string;
         };
         Relationships: [];
         Update: Partial<Database['public']['Tables']['ad_metrics']['Insert']>;
+      };
+      sincronizaciones: {
+        Row: {
+          id: string;
+          tenant_id: string;
+          plataforma: string;
+          tipo: string;
+          iniciado_en: string;
+          finalizado_en: string | null;
+          estado: 'ok' | 'parcial' | 'error' | 'en_curso';
+          ultima_fecha_datos: string | null;
+          registros_procesados: number | null;
+          proximo_intento: string | null;
+          error_seguro: string | null;
+        };
+        Insert: {
+          id?: string;
+          tenant_id: string;
+          plataforma: string;
+          tipo: string;
+          iniciado_en?: string;
+          finalizado_en?: string | null;
+          estado?: 'ok' | 'parcial' | 'error' | 'en_curso';
+          ultima_fecha_datos?: string | null;
+          registros_procesados?: number | null;
+          proximo_intento?: string | null;
+          error_seguro?: string | null;
+        };
+        Relationships: [];
+        Update: Partial<Database['public']['Tables']['sincronizaciones']['Insert']>;
       };
       pedidos: {
         Row: {

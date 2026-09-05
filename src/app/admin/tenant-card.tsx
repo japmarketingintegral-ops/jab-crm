@@ -14,7 +14,13 @@ export function TenantCard({
 }: {
   tenant: { id: string; name: string; slug: string };
   health: HealthScore;
-  fuentesTenant: { id: string; platform: string; display_name: string; connected_at: string | null; conectado: boolean }[];
+  fuentesTenant: {
+    id: string;
+    platform: string;
+    display_name: string | null;
+    connected_at: string | null;
+    conectado: boolean;
+  }[];
 }) {
   const [pending, startTransition] = useTransition();
 
@@ -64,7 +70,7 @@ export function TenantCard({
         <ul className="text-xs text-jab-muted space-y-0.5">
           {fuentesTenant.map((f) => (
             <li key={f.id}>
-              {PLATAFORMA_LABEL[f.platform] ?? f.platform} · {f.display_name} ·{' '}
+              {PLATAFORMA_LABEL[f.platform] ?? f.platform} · {f.display_name ?? 'Cuenta de Ads (sin página)'} ·{' '}
               {f.conectado ? 'conectado' : 'pendiente de conectar'}
             </li>
           ))}

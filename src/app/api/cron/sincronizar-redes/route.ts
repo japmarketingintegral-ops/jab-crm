@@ -30,7 +30,7 @@ export async function GET(request: NextRequest) {
 
   for (const fuente of fuentes ?? []) {
     const accessToken = tokenPorTenant.get(fuente.tenant_id);
-    if (!accessToken) continue;
+    if (!accessToken || !fuente.external_account_id) continue;
     const resultado = await sincronizarPublicacionesMeta(
       supabase,
       fuente.tenant_id,
