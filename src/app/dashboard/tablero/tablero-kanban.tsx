@@ -38,6 +38,12 @@ const COLUMNAS: {
   { key: 'materiales', titulo: 'Materiales', origenes: ['tarea'], color: 'bg-jab-panel-2 text-jab-muted' },
   { key: 'pedido', titulo: 'Pedidos', origenes: ['pedido'], color: 'bg-jab-accent/15 text-jab-accent' },
   {
+    key: 'en_preparacion',
+    titulo: 'En preparación',
+    origenes: ['pedido'],
+    color: 'bg-jab-accent/15 text-jab-accent',
+  },
+  {
     key: 'en_proceso',
     titulo: 'En proceso',
     origenes: ['tarea', 'pedido'],
@@ -47,6 +53,7 @@ const COLUMNAS: {
   { key: 'revision', titulo: 'Revisión', origenes: ['tarea', 'pedido'], color: 'bg-jab-violet/15 text-jab-violet' },
   { key: 'ads', titulo: 'Ads', origenes: ['tarea'], color: 'bg-jab-teal/15 text-jab-teal' },
   { key: 'on_hold', titulo: 'On hold', origenes: ['tarea'], color: 'bg-jab-red/15 text-jab-red' },
+  { key: 'pausado', titulo: 'Pausado', origenes: ['pedido'], color: 'bg-jab-red/15 text-jab-red' },
   { key: 'aprobado', titulo: 'Aprobado', origenes: ['tarea', 'pedido'], color: 'bg-jab-green/15 text-jab-green' },
 ];
 

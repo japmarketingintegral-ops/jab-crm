@@ -19,10 +19,12 @@ import {
 import type { PedidoEstado, PedidoCategoria } from '@/lib/supabase/types';
 
 const ESTADOS: { valor: PedidoEstado; etiqueta: string }[] = [
-  { valor: 'pedido', etiqueta: 'Pedido' },
+  { valor: 'pedido', etiqueta: 'Recibido' },
+  { valor: 'en_preparacion', etiqueta: 'En preparación' },
   { valor: 'en_proceso', etiqueta: 'En proceso' },
-  { valor: 'revision', etiqueta: 'Revisión' },
-  { valor: 'aprobado', etiqueta: 'Aprobado' },
+  { valor: 'revision', etiqueta: 'Esperando tu revisión' },
+  { valor: 'pausado', etiqueta: 'Pausado' },
+  { valor: 'aprobado', etiqueta: 'Aprobado / finalizado' },
 ];
 
 export const CATEGORIA_LABEL: Record<PedidoCategoria, string> = {
@@ -157,22 +159,48 @@ export function PedidoDetailPanel({
 
             <div>
               <p className="text-[11px] font-semibold tracking-widest text-jab-muted uppercase mb-2">Estado</p>
-              <div className="flex flex-wrap gap-1.5">
-                {ESTADOS.map((e) => (
-                  <button
-                    key={e.valor}
-                    disabled={pending}
-                    onClick={() => conRecarga(() => cambiarEstadoPedido(pedidoId, e.valor))}
-                    className={`rounded-full px-3 py-1.5 text-xs font-medium disabled:opacity-50 ${
-                      detalle.estado === e.valor
-                        ? 'bg-jab-accent text-jab-bg-deep'
-                        : 'bg-jab-panel-2 text-jab-muted hover:text-jab-text'
-                    }`}
-                  >
-                    {e.etiqueta}
-                  </button>
-                ))}
-              </div>
+              {esEquipoJab ? (
+                <div className="flex flex-wrap gap-1.5">
+                  {ESTADOS.map((e) => (
+                    <button
+                      key={e.valor}
+                      disabled={pending}
+                      onClick={() => conRecarga(() => cambiarEstadoPedido(pedidoId, e.valor))}
+                      className={`rounded-full px-3 py-1.5 text-xs font-medium disabled:opacity-50 ${
+                        detalle.estado === e.valor
+                          ? 'bg-jab-accent text-jab-bg-deep'
+                          : 'bg-jab-panel-2 text-jab-muted hover:text-jab-text'
+                      }`}
+                    >
+                      {e.etiqueta}
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <span className="inline-block rounded-full px-3 py-1.5 text-xs font-medium bg-jab-panel-2 text-jab-muted">
+                    {ESTADOS.find((e) => e.valor === detalle.estado)?.etiqueta ?? detalle.estado}
+                  </span>
+                  {detalle.estado === 'revision' && (
+                    <div className="flex gap-2">
+                      <button
+                        disabled={pending}
+                        onClick={() => conRecarga(() => cambiarEstadoPedido(pedidoId, 'aprobado'))}
+                        className="rounded-full bg-jab-lime text-jab-lime-ink px-3 py-1.5 text-xs font-bold uppercase tracking-wide disabled:opacity-50"
+                      >
+                        Aprobar
+                      </button>
+                      <button
+                        disabled={pending}
+                        onClick={() => conRecarga(() => cambiarEstadoPedido(pedidoId, 'en_proceso'))}
+                        className="rounded-full border border-jab-border px-3 py-1.5 text-xs font-medium hover:border-jab-amber hover:text-jab-amber disabled:opacity-50"
+                      >
+                        Pedir cambios
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

@@ -107,10 +107,12 @@ export async function obtenerUrlArchivo(archivoId: string): Promise<{ url: strin
 }
 
 const ESTADO_LABEL: Record<PedidoEstado, string> = {
-  pedido: 'Pedido',
+  pedido: 'Recibido',
+  en_preparacion: 'En preparación',
   en_proceso: 'En proceso',
-  revision: 'Revisión',
-  aprobado: 'Aprobado',
+  revision: 'Esperando tu revisión',
+  aprobado: 'Aprobado / finalizado',
+  pausado: 'Pausado',
 };
 
 /** Deja un renglón de "actividad" (no un comentario real) en el timeline del

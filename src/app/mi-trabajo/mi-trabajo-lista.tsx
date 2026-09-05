@@ -24,12 +24,14 @@ export type TarjetaMiTrabajo = {
 
 const ESTADO_INFO: Record<string, { label: string; color: string }> = {
   materiales: { label: 'Materiales', color: 'bg-jab-panel-2 text-jab-muted' },
-  pedido: { label: 'Pedido', color: 'bg-jab-accent/15 text-jab-accent' },
+  pedido: { label: 'Recibido', color: 'bg-jab-accent/15 text-jab-accent' },
+  en_preparacion: { label: 'En preparación', color: 'bg-jab-accent/15 text-jab-accent' },
   en_proceso: { label: 'En proceso', color: 'bg-jab-amber/15 text-jab-amber' },
-  revision: { label: 'Revisión', color: 'bg-jab-violet/15 text-jab-violet' },
+  revision: { label: 'Esperando tu revisión', color: 'bg-jab-violet/15 text-jab-violet' },
+  pausado: { label: 'Pausado', color: 'bg-jab-red/15 text-jab-red' },
   ads: { label: 'Ads', color: 'bg-jab-teal/15 text-jab-teal' },
   on_hold: { label: 'On hold', color: 'bg-jab-red/15 text-jab-red' },
-  aprobado: { label: 'Aprobado', color: 'bg-jab-green/15 text-jab-green' },
+  aprobado: { label: 'Aprobado / finalizado', color: 'bg-jab-green/15 text-jab-green' },
 };
 
 type Filtro = 'todo' | 'vencidas' | 'hoy' | 'semana';

@@ -8,7 +8,7 @@
 export type UserRole = 'super_admin' | 'client_admin' | 'client_viewer' | 'jab_staff';
 export type LeadPlatform = 'meta';
 export type SocialPlatform = 'instagram' | 'facebook' | 'tiktok' | 'linkedin' | 'otra';
-export type PedidoEstado = 'pedido' | 'en_proceso' | 'revision' | 'aprobado';
+export type PedidoEstado = 'pedido' | 'en_preparacion' | 'en_proceso' | 'revision' | 'aprobado' | 'pausado';
 export type PedidoCategoria = 'redes' | 'contenido' | 'comunicado' | 'video' | 'pauta' | 'otro';
 export type TareaInternaEstado = 'materiales' | 'en_proceso' | 'revision' | 'ads' | 'on_hold' | 'aprobado';
 

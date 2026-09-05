@@ -55,10 +55,12 @@ export type MaterialResumen = {
 };
 
 const ESTADO_PEDIDO_LABEL: Record<PedidoEstado, string> = {
-  pedido: 'Pedido',
+  pedido: 'Recibido',
+  en_preparacion: 'En preparación',
   en_proceso: 'En proceso',
-  revision: 'Revisión',
-  aprobado: 'Aprobado',
+  revision: 'Esperando tu revisión',
+  aprobado: 'Aprobado / finalizado',
+  pausado: 'Pausado',
 };
 
 function PublicacionMini({ post, titulo }: { post: PostResumen; titulo: string }) {

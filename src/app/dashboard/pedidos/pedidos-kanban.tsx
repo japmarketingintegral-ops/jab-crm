@@ -23,10 +23,12 @@ export type PedidoTarjeta = {
 };
 
 const COLUMNAS: { estado: PedidoEstado; titulo: string }[] = [
-  { estado: 'pedido', titulo: 'Pedido' },
+  { estado: 'pedido', titulo: 'Recibido' },
+  { estado: 'en_preparacion', titulo: 'En preparación' },
   { estado: 'en_proceso', titulo: 'En proceso' },
-  { estado: 'revision', titulo: 'Revisión' },
-  { estado: 'aprobado', titulo: 'Aprobado' },
+  { estado: 'revision', titulo: 'Esperando revisión' },
+  { estado: 'pausado', titulo: 'Pausado' },
+  { estado: 'aprobado', titulo: 'Aprobado / finalizado' },
 ];
 
 export function PedidosKanban({
@@ -68,7 +70,8 @@ export function PedidosKanban({
               </p>
               <div className="flex-1 space-y-2 min-h-[100px] rounded-lg bg-jab-panel-2/40 p-2">
                 {items.map((p) => {
-                  const sla = p.estado !== 'aprobado' ? nivelSLAPedido(p.actualizadoEn) : null;
+                  const sla =
+                    p.estado !== 'aprobado' && p.estado !== 'pausado' ? nivelSLAPedido(p.actualizadoEn) : null;
                   const nombreAccesible = [
                     p.titulo,
                     CATEGORIA_LABEL[p.categoria],
