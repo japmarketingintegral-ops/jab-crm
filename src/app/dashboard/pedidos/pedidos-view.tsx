@@ -3,12 +3,13 @@
 import { useMemo, useState } from 'react';
 import { PedidosKanban, type PedidoTarjeta } from './pedidos-kanban';
 import { PedidosCalendar } from './pedidos-calendar';
+import { PedidosLista } from './pedidos-lista';
 import { CATEGORIA_LABEL } from './pedido-detail-panel';
 import type { PedidoCategoria } from '@/lib/supabase/types';
 
 export type { PedidoTarjeta };
 
-type Vista = 'kanban' | 'calendario';
+type Vista = 'kanban' | 'lista' | 'calendario';
 type Filtro = 'todos' | 'pendientes' | 'semana';
 
 function estaEnSemana(fecha: string | null): boolean {
@@ -91,6 +92,7 @@ export function PedidosView({
           {(
             [
               { valor: 'kanban', etiqueta: 'Kanban' },
+              { valor: 'lista', etiqueta: 'Lista' },
               { valor: 'calendario', etiqueta: 'Calendario' },
             ] as const
           ).map((v) => (
@@ -113,6 +115,8 @@ export function PedidosView({
         <p className="text-sm text-jab-muted">No hay pedidos que coincidan con este filtro.</p>
       ) : vista === 'kanban' ? (
         <PedidosKanban pedidos={filtrados} esEquipoJab={esEquipoJab} />
+      ) : vista === 'lista' ? (
+        <PedidosLista pedidos={filtrados} esEquipoJab={esEquipoJab} />
       ) : (
         <PedidosCalendar pedidos={filtrados} esEquipoJab={esEquipoJab} />
       )}
