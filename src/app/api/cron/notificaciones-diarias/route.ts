@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createServiceClient } from '@/lib/supabase/service';
 import { enviarEmail } from '@/lib/email';
 import { escapeHtml } from '@/lib/format';
+import { gruposConFallosConsecutivos } from '@/lib/sincronizaciones-alertas';
 
 /**
  * Corre una vez por día (Vercel Cron, ver vercel.json): a cada persona de
@@ -17,11 +18,22 @@ export async function GET(request: NextRequest) {
   const hoyStr = new Date().toISOString().slice(0, 10);
   let mailsEquipoJab = 0;
 
-  const [{ data: tareas }, { data: pedidos }, { data: equipoJab }] = await Promise.all([
-    supabase.from('tareas_internas').select('titulo, estado, fecha_programada, asignado_a'),
-    supabase.from('pedidos').select('titulo, estado, fecha_programada, asignado_a'),
-    supabase.from('profiles').select('id, email').in('role', ['super_admin', 'jab_staff']),
-  ]);
+  const hace3dias = new Date(Date.now() - 3 * 24 * 3_600_000).toISOString();
+  const [{ data: tareas }, { data: pedidos }, { data: equipoJab }, { data: syncsRecientes }, { data: tenants }] =
+    await Promise.all([
+      supabase.from('tareas_internas').select('titulo, estado, fecha_programada, asignado_a'),
+      supabase.from('pedidos').select('titulo, estado, fecha_programada, asignado_a'),
+      supabase.from('profiles').select('id, email').in('role', ['super_admin', 'jab_staff']),
+      // Ventana de 3 días alcanza para juntar al menos 3 intentos incluso
+      // de la fuente que sincroniza una vez al día (Redes) -- Meta Ads, que
+      // sincroniza cada 30 min, tendrá muchos más intentos en esa ventana.
+      supabase
+        .from('sincronizaciones')
+        .select('tenant_id, plataforma, tipo, estado, iniciado_en')
+        .gte('iniciado_en', hace3dias)
+        .order('iniciado_en', { ascending: false }),
+      supabase.from('tenants').select('id, name'),
+    ]);
 
   const idsJab = new Set((equipoJab ?? []).map((p) => p.id));
   const vencidosPorPersona = new Map<string, { titulo: string; tipo: 'tarea' | 'pedido' }[]>();
@@ -62,5 +74,32 @@ export async function GET(request: NextRequest) {
     if (res.ok) mailsEquipoJab++;
   }
 
-  return NextResponse.json({ ok: true, mailsEquipoJab });
+  // Alerta a JAB si una integración viene fallando de forma consistente --
+  // 3 intentos seguidos en error, no un fallo aislado (Meta a veces
+  // rechaza una corrida puntual y se recupera sola en la siguiente).
+  const nombreTenant = new Map((tenants ?? []).map((t) => [t.id, t.name]));
+  const alertas = gruposConFallosConsecutivos(syncsRecientes ?? []).map((clave) => {
+    const [tenantId, plataforma, tipo] = clave.split('|');
+    return `${nombreTenant.get(tenantId) ?? tenantId} — ${plataforma}/${tipo}`;
+  });
+
+  let mailAlertaSync = false;
+  if (alertas.length > 0) {
+    const destinatarios = (equipoJab ?? []).map((p) => p.email).filter((e): e is string => Boolean(e));
+    if (destinatarios.length > 0) {
+      const filas = alertas.map((a) => `<li>${escapeHtml(a)}</li>`).join('');
+      const res = await enviarEmail({
+        to: destinatarios,
+        subject: `${alertas.length} sincronización${alertas.length === 1 ? '' : 'es'} necesita${alertas.length === 1 ? '' : 'n'} atención`,
+        html: `
+          <p>Las últimas 3 corridas de estas integraciones terminaron en error:</p>
+          <ul>${filas}</ul>
+          <p>Revisá el token de conexión o la cuenta de Meta correspondiente en Configuración.</p>
+        `,
+      });
+      mailAlertaSync = res.ok;
+    }
+  }
+
+  return NextResponse.json({ ok: true, mailsEquipoJab, alertasSincronizacion: alertas.length, mailAlertaSync });
 }
