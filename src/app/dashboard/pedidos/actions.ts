@@ -259,6 +259,59 @@ export async function cambiarEstadoPedido(pedidoId: string, estado: PedidoEstado
   return { ok: true };
 }
 
+/**
+ * "Pedir cambios" no es sólo mover el estado a en_proceso -- sin una
+ * explicación, JAB recibe un aviso vacío de que algo cambió, sin saber
+ * qué. Exige un motivo no vacío, lo deja como comentario real (visible
+ * para los dos lados, con quién lo escribió y cuándo) y recién ahí cambia
+ * el estado, todo junto para que quede claro sobre qué versión del
+ * entregable fue el pedido de cambios.
+ */
+export async function pedirCambios(pedidoId: string, motivo: string) {
+  if (!motivo.trim()) return { error: 'Contanos qué hay que cambiar antes de mandarlo de vuelta.' };
+
+  const perfil = await requerirPerfil();
+  const supabase = await createClient();
+
+  const { data: actual } = await supabase.from('pedidos').select('estado, tenant_id, titulo').eq('id', pedidoId).single();
+  if (!actual) return { error: 'No se encontró el pedido.' };
+  if (!esEquipoJab(perfil.role) && !puedeClienteMoverA(actual.estado, 'en_proceso')) {
+    return { error: 'No podés pedir cambios en este estado.' };
+  }
+
+  const { error: comentarioError } = await supabase.from('pedido_comentarios').insert({
+    pedido_id: pedidoId,
+    tenant_id: actual.tenant_id,
+    autor_id: perfil.id,
+    texto: `Pidió cambios: ${motivo.trim()}`,
+    visibilidad: 'cliente',
+  });
+  if (comentarioError) return { error: 'No se pudo guardar el motivo.' };
+
+  if (actual.estado !== 'en_proceso') {
+    await supabase.from('pedidos').update({ estado: 'en_proceso' }).eq('id', pedidoId);
+    await registrarAuditoria(supabase, {
+      tenantId: actual.tenant_id,
+      actorId: perfil.id,
+      accion: 'pedido.estado_cambiado',
+      entidadTipo: 'pedido',
+      entidadId: pedidoId,
+      entidadTitulo: actual.titulo,
+      valorNuevo: { estado: 'en_proceso', motivo: motivo.trim() },
+    });
+  }
+
+  await notificarPedido(
+    supabase,
+    pedidoId,
+    perfil.id,
+    'Pedido: pidieron cambios',
+    `${escapeHtml(perfil.full_name ?? perfil.email)} pidió cambios en <strong>${escapeHtml(actual.titulo)}</strong>: "${escapeHtml(motivo.trim().slice(0, 300))}"`,
+  );
+
+  return { ok: true };
+}
+
 export async function asignarPedido(pedidoId: string, userId: string | null) {
   const perfil = await requerirPerfil();
   if (!esEquipoJab(perfil.role)) {

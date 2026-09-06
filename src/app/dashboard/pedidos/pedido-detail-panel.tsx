@@ -8,6 +8,7 @@ import {
   agregarArchivos,
   obtenerUrlArchivo,
   cambiarEstadoPedido,
+  pedirCambios,
   asignarPedido,
   programarFechaPedido,
   agregarItemChecklistPedido,
@@ -69,6 +70,8 @@ export function PedidoDetailPanel({
   const [error, setError] = useState<string | null>(null);
   const [comentario, setComentario] = useState('');
   const [notaInterna, setNotaInterna] = useState(false);
+  const [mostrarPedirCambios, setMostrarPedirCambios] = useState(false);
+  const [motivoCambios, setMotivoCambios] = useState('');
   const [nuevoItem, setNuevoItem] = useState('');
   const [pending, startTransition] = useTransition();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -181,7 +184,7 @@ export function PedidoDetailPanel({
                   <span className="inline-block rounded-full px-3 py-1.5 text-xs font-medium bg-jab-panel-2 text-jab-muted">
                     {ESTADOS.find((e) => e.valor === detalle.estado)?.etiqueta ?? detalle.estado}
                   </span>
-                  {detalle.estado === 'revision' && (
+                  {detalle.estado === 'revision' && !mostrarPedirCambios && (
                     <div className="flex gap-2">
                       <button
                         disabled={pending}
@@ -192,11 +195,51 @@ export function PedidoDetailPanel({
                       </button>
                       <button
                         disabled={pending}
-                        onClick={() => conRecarga(() => cambiarEstadoPedido(pedidoId, 'en_proceso'))}
+                        onClick={() => setMostrarPedirCambios(true)}
                         className="rounded-full border border-jab-border px-3 py-1.5 text-xs font-medium hover:border-jab-amber hover:text-jab-amber disabled:opacity-50"
                       >
                         Pedir cambios
                       </button>
+                    </div>
+                  )}
+                  {detalle.estado === 'revision' && mostrarPedirCambios && (
+                    <div className="space-y-2">
+                      <textarea
+                        autoFocus
+                        value={motivoCambios}
+                        onChange={(e) => setMotivoCambios(e.target.value)}
+                        placeholder="Contanos qué hay que cambiar -- esto lo ve JAB como comentario del pedido."
+                        rows={3}
+                        className="w-full rounded-lg bg-jab-panel-2 border border-jab-border px-3 py-2 text-sm outline-none focus:border-jab-amber"
+                      />
+                      <div className="flex gap-2">
+                        <button
+                          disabled={pending || !motivoCambios.trim()}
+                          onClick={() =>
+                            conRecarga(async () => {
+                              const res = await pedirCambios(pedidoId, motivoCambios);
+                              if (res.ok) {
+                                setMotivoCambios('');
+                                setMostrarPedirCambios(false);
+                              }
+                              return res;
+                            })
+                          }
+                          className="rounded-full bg-jab-amber text-jab-bg-deep px-3 py-1.5 text-xs font-bold uppercase tracking-wide disabled:opacity-50"
+                        >
+                          Enviar pedido de cambios
+                        </button>
+                        <button
+                          disabled={pending}
+                          onClick={() => {
+                            setMostrarPedirCambios(false);
+                            setMotivoCambios('');
+                          }}
+                          className="rounded-full border border-jab-border px-3 py-1.5 text-xs font-medium text-jab-muted hover:text-jab-text disabled:opacity-50"
+                        >
+                          Cancelar
+                        </button>
+                      </div>
                     </div>
                   )}
                 </div>
