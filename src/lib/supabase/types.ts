@@ -609,6 +609,7 @@ export interface Database {
           ruta_storage: string;
           subido_por: string | null;
           created_at: string;
+          tamano_bytes: number | null;
         };
         Insert: {
           id?: string;
@@ -617,6 +618,7 @@ export interface Database {
           ruta_storage: string;
           subido_por?: string | null;
           created_at?: string;
+          tamano_bytes?: number | null;
         };
         Relationships: [
           {

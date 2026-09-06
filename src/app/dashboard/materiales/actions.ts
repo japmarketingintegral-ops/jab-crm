@@ -16,25 +16,42 @@ export async function subirMateriales(_prevState: string | undefined, formData: 
   const archivos = formData.getAll('archivos').filter((a): a is File => a instanceof File && a.size > 0);
   if (archivos.length === 0) return 'Elegí al menos un archivo.';
 
+  // Se intenta cada archivo por separado -- si uno falla (muy pesado, error
+  // de red), los demás igual se suben. Sin esto, un lote de 5 archivos
+  // donde el 3ro pesa de más dejaba los 2 primeros subidos pero sin avisar,
+  // y los últimos 2 ni se intentaban.
   const service = createServiceClient();
+  const errores: string[] = [];
+  let subidos = 0;
   for (const archivo of archivos) {
     if (archivo.size > MAX_ARCHIVO_BYTES) {
-      return `"${archivo.name}" pesa más de 20MB.`;
+      errores.push(`"${archivo.name}" pesa más de 20MB.`);
+      continue;
     }
     const ruta = `${tenantId}/${crypto.randomUUID()}-${archivo.name}`;
     const { error: uploadError } = await service.storage.from(BUCKET).upload(ruta, archivo);
-    if (uploadError) return `No se pudo subir "${archivo.name}".`;
+    if (uploadError) {
+      errores.push(`No se pudo subir "${archivo.name}".`);
+      continue;
+    }
 
     const { error: insertError } = await service.from('materiales').insert({
       tenant_id: tenantId,
       nombre_archivo: archivo.name,
       ruta_storage: ruta,
       subido_por: perfil.id,
+      tamano_bytes: archivo.size,
     });
-    if (insertError) return `Se subió "${archivo.name}" pero no se pudo registrar.`;
+    if (insertError) {
+      errores.push(`Se subió "${archivo.name}" pero no se pudo registrar.`);
+      continue;
+    }
+    subidos++;
   }
 
-  return undefined;
+  if (errores.length === 0) return undefined;
+  const prefijo = subidos > 0 ? `Se subieron ${subidos} de ${archivos.length} archivos. ` : '';
+  return `${prefijo}${errores.join(' ')}`;
 }
 
 export async function eliminarMaterial(materialId: string) {

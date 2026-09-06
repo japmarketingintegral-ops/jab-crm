@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { escapeHtml, nivelVencimiento } from './format';
+import { escapeHtml, nivelVencimiento, formatearBytes } from './format';
 
 describe('escapeHtml', () => {
   it('escapa las 5 entidades HTML básicas', () => {
@@ -45,5 +45,17 @@ describe('nivelVencimiento', () => {
   it('hoy y mañana con un estado no terminal se calculan normalmente', () => {
     expect(nivelVencimiento(hoy, 'en_proceso')).toBe('hoy');
     expect(nivelVencimiento(mañana, 'en_proceso')).toBe('proxima');
+  });
+});
+
+describe('formatearBytes', () => {
+  it('usa B, KB o MB según el tamaño', () => {
+    expect(formatearBytes(500)).toBe('500 B');
+    expect(formatearBytes(2048)).toBe('2 KB');
+    expect(formatearBytes(5 * 1024 * 1024)).toBe('5.0 MB');
+  });
+
+  it('es "—" sin dato -- archivos subidos antes de registrar el tamaño', () => {
+    expect(formatearBytes(null)).toBe('—');
   });
 });

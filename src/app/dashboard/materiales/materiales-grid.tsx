@@ -3,13 +3,14 @@
 import { useActionState, useEffect, useMemo, useRef, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { subirMateriales, eliminarMaterial, obtenerUrlMaterial } from './actions';
-import { esImagen, fechaCortaSinHora } from '@/lib/format';
+import { esImagen, fechaCortaSinHora, formatearBytes } from '@/lib/format';
 
 export type Material = {
   id: string;
   nombre: string;
   subidoPorNombre: string | null;
   creadoEn: string;
+  tamanoBytes: number | null;
 };
 
 type Orden = 'reciente' | 'nombre';
@@ -70,6 +71,7 @@ function MaterialCard({ material, esAdmin }: { material: Material; esAdmin: bool
         </p>
         <p className="text-[11px] text-jab-muted mt-0.5">
           {material.subidoPorNombre ?? 'Alguien del equipo'} · {fechaCortaSinHora(material.creadoEn.slice(0, 10))}
+          {material.tamanoBytes !== null && ` · ${formatearBytes(material.tamanoBytes)}`}
         </p>
         <div className="flex gap-2 mt-2">
           <button
@@ -128,7 +130,7 @@ function ZonaDeCarga({ formAction, pending }: { formAction: (fd: FormData) => vo
         onChange={(e) => enviarArchivos(e.target.files)}
       />
       <p className="text-sm font-medium mb-1">Arrastrá archivos acá</p>
-      <p className="text-xs text-jab-muted mb-3">o elegilos desde tu computadora</p>
+      <p className="text-xs text-jab-muted mb-3">o elegilos desde tu computadora · máximo 20 MB por archivo</p>
       <button
         type="button"
         onClick={() => inputRef.current?.click()}
@@ -147,7 +149,10 @@ export function MaterialesGrid({ materiales, esAdmin }: { materiales: Material[]
   const [orden, setOrden] = useState<Orden>('reciente');
   const [error, formAction, pending] = useActionState(async (_prev: string | undefined, fd: FormData) => {
     const res = await subirMateriales(_prev, fd);
-    if (res === undefined) router.refresh();
+    // Refrescar siempre, no sólo en éxito total -- un lote donde algunos
+    // archivos sí se subieron pero otros fallaron igual cambió la lista,
+    // y el mensaje de error de los que fallaron sigue siendo útil mostrar.
+    router.refresh();
     return res;
   }, undefined);
 

@@ -47,6 +47,15 @@ export function formatearMinutos(minutos: number | null): string {
   return redondeado < 60 ? `${redondeado} min` : `${(redondeado / 60).toFixed(1)} h`;
 }
 
+/** Tamaño de archivo legible: "340 KB", "12.4 MB", "—" si no hay dato
+ * (archivos subidos antes de que se empezara a registrar el tamaño). */
+export function formatearBytes(bytes: number | null): string {
+  if (bytes === null) return '—';
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
 export type NivelSLA = 'rojo' | 'ambar' | 'verde';
 
 /**

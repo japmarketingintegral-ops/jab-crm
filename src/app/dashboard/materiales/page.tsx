@@ -20,7 +20,7 @@ export default async function MaterialesPage() {
     supabase.from('tenants').select('name').eq('id', tenantId).single(),
     supabase
       .from('materiales')
-      .select('id, nombre_archivo, created_at, subido:profiles(full_name)')
+      .select('id, nombre_archivo, created_at, tamano_bytes, subido:profiles(full_name)')
       .eq('tenant_id', tenantId)
       .order('created_at', { ascending: false }),
   ]);
@@ -30,6 +30,7 @@ export default async function MaterialesPage() {
     nombre: m.nombre_archivo,
     subidoPorNombre: m.subido?.full_name ?? null,
     creadoEn: m.created_at,
+    tamanoBytes: m.tamano_bytes,
   }));
 
   return (
