@@ -202,6 +202,21 @@ export function BriefWizard({
           </button>
         </div>
 
+        {/* Las respuestas ya cargadas, siempre visibles -- no dependen de
+            generar un reporte de IA para poder leerse. */}
+        <div className="space-y-4">
+          {PASOS.map((p) =>
+            valores[p.campo].trim() ? (
+              <div key={p.campo}>
+                <p className="text-xs font-semibold text-jab-muted mb-1">
+                  {p.emoji} {p.titulo}
+                </p>
+                <p className="text-sm whitespace-pre-wrap">{valores[p.campo]}</p>
+              </div>
+            ) : null,
+          )}
+        </div>
+
         <ReporteBox
           reporte={reporte}
           reporteGeneradoEn={reporteGeneradoEn}
