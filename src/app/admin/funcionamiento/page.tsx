@@ -43,6 +43,16 @@ export default async function FuncionamientoPage() {
     .filter((c) => c.total > 0)
     .sort((a, b) => b.total - a.total);
 
+  // Trabajo sin asignar no puede quedar afuera de la carga del equipo --
+  // nadie lo va a ver si sólo se muestra por persona.
+  const tareasSinAsignar = (tareas ?? []).filter(
+    (t) => !t.asignado_a && t.estado !== 'aprobado' && t.fecha_programada && t.fecha_programada < hoyStr,
+  ).length;
+  const pedidosSinAsignar = (pedidos ?? []).filter(
+    (p) => !p.asignado_a && p.estado !== 'aprobado' && p.fecha_programada && p.fecha_programada < hoyStr,
+  ).length;
+  const totalSinAsignar = tareasSinAsignar + pedidosSinAsignar;
+
   return (
     <main className="flex-1 p-6 max-w-4xl mx-auto w-full space-y-10">
       <div className="flex items-center justify-between">
@@ -93,10 +103,26 @@ export default async function FuncionamientoPage() {
         <p className="text-xs text-jab-muted mb-3">
           Tareas internas + pedidos vencidos (fecha programada pasada, sin aprobar) por persona.
         </p>
-        {carga.length === 0 ? (
+        {carga.length === 0 && totalSinAsignar === 0 ? (
           <p className="text-sm text-jab-muted">Nadie tiene tareas ni pedidos vencidos. 🎉</p>
         ) : (
           <div className="space-y-2">
+            {totalSinAsignar > 0 && (
+              <div className="flex items-center justify-between rounded-md border border-jab-amber/40 bg-jab-amber/10 px-4 py-3">
+                <div>
+                  <p className="text-sm font-medium">
+                    Sin asignar
+                    <span className="ml-2 text-[11px] font-bold uppercase tracking-wide text-jab-amber">
+                      Nadie está mirando esto
+                    </span>
+                  </p>
+                  <p className="text-xs text-jab-muted">
+                    {tareasSinAsignar} tareas · {pedidosSinAsignar} pedidos, vencidos y sin responsable.
+                  </p>
+                </div>
+                <span className="text-lg font-bold tabular-nums">{totalSinAsignar}</span>
+              </div>
+            )}
             {carga.map((c, i) => (
               <div
                 key={c.persona.id}
