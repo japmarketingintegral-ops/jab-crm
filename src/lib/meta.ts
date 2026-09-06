@@ -847,7 +847,7 @@ export async function sincronizarPublicacionesMeta(
       return { ok: true };
     }
 
-    const { error } = await supabase.from('social_posts').upsert(filas, { onConflict: 'external_id' });
+    const { error } = await supabase.from('social_posts').upsert(filas, { onConflict: 'tenant_id,external_id' });
     if (error) {
       if (registro) {
         await service
