@@ -351,7 +351,7 @@ export default async function PautaPage({
                 etiqueta="Clics"
                 valor={clicsTotal.toLocaleString('es-AR')}
                 tendencia={{ valor: variacion(clicsTotal, clicsAnterior) ?? 0, positivoEsBueno: true }}
-                ayuda="Clics en cualquiera de los anuncios del período."
+                ayuda="Todos los clics en el anuncio (reacciones, comentarios, etc. incluidos) -- no sólo los clics al link de destino. Ads Manager separa esto en dos columnas distintas."
               />
               <KpiCard
                 etiqueta="CPC promedio"
@@ -362,7 +362,7 @@ export default async function PautaPage({
                 etiqueta="Conversiones"
                 valor={conversionesTotal.toLocaleString('es-AR')}
                 tendencia={{ valor: variacion(conversionesTotal, conversionesAnterior) ?? 0, positivoEsBueno: true }}
-                ayuda="Mensajes, leads, compras y otras acciones de valor que Meta atribuye a los anuncios — no es un único tipo de evento."
+                ayuda="Mensajes, leads, compras y otras acciones de valor que Meta atribuye a los anuncios — no es un único tipo de evento. Usa la ventana de atribución configurada en la cuenta publicitaria (no una fija elegida acá); si no coincide con Ads Manager, revisá esa configuración ahí."
               />
               <KpiCard
                 etiqueta="Costo por resultado"
