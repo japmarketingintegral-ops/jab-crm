@@ -16,7 +16,10 @@ export default async function AdminPage() {
 
   const [{ data: tenants }, { data: sourcesRaw }, { data: secretos }, healthScores] = await Promise.all([
     supabase.from('tenants').select('id, name, slug, created_at').order('created_at', { ascending: false }),
-    supabase.from('lead_sources').select('id, tenant_id, platform, display_name, connected_at'),
+    // Sólo Meta es una integración soportada hoy -- filtrar acá evita que
+    // residuos de plataformas retiradas (ej. WhatsApp, de la era CRM)
+    // sigan apareciendo como si fueran una integración activa.
+    supabase.from('lead_sources').select('id, tenant_id, platform, display_name, connected_at').eq('platform', 'meta'),
     service.from('integration_secrets').select('tenant_id, platform, access_token'),
     obtenerHealthScores(supabase, service),
   ]);

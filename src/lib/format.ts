@@ -26,9 +26,12 @@ export function tiempoRelativo(fecha: string): string {
 export type NivelVencimiento = 'vencida' | 'hoy' | 'proxima';
 
 /** Semáforo sobre una fecha programada (no sobre última actividad, como
- * nivelSLA): vencida si ya pasó, "hoy" si es hoy, "próxima" si es futura. */
-export function nivelVencimiento(fechaProgramada: string | null): NivelVencimiento | null {
-  if (!fechaProgramada) return null;
+ * nivelSLA): vencida si ya pasó, "hoy" si es hoy, "próxima" si es futura.
+ * Un ítem ya aprobado nunca es "vencido" -- terminó, no importa si quedó
+ * agendado para una fecha que ya pasó (evita el caso real de una tarea
+ * aprobada mostrando "venció" y sumando al contador de vencidas). */
+export function nivelVencimiento(fechaProgramada: string | null, estado?: string | null): NivelVencimiento | null {
+  if (!fechaProgramada || estado === 'aprobado') return null;
   const hoy = new Date();
   hoy.setHours(0, 0, 0, 0);
   const fecha = new Date(fechaProgramada + 'T00:00:00');

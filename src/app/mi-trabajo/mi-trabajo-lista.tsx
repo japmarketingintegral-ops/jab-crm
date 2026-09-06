@@ -91,7 +91,7 @@ function Fila({
   onCompletar: (t: TarjetaMiTrabajo) => void;
   onAbrir: (t: TarjetaMiTrabajo) => void;
 }) {
-  const vencimiento = nivelVencimiento(t.fechaProgramada);
+  const vencimiento = nivelVencimiento(t.fechaProgramada, t.estado);
   const info = ESTADO_INFO[t.estado] ?? { label: t.estado, color: 'bg-jab-panel-2 text-jab-muted' };
   const yaAprobado = t.estado === 'aprobado';
   return (
@@ -201,20 +201,20 @@ export function MiTrabajoLista({
       out = out.filter((t) => t.titulo.toLowerCase().includes(q));
     }
     if (cliente !== 'todos') out = out.filter((t) => t.clienteId === cliente);
-    if (filtro === 'vencidas') out = out.filter((t) => nivelVencimiento(t.fechaProgramada) === 'vencida');
-    if (filtro === 'hoy') out = out.filter((t) => nivelVencimiento(t.fechaProgramada) === 'hoy');
+    if (filtro === 'vencidas') out = out.filter((t) => nivelVencimiento(t.fechaProgramada, t.estado) === 'vencida');
+    if (filtro === 'hoy') out = out.filter((t) => nivelVencimiento(t.fechaProgramada, t.estado) === 'hoy');
     if (filtro === 'semana') out = out.filter((t) => estaEnSemana(t.fechaProgramada));
     return out;
   }, [tarjetas, busqueda, cliente, filtro]);
 
-  const vencidas = filtradas.filter((t) => nivelVencimiento(t.fechaProgramada) === 'vencida');
-  const hoy = filtradas.filter((t) => nivelVencimiento(t.fechaProgramada) === 'hoy');
+  const vencidas = filtradas.filter((t) => nivelVencimiento(t.fechaProgramada, t.estado) === 'vencida');
+  const hoy = filtradas.filter((t) => nivelVencimiento(t.fechaProgramada, t.estado) === 'hoy');
   const proximas = filtradas.filter((t) => {
-    const v = nivelVencimiento(t.fechaProgramada);
+    const v = nivelVencimiento(t.fechaProgramada, t.estado);
     return v === 'proxima' || v === null;
   });
 
-  const totalVencidas = tarjetas.filter((t) => nivelVencimiento(t.fechaProgramada) === 'vencida').length;
+  const totalVencidas = tarjetas.filter((t) => nivelVencimiento(t.fechaProgramada, t.estado) === 'vencida').length;
   const totalSemana = tarjetas.filter((t) => estaEnSemana(t.fechaProgramada)).length;
 
   function completar(t: TarjetaMiTrabajo) {

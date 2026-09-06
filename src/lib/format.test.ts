@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { escapeHtml } from './format';
+import { escapeHtml, nivelVencimiento } from './format';
 
 describe('escapeHtml', () => {
   it('escapa las 5 entidades HTML básicas', () => {
@@ -17,5 +17,33 @@ describe('escapeHtml', () => {
     const escapado = escapeHtml(titulo);
     expect(escapado).not.toContain('<img');
     expect(escapado).toContain('&lt;img');
+  });
+});
+
+describe('nivelVencimiento', () => {
+  const ayer = new Date(Date.now() - 24 * 3_600_000).toISOString().slice(0, 10);
+  const hoy = new Date().toISOString().slice(0, 10);
+  const mañana = new Date(Date.now() + 24 * 3_600_000).toISOString().slice(0, 10);
+
+  it('una fecha pasada sin estado es "vencida"', () => {
+    expect(nivelVencimiento(ayer)).toBe('vencida');
+  });
+
+  it('un ítem ya aprobado nunca es "vencido", aunque su fecha programada haya pasado', () => {
+    expect(nivelVencimiento(ayer, 'aprobado')).toBeNull();
+  });
+
+  it('un ítem aprobado con fecha de hoy tampoco se marca "vence hoy"', () => {
+    expect(nivelVencimiento(hoy, 'aprobado')).toBeNull();
+  });
+
+  it('sin fecha programada es null, tenga o no estado', () => {
+    expect(nivelVencimiento(null)).toBeNull();
+    expect(nivelVencimiento(null, 'en_proceso')).toBeNull();
+  });
+
+  it('hoy y mañana con un estado no terminal se calculan normalmente', () => {
+    expect(nivelVencimiento(hoy, 'en_proceso')).toBe('hoy');
+    expect(nivelVencimiento(mañana, 'en_proceso')).toBe('proxima');
   });
 });

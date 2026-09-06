@@ -106,7 +106,7 @@ export function TableroKanban({
     let vencenHoy = 0;
     let pedidosAbiertos = 0;
     for (const t of tarjetas) {
-      const nivel = nivelVencimiento(t.fechaProgramada);
+      const nivel = nivelVencimiento(t.fechaProgramada, t.estado);
       if (nivel === 'vencida') vencidas++;
       if (nivel === 'hoy') vencenHoy++;
       if (t.origen === 'pedido' && t.estado !== 'aprobado') pedidosAbiertos++;
@@ -122,7 +122,7 @@ export function TableroKanban({
     }
     if (miembroFiltro !== 'todos') out = out.filter((t) => t.asignadoA === miembroFiltro);
     if (etiquetaFiltro !== 'todas') out = out.filter((t) => t.etiquetas.includes(etiquetaFiltro));
-    if (soloVencidas) out = out.filter((t) => nivelVencimiento(t.fechaProgramada) === 'vencida');
+    if (soloVencidas) out = out.filter((t) => nivelVencimiento(t.fechaProgramada, t.estado) === 'vencida');
     if (soloPedidos) out = out.filter((t) => t.origen === 'pedido');
     return out;
   }, [tarjetas, busqueda, miembroFiltro, etiquetaFiltro, soloVencidas, soloPedidos]);
@@ -277,7 +277,7 @@ export function TableroKanban({
               )}
               <div className="flex-1 space-y-2 min-h-[100px] rounded-lg bg-jab-panel-2/40 p-2">
                 {items.map((t) => {
-                  const vencimiento = nivelVencimiento(t.fechaProgramada);
+                  const vencimiento = nivelVencimiento(t.fechaProgramada, t.estado);
                   const nombreAccesible = [
                     t.titulo,
                     t.etiquetaCategoria ? CATEGORIA_LABEL[t.etiquetaCategoria] : null,
