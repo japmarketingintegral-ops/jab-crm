@@ -195,6 +195,7 @@ export interface Database {
           creado_por: string | null;
           created_at: string;
           external_id: string | null;
+          origen_activo_id: string | null;
         };
         Insert: {
           id?: string;
@@ -211,6 +212,7 @@ export interface Database {
           creado_por?: string | null;
           created_at?: string;
           external_id?: string | null;
+          origen_activo_id?: string | null;
         };
         Relationships: [
           {
@@ -238,6 +240,7 @@ export interface Database {
           estado: string | null;
           objetivo: string | null;
           created_at: string;
+          ad_account_id: string | null;
         };
         Insert: {
           id?: string;
@@ -253,6 +256,7 @@ export interface Database {
           estado?: string | null;
           objetivo?: string | null;
           created_at?: string;
+          ad_account_id?: string | null;
         };
         Relationships: [];
         Update: Partial<Database['public']['Tables']['ad_metrics']['Insert']>;

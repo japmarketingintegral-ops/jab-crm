@@ -588,6 +588,9 @@ export async function sincronizarMetricasAds(
       conversiones: m.conversiones,
       estado: estados.get(m.campana_id)?.estado ?? null,
       objetivo: estados.get(m.campana_id)?.objetivo ?? null,
+      // Igual que origen_activo_id en social_posts -- distingue el
+      // histórico si el cliente reconecta a otra cuenta publicitaria.
+      ad_account_id: adAccountId,
     }));
 
     const { error } = await supabase
@@ -823,6 +826,10 @@ export async function sincronizarPublicacionesMeta(
       comentarios: p.comentarios,
       compartidos: p.compartidos,
       creado_por: creadoPor,
+      // De qué Página (Facebook) o cuenta de Instagram Business vino este
+      // registro -- si el cliente reconecta a un activo distinto, permite
+      // distinguir el histórico del anterior en vez de mezclarlos.
+      origen_activo_id: p.plataforma === 'instagram' ? fuente.instagram_business_account_id : fuente.external_account_id,
     }));
 
     const estadoParcial = facebookResult.status === 'rejected' || instagramResult.status === 'rejected';
