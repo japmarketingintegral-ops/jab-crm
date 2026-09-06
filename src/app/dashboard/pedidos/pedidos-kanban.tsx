@@ -126,7 +126,7 @@ export function PedidosKanban({
                         <p className="text-xs text-jab-muted mt-1 line-clamp-3">{p.descripcion}</p>
                       )}
                       <p className="text-[11px] text-jab-muted mt-2">
-                        {p.creadorNombre ?? 'Sin nombre'} ·{' '}
+                        {p.creadorNombre ?? 'Solicitante desconocido'} ·{' '}
                         {new Date(p.creadoEn).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit' })}
                         {p.cantidadArchivos > 0 ? ` · 📎 ${p.cantidadArchivos}` : ''}
                         {p.fechaProgramada ? ` · 📅 ${fechaCortaSinHora(p.fechaProgramada)}` : ''}

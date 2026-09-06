@@ -47,7 +47,7 @@ export function PedidosLista({ pedidos, esEquipoJab }: { pedidos: PedidoTarjeta[
               <div className="min-w-0 flex-1">
                 <p className="text-sm font-medium truncate">{p.titulo}</p>
                 <p className="text-[11px] text-jab-muted truncate">
-                  {p.creadorNombre ?? 'Sin nombre'}
+                  {p.creadorNombre ?? 'Solicitante desconocido'}
                   {p.fechaProgramada ? ` · 📅 ${fechaCortaSinHora(p.fechaProgramada)}` : ''}
                   {sla && (
                     <>

@@ -44,7 +44,7 @@ export default async function PedidosPage() {
     supabase
       .from('pedidos')
       .select(
-        'id, titulo, descripcion, estado, categoria, created_at, updated_at, asignado_a, fecha_programada, creador:profiles!pedidos_creado_por_fkey(full_name), asignado:profiles!pedidos_asignado_a_fkey(full_name)',
+        'id, titulo, descripcion, estado, categoria, created_at, updated_at, asignado_a, fecha_programada, creador:profiles!pedidos_creado_por_fkey(full_name, email), asignado:profiles!pedidos_asignado_a_fkey(full_name)',
       )
       .eq('tenant_id', tenantId)
       .order('created_at', { ascending: false }),
@@ -92,7 +92,9 @@ export default async function PedidosPage() {
     estado: p.estado,
     categoria: p.categoria,
     cantidadArchivos: archivosPorPedido.get(p.id) ?? 0,
-    creadorNombre: p.creador?.full_name ?? null,
+    // "Solicitante desconocido" (no "Sin nombre") -- distingue de un
+    // responsable sin asignar, que es un campo distinto (asignadoNombre).
+    creadorNombre: p.creador?.full_name ?? p.creador?.email ?? 'Solicitante desconocido',
     asignadoNombre: esEquipoJab ? (p.asignado?.full_name ?? null) : null,
     fechaProgramada: p.fecha_programada,
     primeraImagenId: primeraImagenPorPedido.get(p.id) ?? null,
