@@ -14,6 +14,7 @@ const base: HealthInput = {
   alcanceActual: 1000,
   alcanceAnterior: 900,
   ultimaActividadCliente: new Date().toISOString(),
+  clienteInvitado: true,
 };
 
 describe('calcularHealthScore', () => {
@@ -49,6 +50,27 @@ describe('calcularHealthScore', () => {
     });
     expect(nuevo.score).toBeGreaterThan(viejo.score);
     expect(viejo.causas.some((c) => c.includes('no interactuó'))).toBe(true);
+  });
+
+  it('no penaliza si nadie invitó todavía a nadie del cliente al portal -- no hay quién pueda entrar', () => {
+    const { score, causas } = calcularHealthScore({
+      ...base,
+      clienteInvitado: false,
+      ultimaActividadCliente: null,
+      tenantCreatedAt: '2020-01-01T00:00:00Z', // viejo, para que "cliente nuevo" no sea la explicación
+    });
+    expect(score).toBe(100);
+    expect(causas.some((c) => c.includes('no se invitó'))).toBe(true);
+  });
+
+  it('no penaliza el calendario de publicaciones si nadie configuró un compromiso -- "0 de 0" no es un incumplimiento', () => {
+    const { score, causas } = calcularHealthScore({
+      ...base,
+      publicacionesMes: 0,
+      publicacionesEsperadas: null,
+    });
+    expect(score).toBe(100);
+    expect(causas.some((c) => c.includes('piezas esperadas'))).toBe(false);
   });
 
   it('marca pedidos parados con la causa correcta y baja el puntaje', () => {

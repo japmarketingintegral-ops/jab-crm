@@ -25,7 +25,11 @@ export type HealthInput = {
   /** Pedidos con fecha programada vencida y todavía no aprobados. */
   pedidosParados: number;
   publicacionesMes: number;
-  publicacionesEsperadas: number;
+  /** Compromiso de piezas/mes acordado con este cliente en particular --
+   * null si nadie lo configuró todavía (hoy, siempre null: no existe un
+   * lugar para cargarlo por cliente). Sin un compromiso real, no hay nada
+   * que cumplir o incumplir -- no se penaliza contra un número inventado. */
+  publicacionesEsperadas: number | null;
   conversionesActual: number;
   conversionesAnterior: number;
   alcanceActual: number;
@@ -33,6 +37,10 @@ export type HealthInput = {
   /** Fecha (ISO) del último pedido o comentario creado por alguien del lado
    * cliente -- null si todavía no hubo ninguna interacción. */
   ultimaActividadCliente: string | null;
+  /** ¿Hay al menos una persona del lado cliente invitada al portal? Si
+   * nunca se invitó a nadie, la falta de actividad no es una señal de
+   * desinterés -- todavía no hay quién pueda interactuar. */
+  clienteInvitado: boolean;
 };
 
 export type HealthScore = {
@@ -104,15 +112,19 @@ export function calcularHealthScore(input: HealthInput): HealthScore {
     );
   }
 
-  // 4) Cumplimiento del calendario de publicaciones -- 15%
-  const sCalendario = Math.min(
-    100,
-    Math.round((input.publicacionesMes / Math.max(1, input.publicacionesEsperadas)) * 100),
-  );
-  if (sCalendario < 70) {
-    causas.push(
-      `Publicó ${input.publicacionesMes} de ${input.publicacionesEsperadas} piezas esperadas este mes.`,
-    );
+  // 4) Cumplimiento del calendario de publicaciones -- 15%. Neutral
+  // (100, sin causa) si nadie configuró un compromiso para este cliente --
+  // "0 de 0" no es un incumplimiento, es una meta que no existe.
+  let sCalendario: number;
+  if (input.publicacionesEsperadas === null) {
+    sCalendario = 100;
+  } else {
+    sCalendario = Math.min(100, Math.round((input.publicacionesMes / Math.max(1, input.publicacionesEsperadas)) * 100));
+    if (sCalendario < 70) {
+      causas.push(
+        `Publicó ${input.publicacionesMes} de ${input.publicacionesEsperadas} piezas esperadas este mes.`,
+      );
+    }
   }
 
   // 5) Evolución de resultados -- 10%
@@ -132,10 +144,15 @@ export function calcularHealthScore(input: HealthInput): HealthScore {
     causas.push(`Los resultados cayeron ${Math.abs(baseEvolucion)}% contra el período anterior.`);
   }
 
-  // 6) Actividad y respuesta del cliente -- 10%
+  // 6) Actividad y respuesta del cliente -- 10%. Si todavía no se invitó a
+  // nadie del cliente, la falta de actividad no es una señal de
+  // desinterés -- no hay quién pueda entrar. Neutral, no penaliza.
   const diasActividad = diasDesde(input.ultimaActividadCliente);
   let sActividad: number;
-  if (diasActividad === null) {
+  if (!input.clienteInvitado) {
+    sActividad = 100;
+    causas.push('Todavía no se invitó a nadie del cliente al portal.');
+  } else if (diasActividad === null) {
     sActividad = nuevo14 ? 70 : 0;
     if (!nuevo14) causas.push('El cliente todavía no interactuó con el portal.');
   } else if (diasActividad <= 7) {

@@ -2,8 +2,6 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Database } from '@/lib/supabase/types';
 import { calcularHealthScore, type HealthScore } from './health-score';
 
-const BENCHMARK_PUBLICACIONES_MES = 8;
-
 function aFecha(d: Date): string {
   return d.toISOString().slice(0, 10);
 }
@@ -27,9 +25,6 @@ export async function obtenerHealthScores(
   const hoy = new Date();
   const hoyStr = aFecha(hoy);
   const mesActual = hoyStr.slice(0, 7);
-  const diaDelMes = hoy.getDate();
-  const diasEnMes = new Date(hoy.getFullYear(), hoy.getMonth() + 1, 0).getDate();
-  const esperadasHoy = Math.max(1, Math.round((BENCHMARK_PUBLICACIONES_MES * diaDelMes) / diasEnMes));
 
   const hace30 = new Date();
   hace30.setDate(hace30.getDate() - 30);
@@ -55,12 +50,12 @@ export async function obtenerHealthScores(
     supabase.from('ad_metrics').select('tenant_id, fecha, conversiones, created_at'),
     supabase.from('pedidos').select('tenant_id, estado, fecha_programada, created_at, creado_por'),
     supabase.from('pedido_comentarios').select('tenant_id, autor_id, created_at'),
-    supabase.from('profiles').select('id, role'),
+    supabase.from('profiles').select('id, tenant_id, role'),
   ]);
 
-  const idsCliente = new Set(
-    (perfiles ?? []).filter((p) => p.role === 'client_admin' || p.role === 'client_viewer').map((p) => p.id),
-  );
+  const perfilesCliente = (perfiles ?? []).filter((p) => p.role === 'client_admin' || p.role === 'client_viewer');
+  const idsCliente = new Set(perfilesCliente.map((p) => p.id));
+  const tenantsConClienteInvitado = new Set(perfilesCliente.map((p) => p.tenant_id).filter((id): id is string => Boolean(id)));
   const metaConfigurado = new Set((fuentes ?? []).filter((f) => f.platform === 'meta').map((f) => f.tenant_id));
   const metaConectado = new Set(
     (fuentes ?? [])
@@ -132,12 +127,16 @@ export async function obtenerHealthScores(
         ultimaSync: ultimaSyncPorTenant.get(t.id) ?? null,
         pedidosParados: pedidosParadosPorTenant.get(t.id) ?? 0,
         publicacionesMes: publicacionesMesPorTenant.get(t.id) ?? 0,
-        publicacionesEsperadas: esperadasHoy,
+        // Todavía no existe un lugar para cargar un compromiso de
+        // piezas/mes por cliente -- null (no configurado) hasta que exista,
+        // en vez de inventar un benchmark global igual para todos.
+        publicacionesEsperadas: null,
         conversionesActual: conversionesActualPorTenant.get(t.id) ?? 0,
         conversionesAnterior: conversionesAnteriorPorTenant.get(t.id) ?? 0,
         alcanceActual: alcanceActualPorTenant.get(t.id) ?? 0,
         alcanceAnterior: alcanceAnteriorPorTenant.get(t.id) ?? 0,
         ultimaActividadCliente: actividadClientePorTenant.get(t.id) ?? null,
+        clienteInvitado: tenantsConClienteInvitado.has(t.id),
       }),
     );
   }
