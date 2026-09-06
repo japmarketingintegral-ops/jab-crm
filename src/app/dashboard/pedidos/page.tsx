@@ -130,11 +130,19 @@ export default async function PedidosPage() {
           </div>
         ) : (
           <>
-            <div className="grid lg:grid-cols-[1fr_1fr_1fr_1.6fr] gap-3 mb-4 shrink-0">
+            {/* En mobile: contadores compactos en una sola fila, y el gráfico
+                por categoría se oculta -- son "gráficos estadísticos" que el
+                cliente no necesita antes de ver sus pedidos, y en una sola
+                columna empujaban la lista fuera de la primera pantalla. */}
+            <div className="grid grid-cols-3 lg:grid-cols-[1fr_1fr_1fr_1.6fr] gap-3 mb-4 shrink-0">
               <KpiCard etiqueta="Pedidos totales" valor={String(pedidosList.length)} />
               <KpiCard etiqueta="Pendientes" valor={String(pendientes)} />
               <KpiCard etiqueta="Aprobados este mes" valor={String(aprobadosEsteMes)} />
-              {porCategoria.length > 0 && <GraficoPedidosPorCategoria datos={porCategoria} />}
+              {porCategoria.length > 0 && (
+                <div className="hidden lg:block">
+                  <GraficoPedidosPorCategoria datos={porCategoria} />
+                </div>
+              )}
             </div>
             <PedidosView
               pedidos={pedidos}

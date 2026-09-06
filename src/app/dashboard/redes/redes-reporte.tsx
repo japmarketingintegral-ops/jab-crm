@@ -72,6 +72,9 @@ export function RedesReporte({
   const mejor = postsResumen.length
     ? [...postsResumen].sort((a, b) => interaccionesPost(b) - interaccionesPost(a) || b.alcance - a.alcance)[0]
     : null;
+  // Con una sola publicación no hay nada que rankear -- "Mejor publicación"
+  // sugeriría una comparación que no existe.
+  const hayRankingReal = postsResumen.length > 1;
 
   // "Necesita atención": el post con menor tasa de interacción, pero sólo
   // si de verdad se destaca por lo bajo (menos de la mitad de la tasa
@@ -157,7 +160,11 @@ export function RedesReporte({
         <>
           <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 mb-8">
             <KpiCard etiqueta="Publicaciones" valor={String(totalFiltrado)} ayuda="Total de publicaciones en el rango filtrado." />
-            <KpiCard etiqueta="Alcance total" valor={totalAlcance.toLocaleString('es-AR')} ayuda="Cuentas únicas alcanzadas, sumando todas las publicaciones del período." />
+            <KpiCard
+              etiqueta="Alcance total"
+              valor={totalAlcance.toLocaleString('es-AR')}
+              ayuda="Suma del alcance de cada publicación del período. Una misma persona que vio varias publicaciones se cuenta una vez por cada una -- no es alcance de cuentas únicas."
+            />
             <KpiCard etiqueta="Interacciones totales" valor={totalInteracciones.toLocaleString('es-AR')} ayuda="Me gusta + comentarios + compartidos, sumados." />
             <KpiCard etiqueta="Interacciones por post" valor={String(promedioInteracciones)} ayuda="Promedio de interacciones por publicación en el período." />
             <KpiCard
@@ -173,7 +180,9 @@ export function RedesReporte({
             <div className="grid lg:grid-cols-2 gap-3 mb-8">
               {mejor && (
                 <div>
-                  <p className="text-sm font-semibold mb-3">Qué funcionó · Mejor publicación</p>
+                  <p className="text-sm font-semibold mb-3">
+                    Qué funcionó · {hayRankingReal ? 'Mejor publicación' : 'Publicación del período'}
+                  </p>
                   <div className="rounded-lg bg-jab-panel-2 border border-jab-accent/40 p-4 flex gap-4">
                     {mejor.imagen_url && (
                       // eslint-disable-next-line @next/next/no-img-element

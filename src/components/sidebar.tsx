@@ -22,8 +22,11 @@ export function Sidebar(props: SidebarProps) {
         </div>
 
         {viendoComoJab && (
-          <div className="px-5 py-2 bg-jab-amber/10 border-b border-jab-border flex items-center justify-between gap-2">
-            <p className="text-[11px] text-jab-amber font-medium">Viendo como JAB</p>
+          <div
+            className="px-5 py-2 bg-jab-amber/10 border-b border-jab-border flex items-center justify-between gap-2"
+            title="Estás viendo la cuenta del cliente con tus permisos internos de JAB, no con los del cliente. No reemplaza probar con una sesión real de cliente."
+          >
+            <p className="text-[11px] text-jab-amber font-medium">Viendo como JAB · con permisos internos</p>
             <form action={salirDeCliente}>
               <button type="submit" className="text-[11px] text-jab-amber underline hover:no-underline">
                 Volver a admin

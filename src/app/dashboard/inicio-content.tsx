@@ -172,7 +172,7 @@ export function InicioContent({
         <KpiCard
           etiqueta="Alcance orgánico"
           valor={alcanceTotal.toLocaleString('es-AR')}
-          ayuda="Cuentas únicas que vieron tus publicaciones en el período."
+          ayuda="Suma del alcance de cada publicación del período -- una misma cuenta que vio varias publicaciones se cuenta una vez por cada una, no es alcance de cuentas únicas."
           tendencia={variacionAlcance !== null ? { valor: variacionAlcance, positivoEsBueno: true } : null}
         />
         {pautaResumen && (
