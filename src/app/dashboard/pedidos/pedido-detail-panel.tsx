@@ -168,7 +168,22 @@ export function PedidoDetailPanel({
                     <button
                       key={e.valor}
                       disabled={pending}
-                      onClick={() => conRecarga(() => cambiarEstadoPedido(pedidoId, e.valor))}
+                      onClick={() => {
+                        // Mandar a revisión sin ningún archivo ni comentario
+                        // no siempre está mal (algunos tipos de pedido se
+                        // resuelven sólo con texto), pero suele ser un
+                        // olvido -- confirmar en vez de bloquear.
+                        if (
+                          e.valor === 'revision' &&
+                          detalle.estado !== 'revision' &&
+                          detalle.archivos.length === 0 &&
+                          detalle.comentarios.length === 0 &&
+                          !confirm('Todavía no hay ningún archivo ni comentario en este pedido. ¿Mandar igual a revisión?')
+                        ) {
+                          return;
+                        }
+                        conRecarga(() => cambiarEstadoPedido(pedidoId, e.valor));
+                      }}
                       className={`rounded-full px-3 py-1.5 text-xs font-medium disabled:opacity-50 ${
                         detalle.estado === e.valor
                           ? 'bg-jab-accent text-jab-bg-deep'
