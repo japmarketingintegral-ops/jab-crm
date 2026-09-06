@@ -543,6 +543,32 @@ export async function traerMetricasAds(
   }));
 }
 
+/** ¿Ya hay una corrida en curso para este tenant/tipo? Evita que un clic
+ * repetido en "Actualizar", el cron y una sincronización manual pisen la
+ * misma cuenta al mismo tiempo. Una fila "en_curso" de hace más de 10
+ * minutos se considera abandonada (la función serverless murió sin
+ * llegar a su catch/finally) y no bloquea -- Vercel corta mucho antes de
+ * eso, así que 10 min de margen alcanza sin dejar la cuenta trabada para
+ * siempre por una corrida que nunca va a terminar. */
+async function hayCorridaEnCurso(
+  service: SupabaseClient<Database>,
+  tenantId: string,
+  tipo: string,
+): Promise<boolean> {
+  const hace10min = new Date(Date.now() - 10 * 60_000).toISOString();
+  const { data } = await service
+    .from('sincronizaciones')
+    .select('id')
+    .eq('tenant_id', tenantId)
+    .eq('plataforma', 'meta')
+    .eq('tipo', tipo)
+    .eq('estado', 'en_curso')
+    .gte('iniciado_en', hace10min)
+    .limit(1)
+    .maybeSingle();
+  return Boolean(data);
+}
+
 /** Trae y guarda las métricas de Ads de un tenant (upsert por día+campaña),
  * más el estado/objetivo real de cada campaña. Registra el resultado en
  * `sincronizaciones` para que Configuración/Pauta puedan mostrar frescura
@@ -554,6 +580,9 @@ export async function sincronizarMetricasAds(
   accessToken: string,
 ): Promise<{ ok?: boolean; error?: string; filas?: number }> {
   const service = createServiceClient();
+  if (await hayCorridaEnCurso(service, tenantId, 'ads')) {
+    return { error: 'Ya hay una sincronización de Pauta en curso para esta cuenta.' };
+  }
   const { data: registro } = await service
     .from('sincronizaciones')
     .insert({ tenant_id: tenantId, plataforma: 'meta', tipo: 'ads', estado: 'en_curso' })
@@ -777,6 +806,9 @@ export async function sincronizarPublicacionesMeta(
   creadoPor: string | null,
 ): Promise<{ ok?: boolean; error?: string }> {
   const service = createServiceClient();
+  if (await hayCorridaEnCurso(service, tenantId, 'redes')) {
+    return { error: 'Ya hay una sincronización de Redes en curso para esta cuenta.' };
+  }
   const { data: registro } = await service
     .from('sincronizaciones')
     .insert({ tenant_id: tenantId, plataforma: 'meta', tipo: 'redes', estado: 'en_curso' })
