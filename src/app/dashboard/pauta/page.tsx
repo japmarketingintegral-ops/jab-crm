@@ -232,11 +232,18 @@ export default async function PautaPage({
     if (peor) revisar.add(peor.id);
   }
 
+  // Regla automática simple (más conversiones, menor gasto como
+  // desempate) -- no pondera objetivo de campaña ni atribución, así que
+  // se lo marca como una lectura, no un veredicto. Si las campañas
+  // comparadas tienen objetivos distintos, "conversiones" puede significar
+  // cosas distintas en cada una (mensajes vs. compras, por ej.) -- se
+  // avisa en vez de comparar como si fueran equivalentes.
+  const objetivosDistintos = new Set(conCostoPorResultado.map((c) => c.objetivo).filter(Boolean)).size > 1;
   const insight =
     mejorCampana && conCostoPorResultado.length > 1
-      ? revisar.size > 0
-        ? `"${mejorCampana.nombre}" es la campaña con mejor rendimiento del período. Revisá las marcadas — gastaron sin generar el mismo resultado.`
-        : `"${mejorCampana.nombre}" es la campaña con mejor rendimiento del período — todas las demás están dentro de lo esperado.`
+      ? `Según conversiones y gasto, "${mejorCampana.nombre}" viene rindiendo mejor este período.${
+          revisar.size > 0 ? ' Revisá las marcadas — gastaron sin generar el mismo resultado.' : ' Las demás están dentro de lo esperado.'
+        } (Lectura automática${objetivosDistintos ? ' -- las campañas tienen objetivos distintos, así que "conversiones" no siempre mide lo mismo entre ellas' : ', no pondera el objetivo de cada campaña'}.)`
       : null;
 
   return (
