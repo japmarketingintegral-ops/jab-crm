@@ -30,7 +30,7 @@ const ESTADO_INFO: Record<string, { label: string; color: string }> = {
   revision: { label: 'Esperando tu revisión', color: 'bg-jab-violet/15 text-jab-violet' },
   pausado: { label: 'Pausado', color: 'bg-jab-red/15 text-jab-red' },
   ads: { label: 'Ads', color: 'bg-jab-teal/15 text-jab-teal' },
-  on_hold: { label: 'On hold', color: 'bg-jab-red/15 text-jab-red' },
+  on_hold: { label: 'Pausada', color: 'bg-jab-red/15 text-jab-red' },
   aprobado: { label: 'Aprobado / finalizado', color: 'bg-jab-green/15 text-jab-green' },
 };
 
@@ -65,11 +65,12 @@ function useSaludo(): string {
   return hidratado ? saludo() : 'Hola';
 }
 
-/** Primer nombre para el saludo. Si no hay full_name cargado, page.tsx pasa
- * el email entero (no tiene espacios) -- se corta en el "@" en vez de
- * saludar con la dirección completa. */
-function primerNombre(nombreOEmail: string): string {
-  return nombreOEmail.split(' ')[0].split('@')[0];
+/** Primer nombre para el saludo. Si no hay full_name cargado en el perfil,
+ * no hay un nombre real que mostrar -- usar la parte del email antes del
+ * "@" como si fuera un nombre de pila es engañoso, así que el saludo se
+ * queda sin nombre en ese caso ("Hola" en vez de "Hola, santiago"). */
+function primerNombre(nombreCompleto: string | null): string | null {
+  return nombreCompleto ? nombreCompleto.split(' ')[0] : null;
 }
 
 function estaEnSemana(fecha: string | null): boolean {
@@ -178,7 +179,7 @@ export function MiTrabajoLista({
 }: {
   tarjetas: TarjetaMiTrabajo[];
   etiquetasDisponibles: EtiquetaTablero[];
-  nombreUsuario: string;
+  nombreUsuario: string | null;
 }) {
   const router = useRouter();
   const saludoTexto = useSaludo();
@@ -229,7 +230,7 @@ export function MiTrabajoLista({
     <>
       <div className="mb-6">
         <h1 className="text-xl font-bold">
-          {saludoTexto}, {primerNombre(nombreUsuario)}
+          {primerNombre(nombreUsuario) ? `${saludoTexto}, ${primerNombre(nombreUsuario)}` : saludoTexto}
         </h1>
         <p className="text-sm text-jab-muted">
           {totalVencidas > 0

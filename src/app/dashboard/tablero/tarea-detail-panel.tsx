@@ -28,7 +28,7 @@ const ESTADOS: { valor: TareaInternaEstado; etiqueta: string }[] = [
   { valor: 'en_proceso', etiqueta: 'En proceso' },
   { valor: 'revision', etiqueta: 'Revisión' },
   { valor: 'ads', etiqueta: 'Ads' },
-  { valor: 'on_hold', etiqueta: 'On hold' },
+  { valor: 'on_hold', etiqueta: 'Pausada' },
   { valor: 'aprobado', etiqueta: 'Aprobado' },
 ];
 

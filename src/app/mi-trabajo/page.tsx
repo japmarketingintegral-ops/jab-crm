@@ -86,7 +86,7 @@ export default async function MiTrabajoPage() {
         <MiTrabajoLista
           tarjetas={tarjetas}
           etiquetasDisponibles={etiquetasRaw ?? []}
-          nombreUsuario={perfil.full_name ?? perfil.email}
+          nombreUsuario={perfil.full_name}
         />
       </main>
     </div>

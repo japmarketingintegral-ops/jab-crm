@@ -52,7 +52,7 @@ const COLUMNAS: {
   },
   { key: 'revision', titulo: 'Revisión', origenes: ['tarea', 'pedido'], color: 'bg-jab-violet/15 text-jab-violet' },
   { key: 'ads', titulo: 'Ads', origenes: ['tarea'], color: 'bg-jab-teal/15 text-jab-teal' },
-  { key: 'on_hold', titulo: 'On hold', origenes: ['tarea'], color: 'bg-jab-red/15 text-jab-red' },
+  { key: 'on_hold', titulo: 'Pausada', origenes: ['tarea'], color: 'bg-jab-red/15 text-jab-red' },
   { key: 'pausado', titulo: 'Pausado', origenes: ['pedido'], color: 'bg-jab-red/15 text-jab-red' },
   { key: 'aprobado', titulo: 'Aprobado', origenes: ['tarea', 'pedido'], color: 'bg-jab-green/15 text-jab-green' },
 ];

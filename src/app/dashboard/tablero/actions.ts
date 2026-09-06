@@ -16,7 +16,7 @@ const ESTADO_LABEL: Record<TareaInternaEstado, string> = {
   en_proceso: 'En proceso',
   revision: 'Revisión',
   ads: 'Ads',
-  on_hold: 'On hold',
+  on_hold: 'Pausada',
   aprobado: 'Aprobado',
 };
 
