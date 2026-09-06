@@ -99,6 +99,17 @@ export default async function EquipoPage() {
           {esAdmin && <InvitarMiembroForm />}
         </div>
 
+        <div className="rounded-lg bg-jab-panel-2 border border-jab-border px-4 py-3 mb-6 text-xs text-jab-muted space-y-1">
+          <p>
+            <strong className="text-jab-text">Administradora:</strong> ve y gestiona todo -- pedidos, materiales,
+            equipo, integraciones.
+          </p>
+          <p>
+            <strong className="text-jab-text">Solo lectura:</strong> ve reportes, pedidos y materiales; no puede
+            aprobar, invitar, ni cambiar configuración.
+          </p>
+        </div>
+
         {equipo.length <= 1 ? (
           <div className="rounded-lg bg-jab-panel-2 border border-jab-border p-8 text-center mb-6">
             <div className="text-3xl mb-2">👥</div>

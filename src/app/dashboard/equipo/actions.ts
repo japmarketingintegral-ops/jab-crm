@@ -8,6 +8,25 @@ import type { UserRole } from '@/lib/supabase/types';
 
 const ROLES_INVITABLES: UserRole[] = ['client_admin', 'client_viewer'];
 
+/** ¿Sacar/degradar a esta persona deja al cliente sin ningún
+ * administrador? El chequeo de "no podés tocarte a vos mismo" alcanza
+ * cuando quien actúa es del propio cliente (sigue siendo admin), pero no
+ * cuando actúa JAB (super_admin) sobre el único client_admin del tenant --
+ * ahí sí hay que bloquearlo. */
+async function esUltimoAdmin(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  tenantId: string,
+  userId: string,
+): Promise<boolean> {
+  const { count } = await supabase
+    .from('profiles')
+    .select('id', { count: 'exact', head: true })
+    .eq('tenant_id', tenantId)
+    .eq('role', 'client_admin')
+    .neq('id', userId);
+  return (count ?? 0) === 0;
+}
+
 export async function invitarMiembro(_prevState: string | undefined, formData: FormData) {
   const perfil = await requerirPerfil();
   if (perfil.role !== 'client_admin' && perfil.role !== 'super_admin') {
@@ -67,6 +86,10 @@ export async function cambiarRolMiembro(userId: string, nuevoRol: UserRole) {
     .eq('id', userId)
     .single();
 
+  if (anterior?.role === 'client_admin' && nuevoRol !== 'client_admin' && (await esUltimoAdmin(supabase, tenantId, userId))) {
+    return { error: 'Es la única administradora del cliente -- asigná a otra persona como administradora antes de sacarle ese rol.' };
+  }
+
   const { error } = await supabase
     .from('profiles')
     .update({ role: nuevoRol })
@@ -98,6 +121,10 @@ export async function quitarDelEquipo(userId: string) {
 
   const supabase = await createClient();
   const { data: quitado } = await supabase.from('profiles').select('full_name, email, role').eq('id', userId).single();
+
+  if (quitado?.role === 'client_admin' && (await esUltimoAdmin(supabase, tenantId, userId))) {
+    return { error: 'Es la única administradora del cliente -- asigná a otra persona como administradora antes de quitarle el acceso.' };
+  }
 
   const service = createServiceClient();
   const { error: delError } = await service.auth.admin.deleteUser(userId);
