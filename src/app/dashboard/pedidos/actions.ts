@@ -82,6 +82,35 @@ export async function agregarArchivos(pedidoId: string, formData: FormData) {
 
   const error = await subirArchivos(tenantId, pedidoId, perfil.id, archivos);
   if (error) return { error };
+
+  // La aprobación del cliente es sobre una versión concreta del
+  // entregable -- si JAB sube un archivo nuevo a un pedido ya aprobado,
+  // no puede heredar en silencio esa aprobación vieja. Vuelve a
+  // "revisión" para que el cliente vea la versión nueva y decida de
+  // nuevo. No aplica si quien sube es el propio cliente (adjuntando una
+  // referencia, no reemplazando el entregable).
+  if (esEquipoJab(perfil.role)) {
+    const supabase = await createClient();
+    const { data: pedido } = await supabase.from('pedidos').select('estado, tenant_id, titulo').eq('id', pedidoId).single();
+    if (pedido?.estado === 'aprobado') {
+      await supabase.from('pedidos').update({ estado: 'revision' }).eq('id', pedidoId);
+      await registrarActividadPedido(
+        supabase,
+        pedidoId,
+        pedido.tenant_id,
+        perfil.id,
+        'Subió una versión nueva -- vuelve a "Esperando tu revisión"',
+      );
+      await notificarPedido(
+        supabase,
+        pedidoId,
+        perfil.id,
+        'Pedido: hay una versión nueva para revisar',
+        `Subimos una versión nueva de <strong>${escapeHtml(pedido.titulo)}</strong> -- la aprobación anterior era de la versión previa, así que vuelve a esperar tu revisión.`,
+      );
+    }
+  }
+
   return { ok: true };
 }
 
