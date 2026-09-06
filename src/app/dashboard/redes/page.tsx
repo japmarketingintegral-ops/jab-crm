@@ -58,7 +58,7 @@ export default async function RedesPage({
     paginaQuery = paginaQuery.eq('plataforma', filtro.plataforma);
   }
 
-  const [{ data: tenant }, { data: postsResumen }, { data: postsPagina, count }, { data: plataformasData }, { data: fuenteMeta }] =
+  const [{ data: tenant }, { data: postsResumen }, { data: postsPagina, count }, { data: plataformasData }, { data: fuenteMeta }, { data: ultimoSync }] =
     await Promise.all([
       supabase.from('tenants').select('name').eq('id', tenantId).single(),
       // Dataset liviano (sin imagen/título/url pesado) para los KPIs y los
@@ -67,7 +67,7 @@ export default async function RedesPage({
       resumenQuery,
       // Página actual, con todo el detalle, para la grilla.
       paginaQuery.order('publicado_en', { ascending: false }).range(desde0, desde0 + POR_PAGINA - 1),
-      supabase.from('social_posts').select('plataforma, created_at, publicado_en').eq('tenant_id', tenantId),
+      supabase.from('social_posts').select('plataforma, publicado_en').eq('tenant_id', tenantId),
       supabase
         .from('lead_sources')
         .select('id')
@@ -75,13 +75,27 @@ export default async function RedesPage({
         .eq('platform', 'meta')
         .not('connected_at', 'is', null)
         .maybeSingle(),
+      // Frescura viene de sincronizaciones (intentos reales), NUNCA de la
+      // fecha del último post importado -- si no, Configuración y Redes
+      // muestran antigüedades distintas para la misma integración (bug
+      // real encontrado en producción), y una sincronización exitosa sin
+      // posts nuevos se mostraría como "nunca sincronizó".
+      supabase
+        .from('sincronizaciones')
+        .select('estado, error_seguro, finalizado_en, iniciado_en')
+        .eq('tenant_id', tenantId)
+        .eq('plataforma', 'meta')
+        .eq('tipo', 'redes')
+        .order('iniciado_en', { ascending: false })
+        .limit(1)
+        .maybeSingle(),
     ]);
   const metaConectado = Boolean(fuenteMeta);
   const plataformasConDatos = Array.from(new Set((plataformasData ?? []).map((p) => p.plataforma)));
-  const ultimaSync = (plataformasData ?? []).reduce<string | null>(
-    (max, p) => (!max || p.created_at > max ? p.created_at : max),
-    null,
-  );
+  const ultimaSync = ultimoSync?.finalizado_en ?? ultimoSync?.iniciado_en ?? null;
+  // Cobertura ("hasta qué fecha llegan los datos") es una pregunta distinta
+  // de "cuándo sincronizó" -- se sigue derivando del contenido real, pero
+  // ya no se usa para decidir el color de frescura.
   const cobertura = (plataformasData ?? []).reduce<string | null>(
     (max, p) => (!max || p.publicado_en > max ? p.publicado_en : max),
     null,
@@ -118,6 +132,8 @@ export default async function RedesPage({
               fuente="Meta"
               conectado={metaConectado}
               ultimaSync={ultimaSync}
+              estadoUltimoIntento={ultimoSync?.estado}
+              errorSeguro={ultimoSync?.error_seguro}
               cobertura={cobertura ? fechaCortaSinHora(cobertura) : null}
               horaCronUtc={9}
             />

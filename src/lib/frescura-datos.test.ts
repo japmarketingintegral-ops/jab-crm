@@ -30,10 +30,21 @@ describe('calcularFrescura', () => {
     const hace45min = new Date(Date.now() - 45 * 60_000).toISOString();
     const hace2h = new Date(Date.now() - 2 * 3_600_000).toISOString();
     const hace8h = new Date(Date.now() - 8 * 3_600_000).toISOString();
-    expect(calcularFrescura(hace45min, true, UMBRALES_FRECUENTE)).toBe('actualizado');
-    expect(calcularFrescura(hace2h, true, UMBRALES_FRECUENTE)).toBe('demorado');
-    expect(calcularFrescura(hace8h, true, UMBRALES_FRECUENTE)).toBe('desactualizado');
+    expect(calcularFrescura(hace45min, true, 'ok', UMBRALES_FRECUENTE)).toBe('actualizado');
+    expect(calcularFrescura(hace2h, true, 'ok', UMBRALES_FRECUENTE)).toBe('demorado');
+    expect(calcularFrescura(hace8h, true, 'ok', UMBRALES_FRECUENTE)).toBe('desactualizado');
     // Las mismas horas con el umbral diario (default) todavía cuentan como al día.
     expect(calcularFrescura(hace8h, true)).toBe('actualizado');
+  });
+
+  it('un intento reciente que falló es "necesita atención" ya mismo, no "actualizado"', () => {
+    const hace5min = new Date(Date.now() - 5 * 60_000).toISOString();
+    expect(calcularFrescura(hace5min, true, 'error')).toBe('desactualizado');
+  });
+
+  it('un intento reciente parcial o sin estado conocido se evalúa por antigüedad, como antes', () => {
+    const hace10h = new Date(Date.now() - 10 * 3_600_000).toISOString();
+    expect(calcularFrescura(hace10h, true, 'parcial')).toBe('actualizado');
+    expect(calcularFrescura(hace10h, true, undefined)).toBe('actualizado');
   });
 });

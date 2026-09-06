@@ -163,6 +163,8 @@ export default async function ConfiguracionPage({
                   fuente="Redes"
                   conectado
                   ultimaSync={syncRedes?.finalizado_en ?? syncRedes?.iniciado_en ?? null}
+                  estadoUltimoIntento={syncRedes?.estado}
+                  errorSeguro={syncRedes?.error_seguro}
                   horaCronUtc={9}
                 />
                 <ErrorSincronizacion sync={syncRedes} />
@@ -207,6 +209,8 @@ export default async function ConfiguracionPage({
                   fuente="Meta Ads"
                   conectado
                   ultimaSync={syncAds?.finalizado_en ?? syncAds?.iniciado_en ?? null}
+                  estadoUltimoIntento={syncAds?.estado}
+                  errorSeguro={syncAds?.error_seguro}
                   umbrales={UMBRALES_FRECUENTE}
                 />
                 <ErrorSincronizacion sync={syncAds} />

@@ -188,13 +188,20 @@ export async function cambiarEstadoPedido(pedidoId: string, estado: PedidoEstado
   const perfil = await requerirPerfil();
   const supabase = await createClient();
 
-  if (!esEquipoJab(perfil.role)) {
-    const { data: actual } = await supabase.from('pedidos').select('estado').eq('id', pedidoId).single();
-    if (!actual) return { error: 'No se encontró el pedido.' };
-    if (!puedeClienteMoverA(actual.estado, estado)) {
-      return { error: 'No podés mover el pedido a ese estado.' };
-    }
+  const { data: actual } = await supabase.from('pedidos').select('estado').eq('id', pedidoId).single();
+  if (!actual) return { error: 'No se encontró el pedido.' };
+
+  if (!esEquipoJab(perfil.role) && !puedeClienteMoverA(actual.estado, estado)) {
+    return { error: 'No podés mover el pedido a ese estado.' };
   }
+
+  // Ya está en ese estado -- no hay transición real que registrar. Sin
+  // esto, dos disparadores casi simultáneos (ej. un drag en el Kanban y un
+  // clic en el panel de detalle) duplican la entrada de auditoría y la
+  // notificación aunque el pedido termine en el mismo estado de todas
+  // formas -- se vio en producción con dos "pedido.aprobado" idénticos a
+  // 313ms de diferencia.
+  if (actual.estado === estado) return { ok: true };
 
   const { data: pedido, error } = await supabase
     .from('pedidos')

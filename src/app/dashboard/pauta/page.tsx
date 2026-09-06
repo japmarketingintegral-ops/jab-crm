@@ -131,7 +131,7 @@ export default async function PautaPage({
 
   const supabase = await createClient();
 
-  const [{ data: tenant }, { data: metricasRaw }, { data: fuenteMeta }] = await Promise.all([
+  const [{ data: tenant }, { data: metricasRaw }, { data: fuenteMeta }, { data: ultimoSync }] = await Promise.all([
     supabase.from('tenants').select('name').eq('id', tenantId).single(),
     // Un solo fetch cubre el período actual y el anterior — se parte en JS,
     // mismo patrón que Inicio.
@@ -148,16 +148,30 @@ export default async function PautaPage({
       .eq('platform', 'meta')
       .not('connected_at', 'is', null)
       .maybeSingle(),
+    // Frescura viene de sincronizaciones (intentos reales), no del período
+    // filtrado -- si no, elegir un período sin datos ("Mes anterior", por
+    // ejemplo) hace que la cuenta se muestre como "sin sincronizar" aunque
+    // sincronice bien todos los días (bug real encontrado en producción:
+    // el mensaje cambiaba según el período elegido).
+    supabase
+      .from('sincronizaciones')
+      .select('estado, error_seguro, finalizado_en, iniciado_en')
+      .eq('tenant_id', tenantId)
+      .eq('plataforma', 'meta')
+      .eq('tipo', 'ads')
+      .order('iniciado_en', { ascending: false })
+      .limit(1)
+      .maybeSingle(),
   ]);
 
   const metricas = metricasRaw ?? [];
   const filasActual = metricas.filter((m) => m.fecha >= periodo.desde);
   const filasAnterior = metricas.filter((m) => m.fecha < periodo.desde);
   const cuentaConectada = Boolean(fuenteMeta?.ad_account_id);
-  const ultimaSync = metricas.reduce<string | null>(
-    (max, m) => (!max || m.created_at > max ? m.created_at : max),
-    null,
-  );
+  const ultimaSync = ultimoSync?.finalizado_en ?? ultimoSync?.iniciado_en ?? null;
+  // Cobertura ("hasta qué fecha llegan los datos") sigue viniendo de los
+  // datos reales del período consultado -- es una pregunta distinta de
+  // "cuándo sincronizó", y ya no decide el color de frescura.
   const cobertura = metricas.reduce<string | null>((max, m) => (!max || m.fecha > max ? m.fecha : max), null);
 
   const sumar = (rows: typeof filasActual, campo: 'gasto' | 'impresiones' | 'clics' | 'conversiones') =>
@@ -256,6 +270,8 @@ export default async function PautaPage({
               fuente="Meta Ads"
               conectado={cuentaConectada}
               ultimaSync={ultimaSync}
+              estadoUltimoIntento={ultimoSync?.estado}
+              errorSeguro={ultimoSync?.error_seguro}
               cobertura={cobertura ? fechaCortaSinHora(cobertura) : null}
               umbrales={UMBRALES_FRECUENTE}
             />

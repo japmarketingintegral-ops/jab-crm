@@ -31,19 +31,37 @@ export const UMBRALES_FRECUENTE: UmbralesFrescura = { actualizadoHastaMin: 60, d
  * cron; 72h antes de escalar a "necesita atención". */
 export const UMBRALES_DIARIO: UmbralesFrescura = { actualizadoHastaMin: 26 * 60, demoradoHastaMin: 72 * 60 };
 
+/** Resultado real del intento de sincronización más reciente (columna
+ * `estado` de la tabla `sincronizaciones`) -- distinto de "cuánto pasó
+ * desde ese intento". Un intento reciente que terminó en error no debería
+ * mostrarse como "actualizado" sólo porque fue hace poco. */
+export type EstadoUltimoIntento = 'ok' | 'parcial' | 'error' | 'en_curso' | null | undefined;
+
 /**
  * Nivel de frescura de una fuente de datos (Fase 1.2 del roadmap, ajustado
  * en el Requisito 7): nunca mostrar sólo un color -- siempre acompañado de
  * última sincronización, fuente y próximo intento (ver <FrescuraDatos />).
+ *
+ * `ultimoIntento` tiene que venir de la tabla `sincronizaciones` (la
+ * misma fuente de verdad que usa Configuración), nunca de la fecha de la
+ * última publicación/registro importado -- una sincronización exitosa sin
+ * resultados nuevos es igual de "al día" que una con resultados, y ambas
+ * páginas deben coincidir en qué tan reciente fue el último intento.
  */
 export function calcularFrescura(
-  ultimaSync: string | null,
+  ultimoIntento: string | null,
   conectado: boolean,
+  estadoUltimoIntento?: EstadoUltimoIntento,
   umbrales: UmbralesFrescura = UMBRALES_DIARIO,
 ): NivelFrescura {
   if (!conectado) return 'error';
-  if (!ultimaSync) return 'sin_datos';
-  const minutos = (Date.now() - new Date(ultimaSync).getTime()) / 60_000;
+  if (!ultimoIntento) return 'sin_datos';
+  // Un intento reciente que falló es "necesita atención" ahora mismo, sin
+  // importar qué tan poco tiempo pasó -- la antigüedad sólo importa para
+  // decidir entre "actualizado"/"demorado"/"desactualizado" cuando el
+  // último intento sí funcionó (o no se sabe si funcionó).
+  if (estadoUltimoIntento === 'error') return 'desactualizado';
+  const minutos = (Date.now() - new Date(ultimoIntento).getTime()) / 60_000;
   if (minutos <= umbrales.actualizadoHastaMin) return 'actualizado';
   if (minutos <= umbrales.demoradoHastaMin) return 'demorado';
   return 'desactualizado';
