@@ -2,10 +2,15 @@
 
 import { useActionState, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { agregarAcceso, eliminarAcceso } from './actions';
+import { agregarAcceso, eliminarAcceso, revelarAcceso } from './actions';
 import type { Database } from '@/lib/supabase/types';
 
-type Acceso = Database['public']['Tables']['onboarding_accesos']['Row'];
+// Sin `contrasena` -- nunca viaja al cliente en el render inicial (se
+// revela bajo demanda con revelarAcceso). `tieneContrasena` es lo único
+// que necesita la UI para saber si mostrar el botón "ver".
+type Acceso = Omit<Database['public']['Tables']['onboarding_accesos']['Row'], 'contrasena'> & {
+  tieneContrasena: boolean;
+};
 
 export function AccesosSection({ accesos }: { accesos: Acceso[] }) {
   const [expandido, setExpandido] = useState(false);
@@ -137,8 +142,26 @@ export function AccesosSection({ accesos }: { accesos: Acceso[] }) {
 }
 
 function AccesoRow({ acceso, onEliminado }: { acceso: Acceso; onEliminado: () => void }) {
-  const [verContrasena, setVerContrasena] = useState(false);
+  const [contrasena, setContrasena] = useState<string | null>(null);
+  const [cargando, setCargando] = useState(false);
+  const [errorRevelar, setErrorRevelar] = useState<string | null>(null);
   const [eliminando, setEliminando] = useState(false);
+
+  async function alternarVer() {
+    if (contrasena !== null) {
+      setContrasena(null);
+      return;
+    }
+    setCargando(true);
+    setErrorRevelar(null);
+    const res = await revelarAcceso(acceso.id);
+    setCargando(false);
+    if ('error' in res) {
+      setErrorRevelar(res.error);
+      return;
+    }
+    setContrasena(res.contrasena);
+  }
 
   return (
     <div className="rounded-lg bg-jab-panel-2 border border-jab-border px-4 py-3">
@@ -148,18 +171,15 @@ function AccesoRow({ acceso, onEliminado }: { acceso: Acceso; onEliminado: () =>
           <p className="text-xs text-jab-muted">
             {acceso.usuario ?? 'sin usuario'} ·{' '}
             <span className="font-mono">
-              {acceso.contrasena ? (verContrasena ? acceso.contrasena : '••••••••') : 'sin contraseña'}
+              {acceso.tieneContrasena ? (contrasena !== null ? contrasena : '••••••••') : 'sin contraseña'}
             </span>
-            {acceso.contrasena && (
-              <button
-                type="button"
-                onClick={() => setVerContrasena((v) => !v)}
-                className="ml-2 text-jab-accent hover:underline"
-              >
-                {verContrasena ? 'ocultar' : 'ver'}
+            {acceso.tieneContrasena && (
+              <button type="button" onClick={alternarVer} disabled={cargando} className="ml-2 text-jab-accent hover:underline disabled:opacity-50">
+                {cargando ? 'cargando…' : contrasena !== null ? 'ocultar' : 'ver'}
               </button>
             )}
           </p>
+          {errorRevelar && <p className="text-[11px] text-jab-red mt-0.5">{errorRevelar}</p>}
           {acceso.notas && <p className="text-xs text-jab-muted mt-1">{acceso.notas}</p>}
         </div>
         <button

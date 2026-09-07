@@ -3,6 +3,7 @@
 import { puedeGestionarCuenta, puedeAdministrar, requerirPerfil, requerirTenantActivo } from '@/lib/auth';
 import { createClient } from '@/lib/supabase/server';
 import { generarReporteBrief } from '@/lib/ai';
+import { cifrar, descifrar } from '@/lib/cifrado';
 
 export async function guardarBrief(_prevState: string | undefined, formData: FormData) {
   const perfil = await requerirPerfil();
@@ -64,12 +65,18 @@ export async function agregarAcceso(_prevState: string | undefined, formData: Fo
   const servicio = (formData.get('servicio') as string)?.trim();
   if (!servicio) return 'Falta el nombre del servicio o cuenta.';
 
+  const contrasenaPlana = (formData.get('contrasena') as string) || null;
+
   const supabase = await createClient();
   const { error } = await supabase.from('onboarding_accesos').insert({
     tenant_id: tenantId,
     servicio,
     usuario: (formData.get('usuario') as string) || null,
-    contrasena: (formData.get('contrasena') as string) || null,
+    // Cifrada, no en texto plano -- una contraseña real de una cuenta del
+    // cliente no debería quedar legible por cualquier query con acceso al
+    // tenant (a diferencia de un token de integración, esto no tiene otro
+    // lugar seguro donde vivir hoy).
+    contrasena: contrasenaPlana ? cifrar(contrasenaPlana) : null,
     notas: (formData.get('notas') as string) || null,
     creado_por: perfil.id,
   });
@@ -86,4 +93,32 @@ export async function eliminarAcceso(id: string) {
   const { error } = await supabase.from('onboarding_accesos').delete().eq('id', id);
   if (error) return { error: 'No se pudo eliminar.' };
   return { ok: true };
+}
+
+/**
+ * Descifra una contraseña bajo demanda -- nunca viaja al cliente en el
+ * render inicial de la página (a diferencia de antes, donde el valor ya
+ * estaba en el HTML/RSC payload apenas cargaba, aunque el botón "ver"
+ * fuera sólo un toggle visual). Mismo patrón que obtenerUrlMaterial: el
+ * dato sensible se pide recién cuando alguien lo necesita.
+ */
+export async function revelarAcceso(id: string): Promise<{ contrasena: string } | { error: string }> {
+  const perfil = await requerirPerfil();
+  if (!puedeAdministrar(perfil.role)) return { error: 'Solo el administrador o JAB pueden ver esto.' };
+  const tenantId = await requerirTenantActivo(perfil);
+
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from('onboarding_accesos')
+    .select('contrasena')
+    .eq('id', id)
+    .eq('tenant_id', tenantId)
+    .maybeSingle();
+  if (!data?.contrasena) return { error: 'No hay contraseña guardada.' };
+
+  try {
+    return { contrasena: descifrar(data.contrasena) };
+  } catch {
+    return { error: 'No se pudo descifrar -- puede ser un dato guardado antes de este cambio.' };
+  }
 }

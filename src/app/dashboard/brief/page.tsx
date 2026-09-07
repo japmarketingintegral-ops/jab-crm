@@ -24,7 +24,7 @@ export default async function BriefPage() {
     esAdmin
       ? supabase
           .from('onboarding_accesos')
-          .select('*')
+          .select('id, tenant_id, servicio, usuario, notas, creado_por, created_at, updated_at, contrasena')
           .eq('tenant_id', tenantId)
           .order('created_at', { ascending: true })
       : Promise.resolve({ data: [] }),
@@ -57,7 +57,12 @@ export default async function BriefPage() {
 
           {esAdmin && (
             <section>
-              <AccesosSection accesos={accesos ?? []} />
+              <AccesosSection
+                accesos={(accesos ?? []).map(({ contrasena: _contrasena, ...resto }) => ({
+                  ...resto,
+                  tieneContrasena: Boolean(_contrasena),
+                }))}
+              />
             </section>
           )}
         </div>
