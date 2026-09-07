@@ -143,7 +143,7 @@ export default async function PautaPage({
       .lte('fecha', periodo.hasta),
     supabase
       .from('lead_sources')
-      .select('ad_account_id')
+      .select('ad_account_id, ads_connected_at')
       .eq('tenant_id', tenantId)
       .eq('platform', 'meta')
       .not('connected_at', 'is', null)
@@ -279,6 +279,7 @@ export default async function PautaPage({
               ultimaSync={ultimaSync}
               estadoUltimoIntento={ultimoSync?.estado}
               errorSeguro={ultimoSync?.error_seguro}
+              conectadoDesde={fuenteMeta?.ads_connected_at}
               cobertura={cobertura ? fechaCortaSinHora(cobertura) : null}
               umbrales={UMBRALES_FRECUENTE}
             />
@@ -376,7 +377,7 @@ export default async function PautaPage({
               />
             </div>
 
-            <PautaCharts filas={filasActual} />
+            <PautaCharts filas={filasActual} desde={periodo.desde} hasta={periodo.hasta} />
 
             <div>
               <div className="flex flex-wrap items-center justify-between gap-2 mb-3">

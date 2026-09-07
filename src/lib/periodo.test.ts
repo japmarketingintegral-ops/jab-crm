@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { resolverPeriodo, variacion, fechaHumana } from './periodo';
+import { resolverPeriodo, variacion, fechaHumana, rangoDeFechas } from './periodo';
 
 function dias(desde: string, hasta: string): number {
   return (new Date(`${hasta}T00:00:00Z`).getTime() - new Date(`${desde}T00:00:00Z`).getTime()) / 86400000 + 1;
@@ -95,5 +95,31 @@ describe('variacion', () => {
   it('no inventa una variación cuando no hay base de comparación', () => {
     expect(variacion(50, 0)).toBeNull();
     expect(variacion(0, 0)).toBeNull();
+  });
+});
+
+describe('rangoDeFechas', () => {
+  it('incluye desde y hasta, sin saltarse días', () => {
+    expect(rangoDeFechas('2026-08-28', '2026-09-02')).toEqual([
+      '2026-08-28',
+      '2026-08-29',
+      '2026-08-30',
+      '2026-08-31',
+      '2026-09-01',
+      '2026-09-02',
+    ]);
+  });
+
+  it('con la misma fecha desde y hasta, devuelve un solo día', () => {
+    expect(rangoDeFechas('2026-09-01', '2026-09-01')).toEqual(['2026-09-01']);
+  });
+
+  it('cruza el cambio de año sin romperse', () => {
+    expect(rangoDeFechas('2025-12-30', '2026-01-02')).toEqual([
+      '2025-12-30',
+      '2025-12-31',
+      '2026-01-01',
+      '2026-01-02',
+    ]);
   });
 });

@@ -31,7 +31,7 @@ const MES_CORTO = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep'
  * durante las últimas horas de cada día en Argentina (21:00 a 23:59 ART
  * caen en el día siguiente en UTC). Sin esto, el rango "hoy"/"últimos N
  * días" corta mal justo en ese horario. */
-function hoyEnZona(zona: string = ZONA_HORARIA): string {
+export function hoyEnZona(zona: string = ZONA_HORARIA): string {
   const partes = new Intl.DateTimeFormat('en-CA', {
     timeZone: zona,
     year: 'numeric',
@@ -46,6 +46,20 @@ function sumarDias(fecha: string, dias: number): string {
   const d = new Date(`${fecha}T00:00:00Z`);
   d.setUTCDate(d.getUTCDate() + dias);
   return d.toISOString().slice(0, 10);
+}
+
+/** Todas las fechas (YYYY-MM-DD) entre desde y hasta, inclusive -- para
+ * construir el eje completo de un gráfico de evolución diaria. Sin esto,
+ * un gráfico armado sólo con los días que tienen fila en la base omite
+ * los días sin sincronizar en vez de mostrarlos como un hueco real. */
+export function rangoDeFechas(desde: string, hasta: string): string[] {
+  const fechas: string[] = [];
+  let actual = desde;
+  while (actual <= hasta) {
+    fechas.push(actual);
+    actual = sumarDias(actual, 1);
+  }
+  return fechas;
 }
 
 function diasEntre(desde: string, hasta: string): number {

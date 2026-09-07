@@ -166,6 +166,7 @@ export default async function ConfiguracionPage({
                   estadoUltimoIntento={syncRedes?.estado}
                   errorSeguro={syncRedes?.error_seguro}
                   horaCronUtc={9}
+                  conectadoDesde={fuenteMeta?.connected_at}
                 />
                 <ErrorSincronizacion sync={syncRedes} />
               </>
@@ -212,6 +213,7 @@ export default async function ConfiguracionPage({
                   estadoUltimoIntento={syncAds?.estado}
                   errorSeguro={syncAds?.error_seguro}
                   umbrales={UMBRALES_FRECUENTE}
+                  conectadoDesde={fuenteMeta?.ads_connected_at}
                 />
                 <ErrorSincronizacion sync={syncAds} />
               </>

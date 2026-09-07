@@ -9,6 +9,8 @@ import { registrarAuditoria } from '@/lib/auditoria';
 import {
   guardarConexionAds,
   guardarConexionOrganica,
+  sincronizarPublicacionesMeta,
+  sincronizarMetricasAds,
   verificarPayload,
   type ActivoPagina,
   type ActivoCuentaPublicitaria,
@@ -67,6 +69,32 @@ export async function elegirActivosMeta(paginaId: string | null, cuentaAdsId: st
   } catch (err) {
     console.error(`[meta] guardar activos elegidos falló — tenant=${tenantId}`, err instanceof Error ? err.message : '');
     redirect('/dashboard/configuracion/meta-activos?error=fallo');
+  }
+
+  // Primera importación inmediata, no esperar al próximo cron -- sin esto,
+  // Configuración muestra "necesita atención" comparando contra el último
+  // intento de la conexión ANTERIOR (o ninguno), en vez de reflejar que
+  // ésta es una conexión nueva que todavía no tuvo su primer intento. Es
+  // best-effort: si falla, sincronizarPublicacionesMeta/sincronizarMetricasAds
+  // ya dejan el motivo real en `sincronizaciones` para que se vea ahí.
+  try {
+    if (pagina) {
+      await sincronizarPublicacionesMeta(
+        supabase,
+        tenantId,
+        {
+          external_account_id: pagina.id,
+          access_token: pagina.access_token,
+          instagram_business_account_id: pagina.instagram_business_account?.id ?? null,
+        },
+        perfil.id,
+      );
+    }
+    if (cuenta && tokenUsuario) {
+      await sincronizarMetricasAds(supabase, tenantId, cuenta.id, tokenUsuario);
+    }
+  } catch (err) {
+    console.error(`[meta] primera sincronización falló — tenant=${tenantId}`, err instanceof Error ? err.message : '');
   }
 
   await registrarAuditoria(supabase, {

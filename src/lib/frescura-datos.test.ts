@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { calcularFrescura, UMBRALES_FRECUENTE } from './frescura-datos';
+import { calcularFrescura, UMBRALES_FRECUENTE, UMBRALES_DIARIO } from './frescura-datos';
 
 describe('calcularFrescura', () => {
   it('es "error" si la integración no está conectada, sin importar la fecha', () => {
@@ -24,6 +24,16 @@ describe('calcularFrescura', () => {
   it('es "desactualizado" más allá de 72 horas', () => {
     const hace5dias = new Date(Date.now() - 5 * 24 * 3_600_000).toISOString();
     expect(calcularFrescura(hace5dias, true)).toBe('desactualizado');
+  });
+
+  it('no es "necesita atención" si el último intento es de una conexión anterior (reconexión reciente)', () => {
+    const hace5dias = new Date(Date.now() - 5 * 24 * 3_600_000).toISOString();
+    const reconectadoHaceUnRato = new Date(Date.now() - 5 * 60_000).toISOString();
+    // Sin conectadoDesde, el intento viejo sí manda -- desactualizado.
+    expect(calcularFrescura(hace5dias, true, 'ok')).toBe('desactualizado');
+    // Con conectadoDesde posterior al último intento, es una conexión
+    // nueva que todavía no tuvo su propio intento -- sin_datos, no alarma.
+    expect(calcularFrescura(hace5dias, true, 'ok', UMBRALES_DIARIO, reconectadoHaceUnRato)).toBe('sin_datos');
   });
 
   it('con UMBRALES_FRECUENTE (Meta Ads, sync cada 30 min) escala mucho antes que con el umbral diario', () => {

@@ -14,6 +14,8 @@ import {
   guardarConexionOrganica,
   logErrorMetaSeguro,
   metaRedirectUri,
+  sincronizarPublicacionesMeta,
+  sincronizarMetricasAds,
   verificarPayload,
   type ActivoPagina,
   type ActivoCuentaPublicitaria,
@@ -79,8 +81,42 @@ export async function GET(request: NextRequest) {
     // conecta directo, sin pedirle al usuario que elija algo obvio.
     if (paginas.length + cuentasPublicitarias.length === 1) {
       const supabase = await createClient();
-      if (paginas.length === 1) await guardarConexionOrganica(supabase, tenantId, paginas[0]);
-      else await guardarConexionAds(supabase, tenantId, cuentasPublicitarias[0], tokenLarga);
+      // guardarConexion* NO va dentro del try/catch de más abajo -- si
+      // falla, tiene que propagar al catch de afuera (clasifica el error
+      // real y no dice "conectado" con una conexión que no se guardó).
+      let pagina: ActivoPagina | null = null;
+      let cuenta: ActivoCuentaPublicitaria | null = null;
+      if (paginas.length === 1) {
+        pagina = paginas[0];
+        await guardarConexionOrganica(supabase, tenantId, pagina);
+      } else {
+        cuenta = cuentasPublicitarias[0];
+        await guardarConexionAds(supabase, tenantId, cuenta, tokenLarga);
+      }
+
+      // Primera importación inmediata, no esperar al próximo cron -- acá sí
+      // es best effort: la conexión ya se guardó bien, un fallo del primer
+      // intento de sync queda registrado en `sincronizaciones` con el
+      // motivo real, no hace falta que la conexión se muestre como fallida.
+      try {
+        if (pagina) {
+          await sincronizarPublicacionesMeta(
+            supabase,
+            tenantId,
+            {
+              external_account_id: pagina.id,
+              access_token: pagina.access_token,
+              instagram_business_account_id: pagina.instagram_business_account?.id ?? null,
+            },
+            perfil.id,
+          );
+        }
+        if (cuenta) {
+          await sincronizarMetricasAds(supabase, tenantId, cuenta.id, tokenLarga);
+        }
+      } catch (err) {
+        console.error(`[meta] primera sincronización falló — tenant=${tenantId}`, err instanceof Error ? err.message : '');
+      }
       return redirectConfiguracion(request, 'conectado');
     }
 

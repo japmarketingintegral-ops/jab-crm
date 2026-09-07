@@ -70,7 +70,7 @@ export default async function RedesPage({
       supabase.from('social_posts').select('plataforma, publicado_en').eq('tenant_id', tenantId),
       supabase
         .from('lead_sources')
-        .select('id')
+        .select('id, connected_at')
         .eq('tenant_id', tenantId)
         .eq('platform', 'meta')
         .not('connected_at', 'is', null)
@@ -134,6 +134,7 @@ export default async function RedesPage({
               ultimaSync={ultimaSync}
               estadoUltimoIntento={ultimoSync?.estado}
               errorSeguro={ultimoSync?.error_seguro}
+              conectadoDesde={fuenteMeta?.connected_at}
               cobertura={cobertura ? fechaCortaSinHora(cobertura) : null}
               horaCronUtc={9}
             />

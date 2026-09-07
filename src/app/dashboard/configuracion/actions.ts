@@ -4,7 +4,7 @@ import { requerirPerfil, requerirTenantActivo } from '@/lib/auth';
 import { createClient } from '@/lib/supabase/server';
 import { createServiceClient } from '@/lib/supabase/service';
 import { registrarAuditoria } from '@/lib/auditoria';
-import { validarCuentaPublicitaria } from '@/lib/meta';
+import { validarCuentaPublicitaria, sincronizarMetricasAds } from '@/lib/meta';
 
 /** Desconecta solo el lado orgánico (página + Instagram) -- deja intacta
  * la conexión de Ads si existe, porque cada una tiene su propio estado. */
@@ -147,6 +147,14 @@ export async function guardarCuentaPublicitariaManual(adAccountId: string) {
     entidadTipo: 'lead_sources',
     entidadTitulo: validacion.cuenta.name,
   });
+
+  // Primera importación inmediata, no esperar al próximo cron -- best
+  // effort, un fallo queda registrado en `sincronizaciones` con el motivo.
+  try {
+    await sincronizarMetricasAds(supabase, tenantId, validacion.cuenta.id, secreto.user_access_token);
+  } catch (err) {
+    console.error(`[meta] primera sincronización falló — tenant=${tenantId}`, err instanceof Error ? err.message : '');
+  }
 
   return { ok: true };
 }

@@ -32,6 +32,7 @@ export function FrescuraDatos({
   cobertura,
   horaCronUtc,
   umbrales = UMBRALES_DIARIO,
+  conectadoDesde,
 }: {
   /** Nombre de la fuente, ej. "Meta" o "Meta Ads". */
   fuente: string;
@@ -52,8 +53,13 @@ export function FrescuraDatos({
    * sincronizan cada 30 min (Meta Ads), UMBRALES_DIARIO (default) para las
    * que sincronizan una vez al día (Redes). */
   umbrales?: UmbralesFrescura;
+  /** Cuándo se conectó esta fuente (connected_at/ads_connected_at) -- si el
+   * último intento es de antes de esto, es de una conexión anterior, no de
+   * la actual. Evita mostrar "necesita atención" en una reconexión que
+   * todavía no tuvo tiempo de sincronizar. */
+  conectadoDesde?: string | null;
 }) {
-  const nivel = calcularFrescura(ultimaSync, conectado, estadoUltimoIntento, umbrales);
+  const nivel = calcularFrescura(ultimaSync, conectado, estadoUltimoIntento, umbrales, conectadoDesde);
   const fueError = estadoUltimoIntento === 'error';
   const proximoIntento = horaCronUtc !== undefined ? ` · próximo intento: ${proximaSincronizacion(horaCronUtc)}` : '';
 

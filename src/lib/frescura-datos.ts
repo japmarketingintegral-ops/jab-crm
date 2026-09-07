@@ -53,9 +53,17 @@ export function calcularFrescura(
   conectado: boolean,
   estadoUltimoIntento?: EstadoUltimoIntento,
   umbrales: UmbralesFrescura = UMBRALES_DIARIO,
+  /** Cuándo se estableció la conexión ACTUAL (connected_at/ads_connected_at).
+   * Si el último intento registrado es de ANTES de esta fecha, es de una
+   * conexión vieja (o no hay ninguno) -- no corresponde mostrar "necesita
+   * atención" comparando contra un intento que no es de esta conexión.
+   * Reconectar dispara un intento inmediato (ver elegirActivosMeta /
+   * callback de OAuth), así que esto es un resguardo para el rato entre
+   * que se guarda la conexión y termina ese primer intento. */
+  conectadoDesde?: string | null,
 ): NivelFrescura {
   if (!conectado) return 'error';
-  if (!ultimoIntento) return 'sin_datos';
+  if (!ultimoIntento || (conectadoDesde && ultimoIntento < conectadoDesde)) return 'sin_datos';
   // Un intento reciente que falló es "necesita atención" ahora mismo, sin
   // importar qué tan poco tiempo pasó -- la antigüedad sólo importa para
   // decidir entre "actualizado"/"demorado"/"desactualizado" cuando el
