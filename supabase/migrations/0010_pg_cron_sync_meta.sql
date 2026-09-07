@@ -25,6 +25,18 @@
 -- Este archivo documenta los pasos 1, 2, 4 y 5 (reproducibles); el paso 3
 -- es un secreto y no se puede versionar -- hay que volver a sembrarlo a
 -- mano si el proyecto de Supabase se recrea desde cero alguna vez.
+--
+-- IMPORTANTE -- dos correcciones encontradas recién en producción, ya
+-- aplicadas en los jobs reales (jobid 5 y 6) y reflejadas acá:
+--   * Las rutas /api/cron/sincronizar-pauta y -redes sólo exponen GET.
+--     Los primeros dos intentos (jobid 1 y 2) usaban net.http_post y
+--     fallaban con HTTP 405 -- corregido a net.http_get.
+--   * net.http_get sin `timeout_milliseconds` explícito usa 5000ms por
+--     defecto, insuficiente para sincronizar varios tenants (medido ~2.5s
+--     por corrida normal, pero sin margen). Los intentos jobid 3 y 4
+--     tiraron timeout -- corregido a timeout_milliseconds:=30000.
+-- Los jobid 1-4 quedaron unschedule()-ados en producción; sólo 5 y 6 están
+-- activos.
 
 create extension if not exists pg_cron schema pg_catalog;
 create extension if not exists pg_net;
@@ -45,12 +57,13 @@ select cron.schedule(
   'jab-sync-pauta',
   '*/30 * * * *',
   $job$
-  select net.http_post(
+  select net.http_get(
     url := 'https://clientes.jabmarketing.site/api/cron/sincronizar-pauta',
     headers := jsonb_build_object(
       'Authorization',
       'Bearer ' || (select decrypted_secret from vault.decrypted_secrets where name = 'jab_cron_secret')
-    )
+    ),
+    timeout_milliseconds := 30000
   )
   $job$
 );
@@ -59,12 +72,13 @@ select cron.schedule(
   'jab-sync-redes',
   '*/30 * * * *',
   $job$
-  select net.http_post(
+  select net.http_get(
     url := 'https://clientes.jabmarketing.site/api/cron/sincronizar-redes',
     headers := jsonb_build_object(
       'Authorization',
       'Bearer ' || (select decrypted_secret from vault.decrypted_secrets where name = 'jab_cron_secret')
-    )
+    ),
+    timeout_milliseconds := 30000
   )
   $job$
 );
