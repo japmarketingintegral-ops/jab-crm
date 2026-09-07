@@ -27,6 +27,15 @@ function ErrorSincronizacion({ sync }: { sync: { estado: string; error_seguro: s
   );
 }
 
+/** El badge de conexión no puede decir "Conectado" en verde si el último
+ * intento de sincronización falló -- contradice al banner de error que se
+ * muestra justo debajo (bug real reportado en producción: Capuzzi con Meta
+ * orgánico "Conectado" en verde y un error de sesión expirada al mismo
+ * tiempo). */
+function necesitaAtencion(sync: { estado: string } | null) {
+  return sync?.estado === 'error' || sync?.estado === 'parcial';
+}
+
 const META_MENSAJE: Record<string, { texto: string; ok: boolean }> = {
   conectado: { texto: 'Meta conectado correctamente.', ok: true },
   cancelado: { texto: 'Cancelaste la conexión con Meta.', ok: false },
@@ -146,8 +155,12 @@ export default async function ConfiguracionPage({
               </div>
               {organicoConectado ? (
                 <div className="flex items-center gap-2 shrink-0">
-                  <span className="rounded-full px-3 py-1 text-xs font-medium bg-jab-lime text-jab-lime-ink">
-                    Conectado
+                  <span
+                    className={`rounded-full px-3 py-1 text-xs font-medium ${
+                      necesitaAtencion(syncRedes) ? 'bg-jab-amber/20 text-jab-amber' : 'bg-jab-lime text-jab-lime-ink'
+                    }`}
+                  >
+                    {necesitaAtencion(syncRedes) ? 'Necesita atención' : 'Conectado'}
                   </span>
                   {puedeDesconectar && <DesconectarMetaButton tipo="organico" />}
                 </div>
@@ -193,8 +206,12 @@ export default async function ConfiguracionPage({
               </div>
               {adsConectado ? (
                 <div className="flex items-center gap-2 shrink-0">
-                  <span className="rounded-full px-3 py-1 text-xs font-medium bg-jab-lime text-jab-lime-ink">
-                    Conectado
+                  <span
+                    className={`rounded-full px-3 py-1 text-xs font-medium ${
+                      necesitaAtencion(syncAds) ? 'bg-jab-amber/20 text-jab-amber' : 'bg-jab-lime text-jab-lime-ink'
+                    }`}
+                  >
+                    {necesitaAtencion(syncAds) ? 'Necesita atención' : 'Conectado'}
                   </span>
                   {puedeDesconectar && <DesconectarMetaButton tipo="ads" />}
                 </div>
