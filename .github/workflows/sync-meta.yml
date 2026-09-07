@@ -1,16 +1,16 @@
 name: Sincronizar Meta cada 30 minutos
 
 # El plan de Vercel de este proyecto (Hobby) solo permite cron jobs una vez
-# por día -- cualquier expresión más frecuente falla al desplegar. Los cron
-# diarios en vercel.json (sincronizar-redes, sincronizar-pauta) siguen
-# corriendo como red de seguridad, pero la actualización "casi en tiempo
-# real" de Pauta (Requisito 7 del roadmap de la beta) necesita algo más
-# frecuente -- este workflow llama a los mismos endpoints protegidos con
-# CRON_SECRET, así que hacerlo desde acá o desde Vercel es equivalente
-# para la aplicación.
+# por día -- cualquier expresión más frecuente falla al desplegar.
 #
-# Si en algún momento se pasa a un plan de Vercel que soporte cron cada 30
-# minutos, este workflow puede desactivarse y volver todo a vercel.json.
+# OJO: GitHub Actions tampoco corre schedules frecuentes (*/30 * * * *) de
+# forma confiable -- en la práctica corrió cada 1 a 6 horas, no cada 30
+# min (GitHub documenta que puede demorar o saltear corridas de schedules
+# frecuentes bajo carga). Por eso la fuente PRINCIPAL de sincronización
+# cada 30 min es pg_cron dentro del propio proyecto de Supabase (ver
+# supabase/migrations/0010_pg_cron_sync_meta.sql), que sí corre en
+# horario exacto. Este workflow y los cron diarios de vercel.json quedan
+# como redes de seguridad adicionales, no como la fuente principal.
 
 on:
   schedule:
