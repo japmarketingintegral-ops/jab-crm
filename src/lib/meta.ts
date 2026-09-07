@@ -177,6 +177,37 @@ export class ErrorMetaConocido extends Error {
   }
 }
 
+/**
+ * Vuelve a pedir el access_token de una página directo a Meta, en el
+ * momento de conectar -- el que viene embebido en /me/accounts o
+ * /{business_id}/client_pages a veces no sirve para páginas de un cliente
+ * compartidas por Portfolio Empresarial: el activo aparece en la lista
+ * porque el Business lo ve, pero Meta sólo emite un token de página
+ * realmente utilizable si a esa persona puntual le asignaron esa página
+ * dentro de Business Manager (no alcanza con ser parte del Portfolio).
+ * Pedirlo de nuevo acá, con el token de usuario de larga duración, evita
+ * guardar un token que recién se rompe la primera vez que se usa (bug real
+ * encontrado en producción: reconectar guardaba `connected_at` nuevo pero
+ * el primer sync fallaba al toque con error 190 sin subcódigo).
+ */
+export async function refrescarTokenDePagina(
+  tenantId: string,
+  pageId: string,
+  tokenUsuarioLarga: string,
+): Promise<string> {
+  const url = new URL(`${META_GRAPH_URL}/${pageId}`);
+  url.searchParams.set('fields', 'access_token');
+  url.searchParams.set('access_token', tokenUsuarioLarga);
+  const data = await fetchMeta<{ access_token?: string }>(url, { tenantId, operacion: 'refrescar_token_pagina' });
+  if (!data.access_token) {
+    throw new ErrorMetaConocido({
+      mensaje:
+        'Meta no nos dio un token válido para esa página. Probablemente falta asignártela dentro de Meta Business Suite (Configuración del negocio → Cuentas → Páginas), aunque el Portfolio la vea.',
+    });
+  }
+  return data.access_token;
+}
+
 /** Intercambia un token corto (o de cualquier duración) por uno de larga duración (~60 días). */
 export async function extenderTokenLarga(tokenCorto: string): Promise<string> {
   const url = new URL(`${META_GRAPH_URL}/oauth/access_token`);

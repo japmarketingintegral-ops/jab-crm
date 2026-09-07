@@ -14,6 +14,7 @@ import {
   guardarConexionOrganica,
   logErrorMetaSeguro,
   metaRedirectUri,
+  refrescarTokenDePagina,
   sincronizarPublicacionesMeta,
   sincronizarMetricasAds,
   verificarPayload,
@@ -87,7 +88,10 @@ export async function GET(request: NextRequest) {
       let pagina: ActivoPagina | null = null;
       let cuenta: ActivoCuentaPublicitaria | null = null;
       if (paginas.length === 1) {
-        pagina = paginas[0];
+        pagina = {
+          ...paginas[0],
+          access_token: await refrescarTokenDePagina(tenantId, paginas[0].id, tokenLarga),
+        };
         await guardarConexionOrganica(supabase, tenantId, pagina);
       } else {
         cuenta = cuentasPublicitarias[0];

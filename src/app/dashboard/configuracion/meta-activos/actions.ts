@@ -9,6 +9,7 @@ import { registrarAuditoria } from '@/lib/auditoria';
 import {
   guardarConexionAds,
   guardarConexionOrganica,
+  refrescarTokenDePagina,
   sincronizarPublicacionesMeta,
   sincronizarMetricasAds,
   verificarPayload,
@@ -63,8 +64,13 @@ export async function elegirActivosMeta(paginaId: string | null, cuentaAdsId: st
   }
 
   const supabase = await createClient();
+  let paginaConectada = pagina;
   try {
-    if (pagina) await guardarConexionOrganica(supabase, tenantId, pagina);
+    if (pagina) {
+      if (!tokenUsuario) throw new Error('Falta el token de usuario para conectar la página.');
+      paginaConectada = { ...pagina, access_token: await refrescarTokenDePagina(tenantId, pagina.id, tokenUsuario) };
+      await guardarConexionOrganica(supabase, tenantId, paginaConectada);
+    }
     if (cuenta && tokenUsuario) await guardarConexionAds(supabase, tenantId, cuenta, tokenUsuario);
   } catch (err) {
     console.error(`[meta] guardar activos elegidos falló — tenant=${tenantId}`, err instanceof Error ? err.message : '');
@@ -78,14 +84,14 @@ export async function elegirActivosMeta(paginaId: string | null, cuentaAdsId: st
   // best-effort: si falla, sincronizarPublicacionesMeta/sincronizarMetricasAds
   // ya dejan el motivo real en `sincronizaciones` para que se vea ahí.
   try {
-    if (pagina) {
+    if (paginaConectada) {
       await sincronizarPublicacionesMeta(
         supabase,
         tenantId,
         {
-          external_account_id: pagina.id,
-          access_token: pagina.access_token,
-          instagram_business_account_id: pagina.instagram_business_account?.id ?? null,
+          external_account_id: paginaConectada.id,
+          access_token: paginaConectada.access_token,
+          instagram_business_account_id: paginaConectada.instagram_business_account?.id ?? null,
         },
         perfil.id,
       );
