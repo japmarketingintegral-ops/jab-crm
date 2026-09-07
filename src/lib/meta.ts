@@ -763,6 +763,18 @@ type MediaInstagram = {
   comments_count?: number;
 };
 
+/**
+ * Para un reel/video, `media_url` es el archivo de video -- no renderiza en
+ * un <img>. `thumbnail_url` es la miniatura real y Meta sólo la incluye
+ * para medios de tipo VIDEO, así que priorizarla es seguro: una foto nunca
+ * trae `thumbnail_url` y sigue resolviendo a `media_url` igual que antes.
+ * Bug real encontrado en producción: reels de Labarra Olímpica se
+ * guardaban sin imagen.
+ */
+export function elegirImagenInstagram(media: { media_url?: string; thumbnail_url?: string }): string | null {
+  return media.thumbnail_url ?? media.media_url ?? null;
+}
+
 /** Últimos posteos de la cuenta de Instagram vinculada. El alcance se pide aparte por cada media porque la métrica "reach" no está disponible para todos los tipos de contenido (historias, algunos reels) — si falla para uno puntual, sigue con alcance 0 en vez de cortar todo el sync. */
 export async function traerPublicacionesInstagram(
   tenantId: string,
@@ -803,7 +815,7 @@ export async function traerPublicacionesInstagram(
         plataforma: 'instagram',
         titulo: m.caption?.slice(0, 200) ?? null,
         url: m.permalink ?? null,
-        imagen_url: m.media_url ?? m.thumbnail_url ?? null,
+        imagen_url: elegirImagenInstagram(m),
         publicado_en: m.timestamp,
         alcance,
         me_gusta: m.like_count ?? 0,
