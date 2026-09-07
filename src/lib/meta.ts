@@ -721,12 +721,20 @@ type PostFacebook = {
   insights?: { data?: { values?: { value?: number }[] }[] };
 };
 
-/** Últimas publicaciones de la Página (alcance orgánico vía insights, o 0 si esa métrica no está disponible para ese post). */
+/**
+ * Últimas publicaciones de la Página (alcance orgánico vía insights, o 0 si
+ * esa métrica no está disponible para ese post). Pagina con
+ * listarConPaginacion (mismo helper y mismo tope de 10 páginas que ya usa
+ * el descubrimiento de activos) en vez de traer una sola página de 15 --
+ * con un solo `limit` fijo, un período personalizado largo mostraba menos
+ * publicaciones de las que en realidad hay (bug real encontrado en
+ * producción: faltaban ~3 meses completos de posts de Capuzzi).
+ */
 export async function traerPublicacionesFacebook(
   tenantId: string,
   pageId: string,
   pageAccessToken: string,
-  limite = 15,
+  limite = 25,
 ): Promise<PublicacionMeta[]> {
   const url = new URL(`${META_GRAPH_URL}/${pageId}/posts`);
   url.searchParams.set(
@@ -736,9 +744,9 @@ export async function traerPublicacionesFacebook(
   url.searchParams.set('limit', String(limite));
   url.searchParams.set('access_token', pageAccessToken);
 
-  const data = await fetchMeta<{ data: PostFacebook[] }>(url, { tenantId, operacion: 'traerPublicacionesFacebook' });
+  const posts = await listarConPaginacion<PostFacebook>(url, tenantId, 'traerPublicacionesFacebook');
 
-  return (data.data ?? []).map((p) => ({
+  return posts.map((p) => ({
     external_id: p.id,
     plataforma: 'facebook',
     titulo: p.message?.slice(0, 200) ?? null,
@@ -775,12 +783,18 @@ export function elegirImagenInstagram(media: { media_url?: string; thumbnail_url
   return media.thumbnail_url ?? media.media_url ?? null;
 }
 
-/** Últimos posteos de la cuenta de Instagram vinculada. El alcance se pide aparte por cada media porque la métrica "reach" no está disponible para todos los tipos de contenido (historias, algunos reels) — si falla para uno puntual, sigue con alcance 0 en vez de cortar todo el sync. */
+/**
+ * Últimos posteos de la cuenta de Instagram vinculada. El alcance se pide
+ * aparte por cada media porque la métrica "reach" no está disponible para
+ * todos los tipos de contenido (historias, algunos reels) — si falla para
+ * uno puntual, sigue con alcance 0 en vez de cortar todo el sync. Pagina
+ * con listarConPaginacion por el mismo motivo que traerPublicacionesFacebook.
+ */
 export async function traerPublicacionesInstagram(
   tenantId: string,
   instagramBusinessAccountId: string,
   pageAccessToken: string,
-  limite = 15,
+  limite = 25,
 ): Promise<PublicacionMeta[]> {
   const url = new URL(`${META_GRAPH_URL}/${instagramBusinessAccountId}/media`);
   url.searchParams.set(
@@ -790,10 +804,10 @@ export async function traerPublicacionesInstagram(
   url.searchParams.set('limit', String(limite));
   url.searchParams.set('access_token', pageAccessToken);
 
-  const data = await fetchMeta<{ data: MediaInstagram[] }>(url, { tenantId, operacion: 'traerPublicacionesInstagram' });
+  const medios = await listarConPaginacion<MediaInstagram>(url, tenantId, 'traerPublicacionesInstagram');
 
   const conAlcance = await Promise.all(
-    (data.data ?? []).map(async (m) => {
+    medios.map(async (m) => {
       let alcance = 0;
       try {
         const insightsUrl = new URL(`${META_GRAPH_URL}/${m.id}/insights`);
