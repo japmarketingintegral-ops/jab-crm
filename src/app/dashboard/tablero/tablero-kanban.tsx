@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState, useTransition } from 'react';
+import { useEffect, useMemo, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { cambiarEstadoTarea } from './actions';
 import { cambiarEstadoPedido } from '../pedidos/actions';
@@ -88,6 +88,18 @@ export function TableroKanban({
   const [soloVencidas, setSoloVencidas] = useState(false);
   const [soloPedidos, setSoloPedidos] = useState(false);
   const [ocultarVacias, setOcultarVacias] = useState(false);
+  // Arranca en 'kanban' en el server y en el primer render del cliente
+  // (mismo valor en los dos, para no romper la hidratación) -- recién
+  // después de montar se ajusta a 'lista' si la pantalla es angosta. El
+  // efecto corre una sola vez al montar, antes de que la persona pueda
+  // haber tocado el toggle a mano, así que no hace falta un guard extra.
+  const [vista, setVista] = useState<'kanban' | 'lista'>('kanban');
+  useEffect(() => {
+    // Ajuste único post-montaje a una API de sólo-browser (tamaño de
+    // pantalla), no un ciclo de sincronización continuo.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (window.matchMedia('(max-width: 768px)').matches) setVista('lista');
+  }, []);
 
   const colorPorEtiqueta = useMemo(() => {
     const map = new Map<string, string>();
@@ -243,8 +255,67 @@ export function TableroKanban({
             Limpiar
           </button>
         )}
+        <div className="flex items-center gap-1 rounded-lg bg-jab-panel-2 border border-jab-border p-1 ml-auto">
+          {(['kanban', 'lista'] as const).map((v) => (
+            <button
+              key={v}
+              type="button"
+              onClick={() => setVista(v)}
+              className={`rounded px-3 py-1 text-xs font-medium capitalize ${
+                vista === v ? 'bg-jab-accent text-jab-bg-deep' : 'text-jab-muted hover:text-jab-text'
+              }`}
+            >
+              {v}
+            </button>
+          ))}
+        </div>
       </div>
 
+      {vista === 'lista' ? (
+        <div className="flex-1 overflow-y-auto space-y-4">
+          {COLUMNAS.filter((col) => filtradas.some((t) => t.estado === col.key)).map((col) => {
+            const items = filtradas.filter((t) => t.estado === col.key);
+            return (
+              <div key={col.key}>
+                <div className={`inline-flex items-center gap-2 rounded-md px-2.5 py-1 mb-2 text-xs font-bold uppercase tracking-wide ${col.color}`}>
+                  {col.titulo}
+                  <span className="opacity-70">{items.length}</span>
+                </div>
+                <div className="space-y-1.5">
+                  {items.map((t) => {
+                    const vencimiento = nivelVencimiento(t.fechaProgramada, t.estado);
+                    return (
+                      <button
+                        key={t.id}
+                        type="button"
+                        onClick={() => setSeleccion(t)}
+                        className="w-full flex items-center justify-between gap-3 rounded-lg bg-jab-panel border border-jab-border px-3 py-2.5 text-left hover:border-jab-accent/50"
+                      >
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium truncate">{t.titulo}</p>
+                          <p className={`text-[11px] mt-0.5 ${vencimiento ? VENCIMIENTO_ESTILO[vencimiento] : 'text-jab-muted'}`}>
+                            {t.origen === 'pedido' ? 'Pedido del cliente' : 'Tarea interna'}
+                            {t.fechaProgramada && ` · ${VENCIMIENTO_LABEL[vencimiento!] || '📅'} ${fechaCortaSinHora(t.fechaProgramada)}`}
+                          </p>
+                        </div>
+                        {t.asignadoNombre && (
+                          <span
+                            title={t.asignadoNombre}
+                            className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-jab-accent/20 text-[10px] font-semibold text-jab-accent"
+                          >
+                            {iniciales(t.asignadoNombre)}
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })}
+          {filtradas.length === 0 && <p className="text-sm text-jab-muted">No hay nada que coincida con los filtros.</p>}
+        </div>
+      ) : (
       <div className="flex-1 overflow-x-auto flex gap-4">
         {COLUMNAS.filter((col) => !ocultarVacias || tarjetas.some((t) => t.estado === col.key)).map((col) => {
           const items = filtradas.filter((t) => t.estado === col.key);
@@ -354,6 +425,7 @@ export function TableroKanban({
           );
         })}
       </div>
+      )}
 
       {seleccion &&
         (seleccion.origen === 'pedido' ? (
