@@ -741,6 +741,33 @@ export function sinNul(texto: string | null): string | null {
   return texto?.replace(/\u0000/g, '') ?? texto;
 }
 
+/**
+ * Diagnostico temporal -- sinNul() no alcanzo para arreglar Redes de
+ * Labarra Olimpica (mismo "invalid input syntax for type json" despues del
+ * fix), asi que en vez de seguir adivinando que caracter es, esto lo
+ * encuentra: escanea otros controles C0 (ademas de NUL) y "lone
+ * surrogates" (mitad de un emoji corrupto), que tambien rompen el cast a
+ * jsonb que hace PostgREST aunque la columna destino sea texto plano. No
+ * expone el caption completo, solo el codigo y unos caracteres alrededor.
+ */
+export function caracterProblematico(texto: string | null): string | null {
+  if (!texto) return null;
+  for (let i = 0; i < texto.length; i++) {
+    const codigo = texto.charCodeAt(i);
+    const esControlSospechoso = codigo <= 0x1f && codigo !== 9 && codigo !== 10 && codigo !== 13;
+    const esSurrogateSuelto =
+      (codigo >= 0xd800 &&
+        codigo <= 0xdbff &&
+        (i + 1 >= texto.length || texto.charCodeAt(i + 1) < 0xdc00 || texto.charCodeAt(i + 1) > 0xdfff)) ||
+      (codigo >= 0xdc00 && codigo <= 0xdfff && (i === 0 || texto.charCodeAt(i - 1) < 0xd800 || texto.charCodeAt(i - 1) > 0xdbff));
+    if (esControlSospechoso || esSurrogateSuelto) {
+      const contexto = texto.slice(Math.max(0, i - 10), i + 10);
+      return `U+${codigo.toString(16).padStart(4, '0')} en indice ${i} -- contexto: ${JSON.stringify(contexto)}`;
+    }
+  }
+  return null;
+}
+
 type PostFacebook = {
   id: string;
   message?: string;
@@ -973,6 +1000,19 @@ export async function sincronizarPublicacionesMeta(
           .eq('id', registro.id);
       }
       return { ok: true };
+    }
+
+    for (const fila of filas) {
+      for (const [campo, valor] of Object.entries(fila)) {
+        if (typeof valor !== 'string') continue;
+        const hallazgo = caracterProblematico(valor);
+        if (hallazgo) {
+          console.error(
+            `[meta] caracter sospechoso en social_posts.${campo} -- tenant=${tenantId} external_id=${fila.external_id}`,
+            hallazgo,
+          );
+        }
+      }
     }
 
     const { error } = await supabase.from('social_posts').upsert(filas, { onConflict: 'tenant_id,external_id' });
