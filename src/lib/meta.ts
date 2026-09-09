@@ -729,6 +729,18 @@ export function deduplicarPorExternalId<T extends { external_id: string }>(items
   });
 }
 
+/**
+ * Postgres (y el JSON que arma PostgREST para el upsert) no acepta el byte
+ * NUL (U+0000) en ningún texto -- ni en una columna `text` común. Un
+ * caption de Meta ocasionalmente lo trae (encoding roto, copy-paste de
+ * otro editor). Sin sanear, ese único post rompe el upsert de todo el
+ * lote con "invalid input syntax for type json" -- bug real encontrado en
+ * producción: Redes de Labarra Olímpica sin sincronizar por esto.
+ */
+export function sinNul(texto: string | null): string | null {
+  return texto?.replace(/\u0000/g, '') ?? texto;
+}
+
 type PostFacebook = {
   id: string;
   message?: string;
@@ -926,9 +938,9 @@ export async function sincronizarPublicacionesMeta(
       tenant_id: tenantId,
       external_id: p.external_id,
       plataforma: p.plataforma as SocialPlatform,
-      titulo: p.titulo,
-      url: p.url,
-      imagen_url: p.imagen_url,
+      titulo: sinNul(p.titulo),
+      url: sinNul(p.url),
+      imagen_url: sinNul(p.imagen_url),
       publicado_en: p.publicado_en.slice(0, 10),
       alcance: p.alcance,
       me_gusta: p.me_gusta,
