@@ -737,35 +737,38 @@ export function deduplicarPorExternalId<T extends { external_id: string }>(items
  * lote con "invalid input syntax for type json" -- bug real encontrado en
  * producción: Redes de Labarra Olímpica sin sincronizar por esto.
  */
-export function sinNul(texto: string | null): string | null {
-  return texto?.replace(/\u0000/g, '') ?? texto;
+export function sanearTexto(texto: string | null): string | null {
+  if (!texto) return texto;
+  let limpio = '';
+  for (let i = 0; i < texto.length; i++) {
+    const codigo = texto.charCodeAt(i);
+    if (codigo === 0) continue;
+    if (codigo <= 0x1f && codigo !== 9 && codigo !== 10 && codigo !== 13) continue;
+    const esAltoSuelto =
+      codigo >= 0xd800 &&
+      codigo <= 0xdbff &&
+      (i + 1 >= texto.length || texto.charCodeAt(i + 1) < 0xdc00 || texto.charCodeAt(i + 1) > 0xdfff);
+    const esBajoSuelto =
+      codigo >= 0xdc00 && codigo <= 0xdfff && (i === 0 || texto.charCodeAt(i - 1) < 0xd800 || texto.charCodeAt(i - 1) > 0xdbff);
+    if (esAltoSuelto || esBajoSuelto) continue;
+    limpio += texto[i];
+  }
+  return limpio;
 }
 
 /**
- * Diagnostico temporal -- sinNul() no alcanzo para arreglar Redes de
- * Labarra Olimpica (mismo "invalid input syntax for type json" despues del
- * fix), asi que en vez de seguir adivinando que caracter es, esto lo
- * encuentra: escanea otros controles C0 (ademas de NUL) y "lone
- * surrogates" (mitad de un emoji corrupto), que tambien rompen el cast a
- * jsonb que hace PostgREST aunque la columna destino sea texto plano. No
- * expone el caption completo, solo el codigo y unos caracteres alrededor.
+ * texto.slice(0, limite) opera sobre unidades UTF-16, no sobre caracteres
+ * completos -- si un emoji (par subrogado, dos unidades) cae justo en el
+ * borde del recorte, corta a la mitad y deja un "lone surrogate" suelto.
+ * Ese caracter invalido rompe el cast a jsonb que hace PostgREST al
+ * guardar, aunque la columna destino sea texto plano. Bug real encontrado
+ * en produccion: Redes de Labarra Olimpica sin sincronizar por un caption
+ * cuyo emoji cayo justo en el caracter 200.
  */
-export function caracterProblematico(texto: string | null): string | null {
-  if (!texto) return null;
-  for (let i = 0; i < texto.length; i++) {
-    const codigo = texto.charCodeAt(i);
-    const esControlSospechoso = codigo <= 0x1f && codigo !== 9 && codigo !== 10 && codigo !== 13;
-    const esSurrogateSuelto =
-      (codigo >= 0xd800 &&
-        codigo <= 0xdbff &&
-        (i + 1 >= texto.length || texto.charCodeAt(i + 1) < 0xdc00 || texto.charCodeAt(i + 1) > 0xdfff)) ||
-      (codigo >= 0xdc00 && codigo <= 0xdfff && (i === 0 || texto.charCodeAt(i - 1) < 0xd800 || texto.charCodeAt(i - 1) > 0xdbff));
-    if (esControlSospechoso || esSurrogateSuelto) {
-      const contexto = texto.slice(Math.max(0, i - 10), i + 10);
-      return `U+${codigo.toString(16).padStart(4, '0')} en indice ${i} -- contexto: ${JSON.stringify(contexto)}`;
-    }
-  }
-  return null;
+export function recortarSinCortarEmoji(texto: string, limite: number): string {
+  const recorte = texto.slice(0, limite);
+  const ultimo = recorte.charCodeAt(recorte.length - 1);
+  return ultimo >= 0xd800 && ultimo <= 0xdbff ? recorte.slice(0, -1) : recorte;
 }
 
 type PostFacebook = {
@@ -808,7 +811,7 @@ export async function traerPublicacionesFacebook(
   return posts.map((p) => ({
     external_id: p.id,
     plataforma: 'facebook',
-    titulo: p.message?.slice(0, 200) ?? null,
+    titulo: p.message ? recortarSinCortarEmoji(p.message, 200) : null,
     url: p.permalink_url ?? null,
     imagen_url: p.full_picture ?? null,
     publicado_en: p.created_time,
@@ -886,7 +889,7 @@ export async function traerPublicacionesInstagram(
       const publicacion: PublicacionMeta = {
         external_id: m.id,
         plataforma: 'instagram',
-        titulo: m.caption?.slice(0, 200) ?? null,
+        titulo: m.caption ? recortarSinCortarEmoji(m.caption, 200) : null,
         url: m.permalink ?? null,
         imagen_url: elegirImagenInstagram(m),
         publicado_en: m.timestamp,
@@ -965,9 +968,9 @@ export async function sincronizarPublicacionesMeta(
       tenant_id: tenantId,
       external_id: p.external_id,
       plataforma: p.plataforma as SocialPlatform,
-      titulo: sinNul(p.titulo),
-      url: sinNul(p.url),
-      imagen_url: sinNul(p.imagen_url),
+      titulo: sanearTexto(p.titulo),
+      url: sanearTexto(p.url),
+      imagen_url: sanearTexto(p.imagen_url),
       publicado_en: p.publicado_en.slice(0, 10),
       alcance: p.alcance,
       me_gusta: p.me_gusta,
@@ -1000,19 +1003,6 @@ export async function sincronizarPublicacionesMeta(
           .eq('id', registro.id);
       }
       return { ok: true };
-    }
-
-    for (const fila of filas) {
-      for (const [campo, valor] of Object.entries(fila)) {
-        if (typeof valor !== 'string') continue;
-        const hallazgo = caracterProblematico(valor);
-        if (hallazgo) {
-          console.error(
-            `[meta] caracter sospechoso en social_posts.${campo} -- tenant=${tenantId} external_id=${fila.external_id}`,
-            hallazgo,
-          );
-        }
-      }
     }
 
     const { error } = await supabase.from('social_posts').upsert(filas, { onConflict: 'tenant_id,external_id' });
