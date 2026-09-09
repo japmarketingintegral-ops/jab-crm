@@ -709,6 +709,26 @@ export type PublicacionMeta = {
   compartidos: number;
 };
 
+/**
+ * listarConPaginacion no deduplica -- si Meta desplaza resultados entre
+ * páginas (posible en una cuenta que publica seguido mientras se pagina su
+ * historial), el mismo post puede aparecer dos veces en el mismo lote.
+ * Postgres rechaza un upsert con la misma clave de conflicto
+ * (tenant_id, external_id) repetida dentro del mismo statement ("ON
+ * CONFLICT DO UPDATE command cannot affect row a second time") -- bug real
+ * encontrado en producción: Redes de Labarra Olímpica rota desde que se
+ * sumó paginación profunda. Se deduplica por external_id, la misma clave
+ * del constraint, antes de armar las filas para el upsert.
+ */
+export function deduplicarPorExternalId<T extends { external_id: string }>(items: T[]): T[] {
+  const vistos = new Set<string>();
+  return items.filter((item) => {
+    if (vistos.has(item.external_id)) return false;
+    vistos.add(item.external_id);
+    return true;
+  });
+}
+
 type PostFacebook = {
   id: string;
   message?: string;
@@ -902,7 +922,7 @@ export async function sincronizarPublicacionesMeta(
   }
 
   try {
-    const filas = [...posts, ...media].map((p) => ({
+    const filas = deduplicarPorExternalId([...posts, ...media]).map((p) => ({
       tenant_id: tenantId,
       external_id: p.external_id,
       plataforma: p.plataforma as SocialPlatform,
@@ -945,6 +965,10 @@ export async function sincronizarPublicacionesMeta(
 
     const { error } = await supabase.from('social_posts').upsert(filas, { onConflict: 'tenant_id,external_id' });
     if (error) {
+      // El mensaje de Postgres (constraint, columna, etc.) no expone datos
+      // sensibles -- a diferencia de un error de Meta, es seguro loguearlo
+      // completo para diagnosticar sin tener que adivinar.
+      console.error(`[meta] upsert de social_posts falló — tenant=${tenantId}`, error.message);
       if (registro) {
         await service
           .from('sincronizaciones')
